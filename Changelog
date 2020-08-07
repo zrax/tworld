@@ -1,4 +1,10 @@
 
+2002 Jan 28: version 0.10.3
+
+* Added "Melinda" feature.
+* Reformatted documentation, so man and html versions come from a single
+  source.
+
 2002 Jan 20: version 0.10.2
 
 * Auto-deprecate saved games that are broken.
@@ -6,6 +12,7 @@
 * Fix for die-if-no-soundcard bug (reported by Bill Darrah).
 * Added resources entries for changing the color scheme.
 * Added hackish "fixlynx" keyword.
+* New: first draft of some real documentation.
 
 2002 Jan 13: version 0.10.1
 

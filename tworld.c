@@ -32,7 +32,8 @@ typedef	struct gamespec {
     int		playback;	/* TRUE if in playback mode */
     int		usepasswds;	/* FALSE if passwords are to be ignored */
     int		status;		/* final status of last game played */
-    int		enddisplay;	/* TRUE if the last level has been completed */
+    int		enddisplay;	/* TRUE if the final level was completed */
+    int		melindacount;	/* count for Melinda's free pass */
 } gamespec;
 
 /* Structure used to pass data back from initoptionswithcmdline().
@@ -75,22 +76,75 @@ static int	mudsucking = 1;
  * The program's text-mode output functions.
  */
 
+/* Find a position to break a string inbetween words. The integer at
+ * breakpos receives the length of the string prefix less than or
+ * equal to len. The string pointer *str is advanced to the first
+ * non-whitespace after the break. The original string pointer is
+ * returned.
+ */
+static char *findstrbreak(char const **str, int maxlen, int *breakpos)
+{
+    char const *start;
+    int		n;
+
+  retry:
+    start = *str;
+    n = strlen(start);
+    if (n <= maxlen) {
+	*str += n;
+	*breakpos = n;
+    } else {
+	n = maxlen;
+	if (isspace(start[n])) {
+	    *str += n;
+	    while (isspace(**str))
+		++*str;
+	    while (n > 0 && isspace(start[n - 1]))
+		--n;
+	    if (n == 0)
+		goto retry;
+	    *breakpos = n;
+	} else {
+	    while (n > 0 && !isspace(start[n - 1]))
+		--n;
+	    if (n == 0) {
+		*str += maxlen;
+		*breakpos = maxlen;
+	    } else {
+		*str = start + n;
+		while (n > 0 && isspace(start[n - 1]))
+		    --n;
+		if (n == 0)
+		    goto retry;
+		*breakpos = n;
+	    }
+	}
+    }
+    return (char*)start;
+}
+
 /* Render a table to standard output.
  */
 void printtable(FILE *out, tablespec const *table)
 {
+    char const *mlstr;
+    char const *p;
     int	       *colsizes;
-    int		len;
-    int		c, n, x, y;
+    int		len, pos;
+    int		mlpos, mllen;
+    int		c, n, x, y, z;
 
     colsizes = malloc(table->cols * sizeof *colsizes);
     for (x = 0 ; x < table->cols ; ++x)
 	colsizes[x] = 0;
+    mlpos = -1;
     n = 0;
     for (y = 0 ; y < table->rows ; ++y) {
 	for (x = 0 ; x < table->cols ; ++n) {
 	    c = table->items[n][0] - '0';
-	    if (c == 1) {
+	    if (table->items[n][1] == '!') {
+		mlpos = x;
+	    } else if (c == 1) {
 		len = strlen(table->items[n] + 2);
 		if (len > colsizes[x])
 		    colsizes[x] = len;
@@ -109,13 +163,18 @@ void printtable(FILE *out, tablespec const *table)
 	if (colsizes[table->collapse] <= n)
 	    return;
 	colsizes[table->collapse] -= n;
+    } else if (mlpos >= 0) {
+	colsizes[mlpos] += 79 - n;
     }
 
     n = 0;
     for (y = 0 ; y < table->rows ; ++y) {
+	mlstr = NULL;
+	mllen = 0;
+	pos = 0;
 	for (x = 0 ; x < table->cols ; ++n) {
 	    if (x)
-		fprintf(out, "%*s", table->sep, "");
+		pos += fprintf(out, "%*s", table->sep, "");
 	    c = table->items[n][0] - '0';
 	    len = -table->sep;
 	    while (c--)
@@ -125,11 +184,25 @@ void printtable(FILE *out, tablespec const *table)
 	    else if (table->items[n][1] == '+')
 		fprintf(out, "%*.*s", len, len, table->items[n] + 2);
 	    else if (table->items[n][1] == '.') {
-		len -= (len - strlen(table->items[n] + 3)) / 2;
-		fprintf(out, "%*.*s", len, len, table->items[n] + 2);
+		z = (len - strlen(table->items[n] + 2)) / 2;
+		if (z < 0)
+		    z = len;
+		fprintf(out, "%*.*s%*s",
+			     len - z, len - z, table->items[n] + 2, z, "");
+	    } else if (table->items[n][1] == '!') {
+		mllen = len;
+		mlpos = pos;
+		mlstr = table->items[n] + 2;
+		p = findstrbreak(&mlstr, len, &z);
+		fprintf(out, "%.*s%*s", z, p, len - z, "");
 	    }
+	    pos += len;
 	}
 	fputc('\n', out);
+	while (mlstr && *mlstr) {
+	    p = findstrbreak(&mlstr, mllen, &len);
+	    fprintf(out, "%*s%.*s\n", mlpos, "", len, p);
+	}
     }
     free(colsizes);
 }
@@ -145,6 +218,27 @@ static void printdirectories(void)
 /*
  * Callback functions for oshw.
  */
+
+static int yninputcallback(void)
+{
+    int	ch;
+
+    ch = input(TRUE);
+    if (ch == CmdWest)
+	return '\b';
+    else if (ch == CmdProceed)
+	return '\n';
+    else if (ch == CmdQuitLevel)
+	return -1;
+    else if (ch == CmdQuit)
+	exit(0);
+    else if (isalpha(ch)) {
+	ch = toupper(ch);
+	if (ch == 'Y' || ch == 'N')
+	    return ch;
+    }
+    return 0;
+}
 
 /* A callback functions for handling the keyboard while collecting
  * input.
@@ -217,6 +311,26 @@ static void passwordseen(gamespec *gs)
     }
 }
 
+/*
+ */
+static int setcurrentgame(gamespec *gs, int n)
+{
+    if (n == gs->currentgame)
+	return TRUE;
+    if (n < 0 || n >= gs->series.total)
+	return FALSE;
+
+    if (gs->usepasswds)
+	if (n > 0 && !(gs->series.games[n].sgflags & SGF_HASPASSWD)
+		  && !hassolution(gs->series.games + n - 1)
+		  && !(n == gs->currentgame + 1 && gs->melindacount >= 10))
+	    return FALSE;
+
+    gs->currentgame = n;
+    gs->melindacount = 0;
+    return TRUE;
+}
+
 /* Change the current game, ensuring that the user is not granted
  * access to a forbidden level. FALSE is returned if the current game
  * was not changed.
@@ -235,12 +349,12 @@ static int changecurrentgame(gamespec *gs, int offset)
     else if (n >= gs->series.total)
 	n = gs->series.total - 1;
 
-    if (gs->usepasswds) {
+    if (gs->usepasswds && n > 0) {
 	sign = offset < 0 ? -1 : +1;
 	for ( ; n >= 0 && n < gs->series.total ; n += sign) {
-	    if (hassolution(gs->series.games + n)
-			|| (gs->series.games[n].sgflags & SGF_HASPASSWD)
-			|| (n > 0 && hassolution(gs->series.games + n - 1))) {
+	    if (!n || (gs->series.games[n].sgflags & SGF_HASPASSWD)
+		   || hassolution(gs->series.games + n - 1)
+		   || (n == gs->currentgame + 1 && gs->melindacount >= 10)) {
 		m = n;
 		break;
 	    }
@@ -251,12 +365,10 @@ static int changecurrentgame(gamespec *gs, int offset)
 	    for ( ; n != gs->currentgame ; n -= sign) {
 		if (n < 0 || n >= gs->series.total)
 		    continue;
-		if (hassolution(gs->series.games + n)
-			|| (gs->series.games[n].sgflags & SGF_HASPASSWD)
-			|| (n > 0 && hassolution(gs->series.games + n - 1))) {
-		    m = n;
+		if (!n || (gs->series.games[n].sgflags & SGF_HASPASSWD)
+		       || hassolution(gs->series.games + n - 1)
+		       || (n == gs->currentgame + 1 && gs->melindacount >= 10))
 		    break;
-		}
 	    }
 	}
     }
@@ -266,6 +378,27 @@ static int changecurrentgame(gamespec *gs, int offset)
 	return FALSE;
     }
     gs->currentgame = n;
+    gs->melindacount = 0;
+    return TRUE;
+}
+
+/* Return TRUE if Melinda is watching Chip's progress on this level.
+ */
+static int melindawatching(gamespec *gs)
+{
+    int	n;
+
+    if (!gs->usepasswds)
+	return FALSE;
+    n = gs->currentgame;
+    if (n + 1 == gs->series.total)
+	return FALSE;
+    if (gs->series.games[n].number == gs->series.final)
+	return FALSE;
+    if (gs->series.games[n + 1].sgflags & SGF_HASPASSWD)
+	return FALSE;
+    if (hassolution(gs->series.games + n))
+	return FALSE;
     return TRUE;
 }
 
@@ -302,9 +435,9 @@ static int showscores(gamespec *gs)
 	    onlinehelp(Help_None);
     }
     freescorelist(levellist, &table);
-    if (n >= 0)
-	gs->currentgame = n;
-    return n >= 0;
+    if (n < 0)
+	return FALSE;
+    return setcurrentgame(gs, n);
 }
 
 /* Obtain a password from the user and move to the requested level.
@@ -325,9 +458,7 @@ static int selectlevelbypassword(gamespec *gs)
 	bell();
 	return FALSE;
     }
-
-    gs->currentgame = n;
-    return TRUE;
+    return setcurrentgame(gs, n);
 }
 
 /*
@@ -357,7 +488,7 @@ static int doenddisplay(gamespec *gs)
 	  case CmdPrev:
 	  case CmdNextLevel:
 	  case CmdNext:
-	    changecurrentgame(gs, -gs->currentgame);
+	    setcurrentgame(gs, 0);
 	    return TRUE;
 	  case CmdQuit:
 	    exit(0);
@@ -423,11 +554,27 @@ static int startinput(gamespec *gs)
  */
 static int endinput(gamespec *gs)
 {
-    int	bscore = 0, tscore = 0, gscore = 0;
+    char	yn[2];
+    int		bscore = 0, tscore = 0, gscore = 0;
+    int		n;
 
-    if (gs->status >= 0)
+    if (gs->status < 0) {
+	if (melindawatching(gs) && secondsplayed() >= 10) {
+	    ++gs->melindacount;
+	    if (gs->melindacount >= 10) {
+		setgameplaymode(BeginInput);
+		n = displayinputprompt("Skip level?", yn, 1, yninputcallback);
+		setgameplaymode(EndInput);
+		if (n && *yn == 'Y')
+		    changecurrentgame(gs, +1);
+		gs->melindacount = 0;
+		return TRUE;
+	    }
+	}
+    } else {
 	getscoresforlevel(&gs->series, gs->currentgame,
 			  &bscore, &tscore, &gscore);
+    }
 
     displayendmessage(bscore, tscore, gscore, gs->status);
 
@@ -450,12 +597,13 @@ static int endinput(gamespec *gs)
 	  case CmdQuit:						exit(0);
 	  case CmdProceed:
 	    if (gs->status > 0) {
-		if (gs->currentgame + 1 == gs->series.total ||
-			gs->series.games[gs->currentgame].number == gs->series.final) {
+		n = gs->currentgame;
+		if (gs->series.games[n].number == gs->series.final)
 		    gs->enddisplay = TRUE;
-		} else {
+		else if (n + 1 == gs->series.total)
+		    gs->enddisplay = TRUE;
+		else
 		    changecurrentgame(gs, +1);
-		}
 	    }
 	    return TRUE;
 	}
@@ -531,14 +679,9 @@ static int playgame(gamespec *gs, int firstcmd)
 	}
     }
     setgameplaymode(EndPlay);
-    if (n > 0) {
+    if (n > 0)
 	if (replacesolution())
 	    savesolutions(&gs->series);
-/*
-	if (gs->currentgame + 1 >= gs->series.count)
-	    n = 0;
-*/
-    }
     gs->status = n;
     return TRUE;
 
@@ -670,6 +813,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
     gs->playback = FALSE;
     gs->usepasswds = usepasswds && !(gs->series.gsflags & GSF_IGNOREPASSWDS);
     gs->currentgame = -1;
+    gs->melindacount = 0;
 
     if (defaultlevel) {
 	n = findlevelinseries(&gs->series, defaultlevel, NULL);
