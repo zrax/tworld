@@ -70,10 +70,9 @@ static int const	delta[] = { 0, -CXGRID, -1, 0, +CXGRID, 0, 0, 0, +1 };
  */
 static int		lastrndslidedir = NORTH;
 
-/* The current stepping value, giving the subsecond offset of the
- * timer. This affects when teeth move.
+/* The most recently used stepping phase value.
  */
-static int		stepping = 2;
+static int		laststepping = 0;
 
 /* The memory used to hold the list of creatures.
  */
@@ -103,6 +102,8 @@ static gamestate       *state;
 #define	currenttime()		(state->currenttime)
 #define	currentinput()		(state->currentinput)
 #define	lastmove()		(state->lastmove)
+#define	stepping()		(state->stepping)
+#define	rndslidedir()		(state->initrndslidedir)
 #define	xviewpos()		(state->xviewpos)
 #define	yviewpos()		(state->yviewpos)
 
@@ -387,7 +388,7 @@ static void removecreature(creature *cr, int animationid)
     if (cr->state & CS_PUSHED)
 	stopsoundeffect(SND_BLOCK_MOVING);
     cr->id = animationid;
-    cr->frame = ((currenttime() + stepping) & 1) ? 12 : 11;
+    cr->frame = ((currenttime() + stepping()) & 1) ? 12 : 11;
     --cr->frame;
     cr->hidden = FALSE;
     cr->state = 0;
@@ -832,7 +833,7 @@ static void choosecreaturemove(creature *cr)
 	choices[0] = BLOB_TURN;
 	break;
       case Teeth:
-	if ((currenttime() + stepping) & 4)
+	if ((currenttime() + stepping()) & 4)
 	    return;
 	if (getchip()->hidden)
 	    return;
@@ -1536,10 +1537,8 @@ static void initialhousekeeping(void)
 #endif
 
     if (currenttime() == 0) {
-	if (state->initrndslidedir == NIL)
-	    state->initrndslidedir = lastrndslidedir;
-	else
-	    lastrndslidedir = state->initrndslidedir;
+	lastrndslidedir = rndslidedir();
+	laststepping = stepping();
     }
 
     chip = getchip();
@@ -1947,6 +1946,8 @@ static int initgame(gamelogic *logic)
     chiptocr() = NULL;
     prngvalue1() = 0;
     prngvalue2() = 0;
+    rndslidedir() = lastrndslidedir;
+    stepping() = laststepping;
     xviewoffset() = 0;
     yviewoffset() = 0;
 
@@ -2051,6 +2052,7 @@ gamelogic *lynxlogicstartup(void)
     if (!creaturearray)
 	memerrexit();
     lastrndslidedir = NORTH;
+    laststepping = 0;
 
     logic.ruleset = Ruleset_Lynx;
     logic.initgame = initgame;

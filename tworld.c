@@ -24,12 +24,14 @@
  */
 #define	bell()	(silence ? (void)0 : ding())
 
+enum { Play_None, Play_Normal, Play_Back, Play_Verify };
+
 /* The data needed to identify what level is being played.
  */
 typedef	struct gamespec {
     gameseries	series;		/* the complete set of levels */
     int		currentgame;	/* which level is currently selected */
-    int		playback;	/* TRUE if in playback mode */
+    int		playmode;	/* which mode to play */
     int		usepasswds;	/* FALSE if passwords are to be ignored */
     int		status;		/* final status of last game played */
     int		enddisplay;	/* TRUE if the final level was completed */
@@ -163,7 +165,7 @@ void printtable(FILE *out, tablespec const *table)
 	for (x = 0 ; x < table->cols ; ++n) {
 	    c = table->items[n][0] - '0';
 	    if (table->items[n][1] == '!') {
-		mlpos = x;
+		mlpos = x + c - 1;
 	    } else if (c == 1) {
 		len = strlen(table->items[n] + 2);
 		if (len > colsizes[x])
@@ -552,12 +554,15 @@ static int startinput(gamespec *gs)
     int	cmd;
 
     drawscreen(TRUE);
+    gs->playmode = Play_None;
     for (;;) {
 	cmd = input(TRUE);
-	if (cmd >= CmdMoveFirst && cmd <= CmdMoveLast)
+	if (cmd >= CmdMoveFirst && cmd <= CmdMoveLast) {
+	    gs->playmode = Play_Normal;
 	    return cmd;
+	}
 	switch (cmd) {
-	  case CmdProceed:					return cmd;
+	  case CmdProceed:	gs->playmode = Play_Normal;	return cmd;
 	  case CmdQuitLevel:					return cmd;
 	  case CmdPrev10:	leveldelta(-10);		return CmdNone;
 	  case CmdPrev:		leveldelta(-1);			return CmdNone;
@@ -566,13 +571,22 @@ static int startinput(gamespec *gs)
 	  case CmdNext:		leveldelta(+1);			return CmdNone;
 	  case CmdNext10:	leveldelta(+10);		return CmdNone;
 	  case CmdKillSolution:	replaceablesolution(gs, -1);	break;
+	  case CmdStepping:	changestepping(4, FALSE);	break;
+	  case CmdSubStepping:	changestepping(1, FALSE);	break;
 	  case CmdVolumeUp:	changevolume(+2, TRUE);		break;
 	  case CmdVolumeDown:	changevolume(-2, TRUE);		break;
-	  case CmdHelp:		dohelp(Help_KeysBetweenGames); break;
+	  case CmdHelp:		dohelp(Help_KeysBetweenGames);	break;
 	  case CmdQuit:						exit(0);
 	  case CmdPlayback:
 	    if (prepareplayback()) {
-		gs->playback = TRUE;
+		gs->playmode = Play_Back;
+		return CmdProceed;
+	    }
+	    bell();
+	    break;
+	  case CmdCheckSolution:
+	    if (prepareplayback()) {
+		gs->playmode = Play_Verify;
 		return CmdProceed;
 	    }
 	    bell();
@@ -635,10 +649,11 @@ static int endinput(gamespec *gs)
 	  case CmdNext:		changecurrentgame(gs, +1);	return TRUE;
 	  case CmdNext10:	changecurrentgame(gs, +10);	return TRUE;
 	  case CmdGotoLevel:	selectlevelbypassword(gs);	return TRUE;
-	  case CmdPlayback:	gs->playback = !gs->playback;	return TRUE;
+	  case CmdPlayback:					return TRUE;
+	  case CmdCheckSolution:				return TRUE;
 	  case CmdSeeScores:	showscores(gs);			return TRUE;
 	  case CmdKillSolution:	replaceablesolution(gs, -1);	return TRUE;
-	  case CmdHelp:		dohelp(Help_KeysBetweenGames); return TRUE;
+	  case CmdHelp:		dohelp(Help_KeysBetweenGames);	return TRUE;
 	  case CmdQuitLevel:					return FALSE;
 	  case CmdQuit:						exit(0);
 	  case CmdProceed:
@@ -842,7 +857,7 @@ static int playbackgame(gamespec *gs)
     if (!lastrendered)
 	drawscreen(TRUE);
     setgameplaymode(EndPlay);
-    gs->playback = FALSE;
+    gs->playmode = Play_None;
     if (n < 0)
 	replaceablesolution(gs, +1);
     if (n > 0) {
@@ -859,7 +874,53 @@ static int playbackgame(gamespec *gs)
 	drawscreen(TRUE);
     quitgamestate();
     setgameplaymode(EndPlay);
-    gs->playback = FALSE;
+    gs->playmode = Play_None;
+    return FALSE;
+}
+
+/* 
+ */
+static int verifyplayback(gamespec *gs)
+{
+    int	n;
+
+    gs->status = 0;
+    setdisplaymsg("Verifying ...", 1, 0);
+    setgameplaymode(BeginVerify);
+    for (;;) {
+	n = doturn(CmdNone);
+	if (n)
+	    break;
+	advancetick();
+	switch (input(FALSE)) {
+	  case CmdPrevLevel:	changecurrentgame(gs, -1);	goto quitloop;
+	  case CmdNextLevel:	changecurrentgame(gs, +1);	goto quitloop;
+	  case CmdSameLevel:					goto quitloop;
+	  case CmdPlayback:					goto quitloop;
+	  case CmdQuitLevel:					goto quitloop;
+	  case CmdQuit:						exit(0);
+	}
+    }
+    gs->playmode = Play_None;
+    quitgamestate();
+    drawscreen(TRUE);
+    setgameplaymode(EndVerify);
+    if (n < 0) {
+	setdisplaymsg("Invalid solution!", 1, 1);
+	replaceablesolution(gs, +1);
+    }
+    if (n > 0) {
+	setdisplaymsg(NULL, 0, 0);
+	if (islastinseries(gs, gs->currentgame))
+	    n = 0;
+    }
+    gs->status = n;
+    return TRUE;
+
+  quitloop:
+    setdisplaymsg(NULL, 0, 0);
+    gs->playmode = Play_None;
+    setgameplaymode(EndVerify);
     return FALSE;
 }
 
@@ -897,7 +958,12 @@ static int runcurrentlevel(gamespec *gs)
     } else {
 	if (cmd != CmdNone) {
 	    if (valid) {
-		f = gs->playback ? playbackgame(gs) : playgame(gs, cmd);
+		switch (gs->playmode) {
+		  case Play_Normal:	f = playgame(gs, cmd);		break;
+		  case Play_Back:	f = playbackgame(gs);		break;
+		  case Play_Verify:	f = verifyplayback(gs);		break;
+		  default:		f = FALSE;			break;
+		}
 		if (f)
 		    ret = endinput(gs);
 	    } else
@@ -980,7 +1046,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
     }
 
     gs->enddisplay = FALSE;
-    gs->playback = FALSE;
+    gs->playmode = Play_None;
     gs->usepasswds = usepasswds && !(gs->series.gsflags & GSF_IGNOREPASSWDS);
     gs->currentgame = -1;
     gs->melindacount = 0;
@@ -1141,7 +1207,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     soundbufsize = 0;
     volumelevel = -1;
 
-    initoptions(&opts, argc - 1, argv + 1, "aD:dFfHhL:lm:n:pqR:S:stVv");
+    initoptions(&opts, argc - 1, argv + 1, "aD:dFfHhL:lm:n:pqR:rS:stVv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -1164,6 +1230,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	  case 'F':	fullscreen = !fullscreen;			break;
 	  case 'p':	usepasswds = !usepasswds;			break;
 	  case 'q':	silence = !silence;				break;
+	  case 'r':	readonly = !readonly;				break;
 	  case 'a':	++soundbufsize;					break;
 	  case 'd':	listdirs = TRUE;				break;
 	  case 'l':	start->listseries = TRUE;			break;
@@ -1206,6 +1273,9 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
  */
 static int initializesystem(void)
 {
+#ifdef NDEBUG
+    mudsucking = 1;
+#endif
     setmudsuckingfactor(mudsucking);
     if (!oshwinitialize(silence, soundbufsize, showhistogram, fullscreen))
 	return FALSE;

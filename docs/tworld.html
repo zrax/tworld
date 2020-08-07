@@ -249,6 +249,10 @@ commands are available:
 that password.</td></tr>
 <tr><td><tt>Ctrl</tt>-<tt>I</tt>&nbsp;</td>
 <td>plays back the best solution for that level.</td></tr>
+<tr><td><tt>O</tt>&nbsp;</td>
+<td>toggles between even-step and odd-step offset.</td></tr>
+<tr><td><tt>Shift</tt>-<tt>O</tt>&nbsp;</td>
+<td>(Lynx-mode only) increments the stepping offset by one.</td></tr>
 <tr><td><tt>Ctrl</tt>-<tt>X</tt>&nbsp;</td>
 <td>deprecates the best solution for that level. If the level is then
 succesfully completed again, the saved solution will be replaced with
@@ -265,8 +269,8 @@ At most other points, the <tt>Q</tt> key will abort the current activity
 and return to the start of the current level.
 <p>
 Finally, the program can be exited at any time by pressing
-<tt>Shift</tt>-<tt>Q</tt>. <tt>Ctrl</tt>-<tt>C</tt> or <tt>Alt</tt>-<tt>F4</tt> will also force an immediate
-exit.
+<tt>Shift</tt>-<tt>Q</tt>. (<tt>Ctrl</tt>-<tt>C</tt> or <tt>Alt</tt>-<tt>F4</tt> will also force an immediate
+exit.)
 <p>
 <a name="5"></a>
 <h3>
@@ -334,6 +338,8 @@ for example <tt>-aaa</tt> would increase the audio buffer size eightfold.</td></
 <tr><td><tt>-d</tt>&nbsp;</td>
 <td>Display the default directories used by the program on standard
 output, and exit.</td></tr>
+<tr><td><tt>-F</tt>&nbsp;</td>
+<td>Run in full-screen mode.</td></tr>
 <tr><td><tt>-H</tt>&nbsp;</td>
 <td>Upon exit, display a histogram of idle time on standard output. (This
 option is used for evaluating optimization efforts.)</td></tr>
@@ -348,11 +354,14 @@ exit.</td></tr>
 <td>Turn off all password-checking. This option allows the normal sequence
 of levels to be bypassed.</td></tr>
 <tr><td><tt>-n</tt>&nbsp;<i>N</i>&nbsp;</td>
-<td>Set the initial volume level to <i>N</i>. <i>N</i> is an integer from 0 to 10,
-0 being silence and 10 being the default level.</td></tr>
+<td>Set the initial volume level to <i>N</i>, 0 being silence and 10 being
+full volume. The default level is 10.</td></tr>
 <tr><td><tt>-q</tt>&nbsp;</td>
 <td>Run quietly. All sounds, including the ringing of the terminal bell,
 are suppressed.</td></tr>
+<tr><td><tt>-r</tt>&nbsp;</td>
+<td>Run in read-only mode. No changes will be made to the solution
+files.</td></tr>
 <tr><td><tt>-R</tt>&nbsp;<i>DIR</i>&nbsp;</td>
 <td>Read resource data from <i>DIR</i> instead of the default directory.</td></tr>
 <tr><td><tt>-S</tt>&nbsp;<i>DIR</i>&nbsp;</td>

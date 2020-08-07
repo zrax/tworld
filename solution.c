@@ -96,13 +96,17 @@ static int const idxdir8[8] = {
     NORTH | WEST, SOUTH | WEST, NORTH | EAST, SOUTH | EAST
 };
 
+/* TRUE if file modification is prohibited.
+ */
+int		readonly = FALSE;
+
 /* The path of the directory containing the user's solution files.
  */
-char		       *savedir = NULL;
+char	       *savedir = NULL;
 
 /* FALSE if savedir's existence is unverified.
  */
-int			savedirchecked = FALSE;
+static int	savedirchecked = FALSE;
 
 /*
  * Functions for manipulating move lists.
@@ -360,7 +364,8 @@ static int readsolution(fileinfo *file, gamesetup *game)
 	return FALSE;
     if (!filereadint8(file, &val8, "unexpected EOF"))
 	return FALSE;
-    game->savedrndslidedir = idxdir8[val8];
+    game->savedrndslidedir = idxdir8[val8 & 7];
+    game->savedstepping = (val8 >> 3) & 7;
     if (!filereadint32(file, &val32, "unexpected EOF"))
 	return FALSE;
     game->savedrndseed = val32;
@@ -377,6 +382,7 @@ static int writesolution(fileinfo *file, gamesetup const *game)
 {
     unsigned long	size;
     fpos_t		start, end;
+    unsigned char	val8;
 
     if (!game->savedsolution.count) {
 	if (!(game->sgflags & SGF_HASPASSWD))
@@ -393,11 +399,12 @@ static int writesolution(fileinfo *file, gamesetup const *game)
     if (!filewriteint32(file, 0, "write error"))
 	return FALSE;
 
+    val8 = diridx8[(int)game->savedrndslidedir];
+    val8 |= game->savedstepping << 3;
     if (!filewriteint16(file, game->number, "write error")
 		|| !filewrite(file, game->passwd, 4, "write error")
 		|| !filewriteint8(file, 0, "write error")
-		|| !filewriteint8(file, diridx8[(int)game->savedrndslidedir],
-					"write error")
+		|| !filewriteint8(file, val8, "write error")
 		|| !filewriteint32(file, game->savedrndseed, "write error")
 		|| !filewriteint32(file, game->besttime, "write error")
 		|| !writemovelist(file, &game->savedsolution, &size))
@@ -491,6 +498,7 @@ int readsolutions(gameseries *series)
 	series->games[i].besttime = gametmp.besttime;
 	series->games[i].sgflags = gametmp.sgflags;
 	series->games[i].savedrndslidedir = gametmp.savedrndslidedir;
+	series->games[i].savedstepping = gametmp.savedstepping;
 	series->games[i].savedrndseed = gametmp.savedrndseed;
 	copymovelist(&series->games[i].savedsolution, &gametmp.savedsolution);
 	if (i == j)
@@ -512,7 +520,7 @@ int savesolutions(gameseries *series)
     gamesetup  *game;
     int		i;
 
-    if (!*savedir)
+    if (!*savedir || readonly)
 	return TRUE;
 
     if (!savedirchecked) {

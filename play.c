@@ -101,6 +101,7 @@ int initgamestate(gamesetup *game, int ruleset)
     state.currentinput = NIL;
     state.lastmove = NIL;
     state.initrndslidedir = NIL;
+    state.stepping = -1;
     state.statusflags = 0;
     state.soundeffects = 0;
     state.timelimit = game->time * TICKS_PER_SECOND;
@@ -120,6 +121,7 @@ int prepareplayback(void)
     state.replay = 0;
     copymovelist(&state.moves, &state.game->savedsolution);
     state.initrndslidedir = state.game->savedrndslidedir;
+    state.stepping = state.game->savedstepping;
     restartprng(&state.mainprng, state.game->savedrndseed);
     return TRUE;
 }
@@ -150,15 +152,54 @@ void setgameplaymode(int mode)
 	setkeyboardrepeat(TRUE);
 	settimer(-1);
 	break;
+      case BeginVerify:
+	settimer(+1);
+	break;
+      case EndVerify:
+	settimer(-1);
+	break;
       case SuspendPlay:
 	setkeyboardrepeat(TRUE);
 	settimer(0);
+	setsoundeffects(0);
 	break;
       case ResumePlay:
 	setkeyboardrepeat(FALSE);
 	settimer(+1);
+	setsoundeffects(+1);
 	break;
     }
+}
+
+/* Alter the stepping.
+ */
+int setstepping(int stepping, int display)
+{
+    char	msg[32], *p;
+
+    state.stepping = stepping;
+    if (display) {
+	p = msg;
+	p += sprintf(p, "%s-step", state.stepping & 4 ? "odd" : "even");
+	if (state.stepping & 3)
+	    p += sprintf(p, " +%d", state.stepping & 3);
+	setdisplaymsg(msg, 500, 500);
+    }
+    return TRUE;
+}
+
+int changestepping(int delta, int display)
+{
+    int	n;
+
+    if (state.stepping < 0)
+	state.stepping = 0;
+    n = (state.stepping + delta) % 8;
+    if (state.ruleset == Ruleset_MS)
+	n &= ~4;
+    if (state.stepping != n)
+	return setstepping(n, display);
+    return TRUE;
 }
 
 /* Advance the game one tick and update the game state. cmd is the
@@ -168,6 +209,7 @@ void setgameplaymode(int mode)
  */
 int doturn(int cmd)
 {
+    int const	playbackslop = 32;
     action	act;
     int		n;
 
@@ -189,6 +231,9 @@ int doturn(int cmd)
 		state.currentinput = state.moves.list[state.replay].dir;
 		++state.replay;
 	    }
+	} else {
+	    if (state.currenttime > state.game->besttime + playbackslop)
+		return -1;
 	}
     }
 
@@ -240,7 +285,8 @@ int drawscreen(int showframe)
  */
 int quitgamestate(void)
 {
-    clearsoundeffects();
+    state.soundeffects = 0;
+    setsoundeffects(-1);
     return TRUE;
 }
 
@@ -248,7 +294,7 @@ int quitgamestate(void)
  */
 int endgamestate(void)
 {
-    clearsoundeffects();
+    setsoundeffects(-1);
     return (*logic->endgame)(logic);
 }
 
@@ -286,6 +332,7 @@ int replacesolution(void)
     state.game->besttime = currenttime;
     state.game->sgflags &= ~SGF_REPLACEABLE;
     state.game->savedrndslidedir = state.initrndslidedir;
+    state.game->savedstepping = state.stepping;
     state.game->savedrndseed = getinitialseed(&state.mainprng);
     copymovelist(&state.game->savedsolution, &state.moves);
     return TRUE;

@@ -46,15 +46,14 @@ struct msstate {
  */
 static int advancecreature(creature *cr, int dir);
 
+/* The most recently used stepping phase value.
+ */
+static int		laststepping = 0;
+
 /* A pointer to the game state, used so that it doesn't have to be
  * passed to every single function.
  */
-static gamestate	       *state;
-
-/* The current stepping value, giving the subsecond offset of the
- * timer. This affects when teeth and blobs move.
- */
-static int			stepping = 0;
+static gamestate       *state;
 
 /*
  * Accessor macros for various fields in the game state. Many of the
@@ -76,6 +75,7 @@ static int			stepping = 0;
 
 #define	timelimit()		(state->timelimit)
 #define	timeoffset()		(state->timeoffset)
+#define	stepping()		(state->stepping)
 #define	currenttime()		(state->currenttime)
 #define	currentinput()		(state->currentinput)
 #define	xviewpos()		(state->xviewpos)
@@ -464,24 +464,6 @@ static maptile *getfloorat(int pos)
     return &cell->bot; /* ? */
 }
 
-/* Return TRUE if a creature (other than Chip) is at the given
- * location.
- */
-static int issomeoneat(int pos)
-{
-    mapcell    *cell;
-    int		id;
-
-    cell = cellat(pos);
-    id = cell->top.id;
-    if (creatureid(id) == Chip || creatureid(id) == Swimming_Chip) {
-	id = cell->bot.id;
-	if (creatureid(id) == Chip || creatureid(id) == Swimming_Chip)
-	    return FALSE;
-    }
-    return iscreature(id);
-}
-
 /* Return TRUE if a creature, a block, or Chip is at the given
  * location.
  */
@@ -773,6 +755,17 @@ static void endfloormovement(creature *cr)
     removefromsliplist(cr);
 }
 
+/* Clean out deadwood entries in the slip list.
+ */
+static void updatesliplist()
+{
+    int	n;
+
+    for (n = slipcount - 1 ; n >= 0 ; --n)
+	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
+	    endfloormovement(slips[n].cr);
+}
+
 /* Move a block at the given position forward in the given direction.
  * FALSE is returned if the block cannot be pushed. If collapse is
  * TRUE and the block is atop another block, the bottom block will
@@ -803,7 +796,7 @@ static int pushblock(int pos, int dir, int collapse)
     r = advancecreature(cr, dir);
     cr->state &= ~CS_DEFERPUSH;
     if (!r)
-	endfloormovement(cr);
+	cr->state &= ~(CS_SLIP | CS_SLIDE);
     return r;
 }
 
@@ -949,9 +942,13 @@ static int canmakemove(creature const *cr, int dir, int flags)
 
     floor = floorat(to);
     if (isanimation(floor))
+	warn("What the hell is going on here? animation %02X at (%d %d)",
+	     floor, to % CXGRID, to / CXGRID);
+    if (isanimation(floor))
 	return FALSE;
 
     if (cr->id == Chip) {
+	floor = floorat(to);
 	if (!(movelaws[floor].chip & dir))
 	    return FALSE;
 	if (floor == Socket && chipsneeded() > 0)
@@ -979,23 +976,37 @@ static int canmakemove(creature const *cr, int dir, int flags)
 		return FALSE;
 	}
     } else if (cr->id == Block) {
-	if (iscreature(cellat(to)->top.id)) {
-	    id = creatureid(cellat(to)->top.id);
+	floor = cellat(to)->top.id;
+	if (iscreature(floor)) {
+	    id = creatureid(floor);
 	    return id == Chip || id == Swimming_Chip;
 	}
 	if (!(movelaws[floor].block & dir))
 	    return FALSE;
     } else {
+	floor = cellat(to)->top.id;
+	if (iscreature(floor)) {
+	    id = creatureid(floor);
+	    if (id == Chip || id == Swimming_Chip) {
+		floor = cellat(to)->bot.id;
+		if (iscreature(floor)) {
+		    id = creatureid(floor);
+		    return id == Chip || id == Swimming_Chip;
+		}
+	    }
+	}
+	if (iscreature(floor)) {
+	    if ((flags & CMM_CLONECANTBLOCK)
+				&& floor == crtile(cr->id, cr->dir))
+		return TRUE;
+	    return FALSE;
+	}
 	if (!(movelaws[floor].creature & dir))
 	    return FALSE;
-	if (issomeoneat(to)) {
-	    if (!(flags & CMM_CLONECANTBLOCK))
-		return FALSE;
-	    if (cellat(to)->top.id != crtile(cr->id, cr->dir))
-		return FALSE;
-	}
+#if 0
 	if (isboots(cellat(to)->top.id))
 	    return FALSE;
+#endif
 	if (floor == Fire && (cr->id == Bug || cr->id == Walker))
 	    return FALSE;
     }
@@ -1032,7 +1043,7 @@ static void choosecreaturemove(creature *cr)
     if (currenttime() & 2)
 	return;
     if (cr->id == Teeth || cr->id == Blob) {
-	if ((currenttime() + stepping) & 4)
+	if ((currenttime() + stepping()) & 4)
 	    return;
     }
     if (cr->state & CS_TURNING) {
@@ -1727,10 +1738,6 @@ static void floormovements(void)
 						&& slipcount == savedcount + 1)
 	    ++n;
     }
-
-    for (n = slipcount - 1 ; n >= 0 ; --n)
-	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
-	    endfloormovement(slips[n].cr);
 }
 
 static void createclones(void)
@@ -1876,6 +1883,9 @@ static void initialhousekeeping(void)
 	setnosaving();
     }
 #endif
+
+    if (currenttime() == 0)
+	laststepping = stepping();
 
     if (!(currenttime() & 3)) {
 	for (n = 1 ; n < creaturecount ; ++n) {
@@ -2187,6 +2197,7 @@ static int initgame(gamelogic *logic)
     completed() = FALSE;
     chipstatus() = CHIP_OKAY;
     controllerdir() = NIL;
+    stepping() = laststepping;
     xviewoffset() = 0;
     yviewoffset() = 0;
 
@@ -2226,6 +2237,7 @@ static int advancegame(gamelogic *logic)
 	if ((r = checkforending()))
 	    goto done;
     }
+    updatesliplist();
 
     timeoffset() = 0;
     if (timelimit()) {
@@ -2246,7 +2258,7 @@ static int advancegame(gamelogic *logic)
 		goto done;
 	cr->state |= CS_HASMOVED;
     }
-
+    updatesliplist();
     createclones();
 
   done:
