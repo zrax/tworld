@@ -1,4 +1,4 @@
-2001 Oct 21: 0.7.0
+2001 Oct 21: version 0.7.0
 
 * Altered handling of the slip list in the MS game logic. Creatures on the
   slip list now have their slip direction stored separately from their

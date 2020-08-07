@@ -844,7 +844,7 @@ static int canmakemove(creature const *cr, int dir,
 	}
 	if (floor == Block_Static) {
 	    if (pushblock(to, dir))
-		return canmakemove(cr, dir, FALSE, exposewalls);
+		return canmakemove(cr, dir, skipleavecheck, exposewalls);
 	    else
 		return FALSE;
 	}
@@ -1534,9 +1534,9 @@ static void floormovements(void)
 	cr = slips[n].cr;
 	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
 	    continue;
+	resetbuttons();
 	f = getslipmove(cr);
 	if (cr->fdir != NIL) {
-	    resetbuttons();
 	    if (advancecreature(cr, cr->fdir)) {
 		handlebuttons();
 		if (cr->id == Chip) {
