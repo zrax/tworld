@@ -1,7 +1,7 @@
 /* sdloshw.c: Top-level SDL management functions.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
@@ -9,6 +9,7 @@
 #include	<string.h>
 #include	"SDL.h"
 #include	"sdlgen.h"
+#include	"sdlsfx.h"
 #include	"../err.h"
 
 /* Values global to this library.
@@ -81,6 +82,21 @@ void setsubtitle(char const *subtitle)
     }
 }
 
+/* Read any additional data for the series.
+ */
+void readextensions(struct gameseries *series)
+{
+    /* Not implemented. */
+}
+
+/* Get number of seconds to skip at start of playback.
+ */
+int getreplaysecondstoskip(void)
+{
+    /* Not implemented. */
+    return -1;
+}
+
 /* Shut down SDL.
  */
 static void shutdown(void)
@@ -96,7 +112,7 @@ int oshwinitialize(int silence, int soundbufsize,
 {
     SDL_Surface	       *icon;
 
-    sdlg.eventupdatefunc = _eventupdate;
+    geng.eventupdatefunc = _eventupdate;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 	errmsg(NULL, "Cannot initialize SDL system: %s\n", SDL_GetError());
@@ -115,9 +131,9 @@ int oshwinitialize(int silence, int soundbufsize,
     } else
 	warn("couldn't create icon surface: %s", SDL_GetError());
 
-    return _sdltimerinitialize(showhistogram)
+    return _generictimerinitialize(showhistogram)
 	&& _sdltextinitialize()
-	&& _sdltileinitialize()
+	&& _generictileinitialize()
 	&& _sdlinputinitialize()
 	&& _sdloutputinitialize(fullscreen)
 	&& _sdlsfxinitialize(silence, soundbufsize);

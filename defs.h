@@ -1,7 +1,7 @@
 /* defs.h: Definitions used throughout the program.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #ifndef	_defs_h_
@@ -43,12 +43,6 @@ typedef	struct prng {
  * Definitions used in game play.
  */
 
-/* Turning macros.
- */
-#define	left(dir)	((((dir) << 1) | ((dir) >> 3)) & 15)
-#define	back(dir)	((((dir) << 2) | ((dir) >> 2)) & 15)
-#define	right(dir)	((((dir) << 3) | ((dir) >> 1)) & 15)
-
 /* A move is specified by its direction and when it takes place.
  */
 typedef	struct action { unsigned int when:23, dir:9; } action;
@@ -60,16 +54,6 @@ typedef struct actlist {
     int			count;		/* size of the actual array */
     action	       *list;		/* the array */
 } actlist;
-
-/* A structure holding all the data needed to reconstruct a solution.
- */
-typedef	struct solutioninfo {
-    actlist		moves;		/* the actual moves of the solution */
-    unsigned long	rndseed;	/* the PRNG's initial seed */
-    unsigned long	flags;		/* other flags (currently unused) */
-    unsigned char	rndslidedir;	/* random slide's initial direction */
-    signed char		stepping;	/* the timer offset */
-} solutioninfo;
 
 /* The range of relative mouse moves is a 19x19 square around Chip.
  * (Mouse moves are stored as a relative offset in order to fit all
@@ -125,6 +109,7 @@ enum {
     CmdDebugCmd2,
     CmdQuit,
     CmdPreserve,
+    CmdSeek,
     CmdCheatNorth,
     CmdCheatWest,
     CmdCheatSouth,

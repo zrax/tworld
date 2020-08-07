@@ -1,7 +1,7 @@
 /* play.c: Top-level game-playing functions.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
@@ -71,14 +71,16 @@ static int setrulesetbehavior(int ruleset)
 	logic = lynxlogicstartup();
 	if (!logic)
 	    return FALSE;
-	setkeyboardarrowsrepeat(TRUE);
+	if (!batchmode)
+	    setkeyboardarrowsrepeat(TRUE);
 	settimersecond(1000 * mudsucking);
 	break;
       case Ruleset_MS:
 	logic = mslogicstartup();
 	if (!logic)
 	    return FALSE;
-	setkeyboardarrowsrepeat(FALSE);
+	if (!batchmode)
+	    setkeyboardarrowsrepeat(FALSE);
 	settimersecond(1100 * mudsucking);
 	break;
       default:

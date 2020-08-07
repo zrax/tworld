@@ -1,13 +1,19 @@
 /* logic.h: Declarations for the game logic modules.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #ifndef	_logic_h_
 #define	_logic_h_
 
 #include	"state.h"
+
+/* Turning macros.
+ */
+#define	left(dir)	((((dir) << 1) | ((dir) >> 3)) & 15)
+#define	back(dir)	((((dir) << 2) | ((dir) >> 2)) & 15)
+#define	right(dir)	((((dir) << 3) | ((dir) >> 1)) & 15)
 
 /* One game logic engine.
  */

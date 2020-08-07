@@ -14,6 +14,7 @@
 #include	"solution.h"
 #include	"unslist.h"
 #include	"series.h"
+#include	"oshw.h"
 
 /* The signature bytes of the data files.
  */
@@ -325,6 +326,7 @@ int readseriesfile(gameseries *series)
 	undomschanges(series);
     markunsolvablelevels(series);
     readsolutions(series);
+    readextensions(series);
     return TRUE;
 }
 
@@ -399,7 +401,7 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 	}
 	for (p = name ; (*p = tolower(*p)) != '\0' ; ++p) ;
 	if (!strcmp(name, "name")) {
-	    sprintf(series->name, "%.*s", sizeof series->name - 1,
+	    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
 					  skippathname(value));
 	} else if (!strcmp(name, "lastlevel")) {
 	    n = (int)strtol(value, &p, 10);
@@ -487,8 +489,9 @@ static int getseriesfile(char *filename, void *data)
     series->final = 0;
     series->ruleset = Ruleset_None;
     series->games = NULL;
-    sprintf(series->filebase, "%.*s", sizeof series->filebase - 1, filename);
-    sprintf(series->name, "%.*s", sizeof series->name - 1,
+    sprintf(series->filebase, "%.*s", (int)(sizeof series->filebase - 1),
+                                      filename);
+    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
 				  skippathname(filename));
 
     f = FALSE;
@@ -531,7 +534,13 @@ static int getseriesfile(char *filename, void *data)
  */
 static int gameseriescmp(void const *a, void const *b)
 {
-    return strcmp(((gameseries*)a)->name, ((gameseries*)b)->name);
+    return
+#ifdef WIN32
+        stricmp
+#else
+        strcasecmp
+#endif
+           (((gameseries*)a)->name, ((gameseries*)b)->name);
 }
 
 /* Search the series directory and generate an array of gameseries

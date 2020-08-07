@@ -1,7 +1,7 @@
 /* sdltext.c: Font-rendering functions for SDL.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
@@ -276,9 +276,9 @@ static void drawtext(SDL_Rect *rect, unsigned char const *text,
     else
 	clr = sdlg.textclr.c;
 
-    pitch = sdlg.screen->pitch;
-    bpp = sdlg.screen->format->BytesPerPixel;
-    p = (unsigned char*)sdlg.screen->pixels + rect->y * pitch + rect->x * bpp;
+    pitch = geng.screen->pitch;
+    bpp = geng.screen->format->BytesPerPixel;
+    p = (unsigned char*)geng.screen->pixels + rect->y * pitch + rect->x * bpp;
     for (y = 0 ; y < sdlg.font.h && y < rect->h ; ++y) {
 	switch (bpp) {
 	  case 1:
@@ -376,16 +376,16 @@ static void _puttext(SDL_Rect *rect, char const *text, int len, int flags)
     if (len < 0)
 	len = text ? strlen(text) : 0;
 
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_LockSurface(sdlg.screen);
+    if (SDL_MUSTLOCK(geng.screen))
+	SDL_LockSurface(geng.screen);
 
     if (flags & PT_MULTILINE)
 	drawmultilinetext(rect, (unsigned char const*)text, len, flags);
     else
 	drawtext(rect, (unsigned char const*)text, len, flags);
 
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_UnlockSurface(sdlg.screen);
+    if (SDL_MUSTLOCK(geng.screen))
+	SDL_UnlockSurface(geng.screen);
 }
 
 /* Lay out the columns of the given table so that the entire table
@@ -515,8 +515,8 @@ static int _drawtablerow(tablespec const *table, SDL_Rect *cols,
 	return TRUE;
     }
 
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_LockSurface(sdlg.screen);
+    if (SDL_MUSTLOCK(geng.screen))
+	SDL_LockSurface(geng.screen);
 
     y = cols[0].y;
     n = *row;
@@ -540,8 +540,8 @@ static int _drawtablerow(tablespec const *table, SDL_Rect *cols,
 	    y = rect.y;
     }
 
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_UnlockSurface(sdlg.screen);
+    if (SDL_MUSTLOCK(geng.screen))
+	SDL_UnlockSurface(geng.screen);
 
     *row = n;
     for (i = 0 ; i < table->cols ; ++i) {

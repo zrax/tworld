@@ -1,7 +1,7 @@
 /* solution.c: Functions for reading and writing the solution files.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #ifndef	_solution_h_
@@ -9,6 +9,16 @@
 
 #include	"defs.h"
 #include	"fileio.h"
+
+/* A structure holding all the data needed to reconstruct a solution.
+ */
+typedef	struct solutioninfo {
+    actlist		moves;		/* the actual moves of the solution */
+    unsigned long	rndseed;	/* the PRNG's initial seed */
+    unsigned long	flags;		/* other flags (currently unused) */
+    unsigned char	rndslidedir;	/* random slide's initial direction */
+    signed char		stepping;	/* the timer offset */
+} solutioninfo;
 
 /* The path of the directory containing the user's solution files.
  */

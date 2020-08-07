@@ -1,7 +1,7 @@
 /* sdlout.c: Creating the program's displays.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
@@ -23,18 +23,9 @@
 #define	PROMPTICONW	16
 #define	PROMPTICONH	10
 
-/* The dimensions of the visible area of the map (in tiles).
- */
-#define	NXTILES		9
-#define	NYTILES		9
-
 /* Erase a rectangle (useful for when a surface is locked).
  */
 #define	fillrect(r)		(puttext((r), NULL, 0, PT_MULTILINE))
-
-/* Get a generic tile image.
- */
-#define	gettileimage(id)	(getcellimage(NULL, (id), Empty, -1))
 
 /* Structure for holding information about the message display.
  */
@@ -76,11 +67,6 @@ static SDL_Rect		locrects[8];
  */
 static int		fullredraw = TRUE;
 
-/* Coordinates of the NW corner of the visible part of the map
- * (measured in quarter-tiles), or -1 if no map is currently visible.
- */
-static int		mapvieworigin = -1;
-
 /*
  * Display initialization functions.
  */
@@ -93,9 +79,9 @@ static fontcolors makefontcolors(int rbkgnd, int gbkgnd, int bbkgnd,
 {
     fontcolors	colors;
 
-    colors.c[0] = SDL_MapRGB(sdlg.screen->format, rbkgnd, gbkgnd, bbkgnd);
-    colors.c[2] = SDL_MapRGB(sdlg.screen->format, rtext, gtext, btext);
-    colors.c[1] = SDL_MapRGB(sdlg.screen->format, (rbkgnd + rtext) / 2,
+    colors.c[0] = SDL_MapRGB(geng.screen->format, rbkgnd, gbkgnd, bbkgnd);
+    colors.c[2] = SDL_MapRGB(geng.screen->format, rtext, gtext, btext);
+    colors.c[1] = SDL_MapRGB(geng.screen->format, (rbkgnd + rtext) / 2,
 						  (gbkgnd + gtext) / 2,
 						  (bbkgnd + btext) / 2);
     return colors;
@@ -147,15 +133,15 @@ static int createprompticons(void)
 	}
     }
 
-    SDL_GetRGB(bkgndcolor(sdlg.dimtextclr), sdlg.screen->format,
+    SDL_GetRGB(bkgndcolor(sdlg.dimtextclr), geng.screen->format,
 	       &prompticons->format->palette->colors[0].r,
 	       &prompticons->format->palette->colors[0].g,
 	       &prompticons->format->palette->colors[0].b);
-    SDL_GetRGB(halfcolor(sdlg.dimtextclr), sdlg.screen->format,
+    SDL_GetRGB(halfcolor(sdlg.dimtextclr), geng.screen->format,
 	       &prompticons->format->palette->colors[1].r,
 	       &prompticons->format->palette->colors[1].g,
 	       &prompticons->format->palette->colors[1].b);
-    SDL_GetRGB(textcolor(sdlg.dimtextclr), sdlg.screen->format,
+    SDL_GetRGB(textcolor(sdlg.dimtextclr), geng.screen->format,
 	       &prompticons->format->palette->colors[2].r,
 	       &prompticons->format->palette->colors[2].g,
 	       &prompticons->format->palette->colors[2].b);
@@ -177,7 +163,7 @@ static int layoutscreen(void)
 
     int			fullw, infow, rscorew, texth;
 
-    if (sdlg.wtile <= 0 || sdlg.htile <= 0)
+    if (geng.wtile <= 0 || geng.htile <= 0)
 	return FALSE;
 
     puttext(&displayloc, scoretext, -1, PT_CALCSIZE);
@@ -191,8 +177,9 @@ static int layoutscreen(void)
 
     displayloc.x = MARGINW;
     displayloc.y = MARGINH;
-    displayloc.w = NXTILES * sdlg.wtile;
-    displayloc.h = NYTILES * sdlg.htile;
+    displayloc.w = NXTILES * geng.wtile;
+    displayloc.h = NYTILES * geng.htile;
+    geng.maploc = displayloc;
 
     titleloc.x = displayloc.x;
     titleloc.y = displayloc.y + displayloc.h + MARGINH;
@@ -201,7 +188,7 @@ static int layoutscreen(void)
 
     infoloc.x = displayloc.x + displayloc.w + MARGINW;
     infoloc.y = MARGINH;
-    infoloc.w = 4 * sdlg.wtile;
+    infoloc.w = 4 * geng.wtile;
     if (infoloc.w < infow)
 	infoloc.w = infow;
     infoloc.h = 6 * texth;
@@ -214,8 +201,8 @@ static int layoutscreen(void)
 
     invloc.x = infoloc.x;
     invloc.y = infoloc.y + infoloc.h + MARGINH;
-    invloc.w = 4 * sdlg.wtile;
-    invloc.h = 2 * sdlg.htile;
+    invloc.w = 4 * geng.wtile;
+    invloc.h = 2 * geng.htile;
 
     screenw = infoloc.x + infoloc.w + MARGINW;
     if (screenw < fullw)
@@ -253,21 +240,21 @@ static int createdisplay(void)
 {
     int	flags;
 
-    if (sdlg.screen) {
-	SDL_FreeSurface(sdlg.screen);
-	sdlg.screen = NULL;
+    if (geng.screen) {
+	SDL_FreeSurface(geng.screen);
+	geng.screen = NULL;
     }
     flags = SDL_SWSURFACE | SDL_ANYFORMAT;
     if (fullscreen)
 	flags |= SDL_FULLSCREEN;
-    if (!(sdlg.screen = SDL_SetVideoMode(screenw, screenh, 32, flags))) {
+    if (!(geng.screen = SDL_SetVideoMode(screenw, screenh, 32, flags))) {
 	errmsg(NULL, "cannot open %dx%d display: %s\n",
 		     screenw, screenh, SDL_GetError());
 	return FALSE;
     }
-    if (sdlg.screen->w != screenw || sdlg.screen->h != screenh)
+    if (geng.screen->w != screenw || geng.screen->h != screenh)
 	warn("requested a %dx%d display, got %dx%d instead",
-	     sdlg.screen->w, sdlg.screen->h);
+	     geng.screen->w, geng.screen->h);
     return TRUE;
 }
 
@@ -275,53 +262,9 @@ static int createdisplay(void)
  */
 void cleardisplay(void)
 {
-    SDL_FillRect(sdlg.screen, NULL, bkgndcolor(sdlg.textclr));
+    SDL_FillRect(geng.screen, NULL, bkgndcolor(sdlg.textclr));
     fullredraw = TRUE;
-    mapvieworigin = -1;
-}
-
-/*
- * Tile rendering functions.
- */
-
-/* Copy a single tile to the position (xpos, ypos).
- */
-static void drawfulltile(int xpos, int ypos, SDL_Surface *src)
-{
-    SDL_Rect	rect = { xpos, ypos, src->w, src->h };
-
-    if (SDL_BlitSurface(src, NULL, sdlg.screen, &rect))
-	warn("%s", SDL_GetError());
-}
-
-/* Copy a tile to the position (xpos, ypos) but clipped to the
- * displayloc rectangle.
- */
-static void drawclippedtile(SDL_Rect const *rect, SDL_Surface *src)
-{
-    int	xoff, yoff, w, h;
-
-    xoff = 0;
-    if (rect->x < displayloc.x)
-	xoff = displayloc.x - rect->x;
-    yoff = 0;
-    if (rect->y < displayloc.y)
-	yoff = displayloc.y - rect->y;
-    w = rect->w - xoff;
-    if (rect->x + rect->w > displayloc.x + displayloc.w)
-	w -= (rect->x + rect->w) - (displayloc.x + displayloc.w);
-    h = rect->h - yoff;
-    if (rect->y + rect->h > displayloc.y + displayloc.h)
-	h -= (rect->y + rect->h) - (displayloc.y + displayloc.h);
-    if (w <= 0 || h <= 0)
-	return;
-
-    {
-	SDL_Rect srect = { xoff, yoff, w, h };
-	SDL_Rect drect = { rect->x + xoff, rect->y + yoff, 0, 0 };
-	if (SDL_BlitSurface(src, &srect, sdlg.screen, &drect))
-	    warn("%s", SDL_GetError());
-    }
+    geng.mapvieworigin = -1;
 }
 
 /*
@@ -348,7 +291,7 @@ static void displaymsg(int update)
     }
     puttext(&messageloc, msgdisplay.msg, msgdisplay.msglen, f);
     if (update)
-	SDL_UpdateRect(sdlg.screen, messageloc.x, messageloc.y,
+	SDL_UpdateRect(geng.screen, messageloc.x, messageloc.y,
 				    messageloc.w, messageloc.h);
 }
 
@@ -408,97 +351,22 @@ static void displayshutter(void)
     SDL_Rect	rect;
 
     rect = displayloc;
-    SDL_FillRect(sdlg.screen, &rect, halfcolor(sdlg.dimtextclr));
+    SDL_FillRect(geng.screen, &rect, halfcolor(sdlg.dimtextclr));
     ++rect.x;
     ++rect.y;
     rect.w -= 2;
     rect.h -= 2;
-    SDL_FillRect(sdlg.screen, &rect, textcolor(sdlg.dimtextclr));
+    SDL_FillRect(geng.screen, &rect, textcolor(sdlg.dimtextclr));
     ++rect.x;
     ++rect.y;
     rect.w -= 2;
     rect.h -= 2;
-    SDL_FillRect(sdlg.screen, &rect, halfcolor(sdlg.dimtextclr));
+    SDL_FillRect(geng.screen, &rect, halfcolor(sdlg.dimtextclr));
     ++rect.x;
     ++rect.y;
     rect.w -= 2;
     rect.h -= 2;
-    SDL_FillRect(sdlg.screen, &rect, bkgndcolor(sdlg.dimtextclr));
-}
-
-/* Render the view of the visible area of the map to the display, with
- * the view position centered on the display as much as possible. The
- * gamestate's map and the list of creatures are consulted to
- * determine what to render.
- */
-static void displaymapview(gamestate const *state)
-{
-    SDL_Rect		rect;
-    SDL_Surface	       *s;
-    creature const     *cr;
-    int			xdisppos, ydisppos;
-    int			xorigin, yorigin;
-    int			lmap, tmap, rmap, bmap;
-    int			pos, x, y;
-
-    if (state->statusflags & SF_SHUTTERED) {
-	displayshutter();
-	return;
-    }
-
-    xdisppos = state->xviewpos / 2 - (NXTILES / 2) * 4;
-    ydisppos = state->yviewpos / 2 - (NYTILES / 2) * 4;
-    if (xdisppos < 0)
-	xdisppos = 0;
-    if (ydisppos < 0)
-	ydisppos = 0;
-    if (xdisppos > (CXGRID - NXTILES) * 4)
-	xdisppos = (CXGRID - NXTILES) * 4;
-    if (ydisppos > (CYGRID - NYTILES) * 4)
-	ydisppos = (CYGRID - NYTILES) * 4;
-    xorigin = displayloc.x - (xdisppos * sdlg.wtile / 4);
-    yorigin = displayloc.y - (ydisppos * sdlg.htile / 4);
-
-    mapvieworigin = ydisppos * CXGRID * 4 + xdisppos;
-
-    lmap = xdisppos / 4;
-    tmap = ydisppos / 4;
-    rmap = (xdisppos + 3) / 4 + NXTILES;
-    bmap = (ydisppos + 3) / 4 + NYTILES;
-    for (y = tmap ; y < bmap ; ++y) {
-	if (y < 0 || y >= CXGRID)
-	    continue;
-	for (x = lmap ; x < rmap ; ++x) {
-	    if (x < 0 || x >= CXGRID)
-		continue;
-	    pos = y * CXGRID + x;
-	    rect.x = xorigin + x * sdlg.wtile;
-	    rect.y = yorigin + y * sdlg.htile;
-	    s = getcellimage(&rect,
-			     state->map[pos].top.id,
-			     state->map[pos].bot.id,
-			     (state->statusflags & SF_NOANIMATION) ?
-						-1 : state->currenttime);
-	    drawclippedtile(&rect, s);
-	}
-    }
-
-    lmap -= 2;
-    tmap -= 2;
-    rmap += 2;
-    bmap += 2;
-    for (cr = state->creatures ; cr->id ; ++cr) {
-	if (cr->hidden)
-	    continue;
-	x = cr->pos % CXGRID;
-	y = cr->pos / CXGRID;
-	if (x < lmap || x >= rmap || y < tmap || y >= bmap)
-	    continue;
-	rect.x = xorigin + x * sdlg.wtile;
-	rect.y = yorigin + y * sdlg.htile;
-	s = getcreatureimage(&rect, cr->id, cr->dir, cr->moving, cr->frame);
-	drawclippedtile(&rect, s);
-    }
+    SDL_FillRect(geng.screen, &rect, bkgndcolor(sdlg.dimtextclr));
 }
 
 /* Render all the various nuggets of data that comprise the
@@ -567,10 +435,12 @@ static void displayinfo(gamestate const *state, int timeleft, int besttime)
     fillrect(&rect);
 
     for (n = 0 ; n < 4 ; ++n) {
-	drawfulltile(invloc.x + n * sdlg.wtile, invloc.y,
-		     gettileimage(state->keys[n] ? Key_Red + n : Empty));
-	drawfulltile(invloc.x + n * sdlg.wtile, invloc.y + sdlg.htile,
-		     gettileimage(state->boots[n] ? Boots_Ice + n : Empty));
+	drawfulltileid(geng.screen,
+		     invloc.x + n * geng.wtile, invloc.y,
+		     (state->keys[n] ? Key_Red + n : Empty));
+	drawfulltileid(geng.screen,
+		     invloc.x + n * geng.wtile, invloc.y + geng.htile,
+		     (state->boots[n] ? Boots_Ice + n : Empty));
     }
 
     if (state->statusflags & SF_INVALID) {
@@ -606,8 +476,8 @@ static int displayprompticon(int completed)
     src.y = (completed + 1) * PROMPTICONH;
     src.w = PROMPTICONW;
     src.h = PROMPTICONH;
-    SDL_BlitSurface(prompticons, &src, sdlg.screen, &promptloc);
-    SDL_UpdateRect(sdlg.screen, promptloc.x, promptloc.y,
+    SDL_BlitSurface(prompticons, &src, geng.screen, &promptloc);
+    SDL_UpdateRect(geng.screen, promptloc.x, promptloc.y,
 				promptloc.w, promptloc.h);
     return TRUE;
 }
@@ -615,28 +485,6 @@ static int displayprompticon(int completed)
 /*
  * The exported functions.
  */
-
-/* Given a pixel's coordinates, return the integer identifying the
- * tile's position in the map, or -1 if the pixel is not on the map view.
- */
-int _windowmappos(int x, int y)
-{
-    if (mapvieworigin < 0)
-	return -1;
-    if (x < displayloc.x || y < displayloc.y)
-	return -1;
-    x = (x - displayloc.x) * 4 / sdlg.wtile;
-    y = (y - displayloc.y) * 4 / sdlg.htile;
-    if (x >= NXTILES * 4 || y >= NYTILES * 4)
-	return -1;
-    x = (x + mapvieworigin % (CXGRID * 4)) / 4;
-    y = (y + mapvieworigin / (CXGRID * 4)) / 4;
-    if (x < 0 || x >= CXGRID || y < 0 || y >= CYGRID) {
-	warn("mouse moved off the map: (%d %d)", x, y);
-	return -1;
-    }	    
-    return y * CXGRID + x;
-}
 
 /* Set the four main colors used to render text on the display.
  */
@@ -676,16 +524,20 @@ void setcolors(long bkgnd, long text, long bold, long dim)
 /* Create the game's display. state is a pointer to the gamestate
  * structure.
  */
-int displaygame(void const *state, int timeleft, int besttime)
+int displaygame(gamestate const *state, int timeleft, int besttime)
 {
-    displaymapview(state);
+    if (state->statusflags & SF_SHUTTERED) {
+	displayshutter();
+    } else {
+	displaymapview(state, displayloc);
+    }
     displayinfo(state, timeleft, besttime);
     displaymsg(FALSE);
     if (fullredraw) {
-	SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+	SDL_UpdateRect(geng.screen, 0, 0, 0, 0);
 	fullredraw = FALSE;
     } else {
-	SDL_UpdateRects(sdlg.screen,
+	SDL_UpdateRects(geng.screen,
 			sizeof locrects / sizeof *locrects, locrects);
     }
     return TRUE;
@@ -717,10 +569,11 @@ int displayendmessage(int basescore, int timescore, long totalscore,
 	puttext(&rect, decimal(basescore, 5), -1, PT_RIGHT | PT_UPDATERECT);
 	puttext(&rect, decimal(fullscore, 5), -1, PT_RIGHT | PT_UPDATERECT);
 	puttext(&rect, decimal(totalscore, 7), -1, PT_RIGHT | PT_UPDATERECT);
-	SDL_UpdateRect(sdlg.screen, hintloc.x, hintloc.y,
+	SDL_UpdateRect(geng.screen, hintloc.x, hintloc.y,
 				    hintloc.w, hintloc.h);
     }
-    return displayprompticon(completed);
+    displayprompticon(completed);
+    return CmdNone;
 }
 
 /* Render a table on the display. title is a short string to let the
@@ -749,7 +602,7 @@ int displaytable(char const *title, tablespec const *table, int completed)
     free(cols);
 
     displayprompticon(completed);
-    SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+    SDL_UpdateRect(geng.screen, 0, 0, 0, 0);
     return TRUE;
 }
 
@@ -776,7 +629,7 @@ int displaytiletable(char const *title,
     left.y = MARGINH;
 
     right = left;
-    col = sdlg.wtile * 2 + MARGINW;
+    col = geng.wtile * 2 + MARGINW;
     right.x += col;
     right.w -= col;
     for (i = 0 ; i < count ; ++i) {
@@ -784,16 +637,16 @@ int displaytiletable(char const *title,
 	    id = rows[i].item1;
 	else
 	    id = crtile(rows[i].item1, EAST);
-	drawfulltile(left.x + sdlg.wtile, left.y, gettileimage(id));
+	drawfulltileid(geng.screen, left.x + geng.wtile, left.y, id);
 	if (rows[i].item2) {
 	    if (rows[i].isfloor)
 		id = rows[i].item2;
 	    else
 		id = crtile(rows[i].item2, EAST);
-	    drawfulltile(left.x, left.y, gettileimage(id));
+	    drawfulltileid(geng.screen, left.x, left.y, id);
 	}
-	left.y += sdlg.htile;
-	left.h -= sdlg.htile;
+	left.y += geng.htile;
+	left.h -= geng.htile;
 	puttext(&right, rows[i].desc, -1, PT_MULTILINE | PT_UPDATERECT);
 	if (left.y < right.y) {
 	    left.y = right.y;
@@ -806,7 +659,7 @@ int displaytiletable(char const *title,
 
     displayprompticon(completed);
 
-    SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+    SDL_UpdateRect(geng.screen, 0, 0, 0, 0);
 
     return TRUE;
 }
@@ -818,10 +671,9 @@ int displaytiletable(char const *title,
  * leave. The row selected when the function returns is returned to
  * the caller through idx.
  */
-int displaylist(char const *title, void const *tab, int *idx,
-		int (*inputcallback)(int*))
+int displaylist(char const *title, tablespec const *table, int *idx,
+		DisplayListType listtype, int (*inputcallback)(int*))
 {
-    tablespec const    *table = tab;
     SDL_Rect		area;
     SDL_Rect	       *cols;
     SDL_Rect	       *colstmp;
@@ -874,14 +726,14 @@ int displaylist(char const *title, void const *tab, int *idx,
 	}
 
 	n = 0;
-	SDL_FillRect(sdlg.screen, &area, bkgndcolor(sdlg.textclr));
+	SDL_FillRect(geng.screen, &area, bkgndcolor(sdlg.textclr));
 	memcpy(colstmp, cols, table->cols * sizeof *colstmp);
 	drawtablerow(table, colstmp, &n, 0);
 	for (j = 0 ; j < topitem ; ++j)
 	    drawtablerow(table, NULL, &n, 0);
 	for ( ; j < topitem + linecount && j < itemcount ; ++j)
 	    drawtablerow(table, colstmp, &n, j == index ? PT_HILIGHT : 0);
-	SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+	SDL_UpdateRect(geng.screen, 0, 0, 0, 0);
 
 	n = SCROLL_NOP;
     } while ((*inputcallback)(&n));
@@ -900,7 +752,7 @@ int displaylist(char const *title, void const *tab, int *idx,
  * upper limit to the length of the input so collected.
  */
 int displayinputprompt(char const *prompt, char *input, int maxlen,
-		       int (*inputcallback)(void))
+		       InputPromptType inputtype, int (*inputcallback)(void))
 {
     SDL_Rect	area, promptrect, inputrect;
     int		len, ch;
@@ -927,12 +779,12 @@ int displayinputprompt(char const *prompt, char *input, int maxlen,
     if (len > maxlen)
 	len = maxlen;
     for (;;) {
-	SDL_FillRect(sdlg.screen, &area, textcolor(sdlg.textclr));
+	SDL_FillRect(geng.screen, &area, textcolor(sdlg.textclr));
 	++area.x;
 	++area.y;
 	area.w -= 2;
 	area.h -= 2;
-	SDL_FillRect(sdlg.screen, &area, bkgndcolor(sdlg.textclr));
+	SDL_FillRect(geng.screen, &area, bkgndcolor(sdlg.textclr));
 	--area.x;
 	--area.y;
 	area.w += 2;
@@ -941,7 +793,7 @@ int displayinputprompt(char const *prompt, char *input, int maxlen,
 	input[len] = '_';
 	puttext(&inputrect, input, len + 1, PT_CENTER);
 	input[len] = '\0';
-	SDL_UpdateRect(sdlg.screen, area.x, area.y, area.w, area.h);
+	SDL_UpdateRect(geng.screen, area.x, area.y, area.w, area.h);
 	ch = (*inputcallback)();
 	if (ch == '\n' || ch < 0)
 	    break;
@@ -981,7 +833,6 @@ int creategamedisplay(void)
  */
 int _sdloutputinitialize(int _fullscreen)
 {
-    sdlg.windowmapposfunc = _windowmappos;
     fullscreen = _fullscreen;
 
     screenw = 640;

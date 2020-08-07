@@ -1,7 +1,7 @@
 /* err.h: Error handling and reporting.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #ifndef	_err_h_
@@ -11,6 +11,10 @@
  */
 #define	memerrexit()	(die("out of memory"))
 #define	xalloc(p, n)	(((p) = realloc((p), (n))) || (memerrexit(), NULL))
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Log an error message and continue.
  */
@@ -23,6 +27,10 @@ extern void _errmsg(char const *prefix, char const *fmt, ...);
 /* Display an error message and abort.
  */
 extern void _die(char const *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* A really ugly hack used to smuggle extra arguments into variadic
  * functions.

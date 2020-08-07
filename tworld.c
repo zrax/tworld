@@ -1,7 +1,7 @@
 /* tworld.c: The top-level module.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
@@ -628,7 +628,7 @@ static int showsolutionfiles(gamespec *gs)
     pushsubtitle(gs->series.name);
     for (;;) {
 	f = displaylist("SOLUTION FILES", &table, &n,
-			solutionscrollinputcallback);
+			LIST_SOLUTIONFILES, solutionscrollinputcallback);
 	if (f == CmdProceed) {
 	    readonly = FALSE;
 	    break;
@@ -689,7 +689,7 @@ static int showscores(gamespec *gs)
     pushsubtitle(gs->series.name);
     for (;;) {
 	f = displaylist(gs->series.filebase, &table, &n,
-			scorescrollinputcallback);
+			LIST_SCORES, scorescrollinputcallback);
 	if (f == CmdProceed) {
 	    n = levellist[n];
 	    break;
@@ -725,7 +725,8 @@ static int selectlevelbypassword(gamespec *gs)
     int		n;
 
     setgameplaymode(BeginInput);
-    n = displayinputprompt("Enter Password", passwd, 4, keyinputcallback);
+    n = displayinputprompt("Enter Password", passwd, 4,
+			   INPUT_ALPHA, keyinputcallback);
     setgameplaymode(EndInput);
     if (!n)
 	return FALSE;
@@ -808,7 +809,7 @@ static int startinput(gamespec *gs)
 	    yn[0] = '\0';
 	    setgameplaymode(BeginInput);
 	    n = displayinputprompt("Really delete solution?",
-				   yn, 1, yninputcallback);
+				   yn, 1, INPUT_YESNO, yninputcallback);
 	    setgameplaymode(EndInput);
 	    if (n && *yn == 'Y')
 		if (deletesolution())
@@ -842,6 +843,7 @@ static int endinput(gamespec *gs)
     int		bscore = 0, tscore = 0;
     long	gscore = 0;
     int		n;
+    int		cmd = CmdNone;
 
     if (gs->status < 0) {
 	if (melindawatching(gs) && secondsplayed() >= 10) {
@@ -849,7 +851,8 @@ static int endinput(gamespec *gs)
 	    if (gs->melindacount >= 10) {
 		yn[0] = '\0';
 		setgameplaymode(BeginInput);
-		n = displayinputprompt("Skip level?", yn, 1, yninputcallback);
+		n = displayinputprompt("Skip level?", yn, 1,
+				       INPUT_YESNO, yninputcallback);
 		setgameplaymode(EndInput);
 		if (n && *yn == 'Y') {
 		    passwordseen(gs, gs->currentgame + 1);
@@ -864,10 +867,12 @@ static int endinput(gamespec *gs)
 			  &bscore, &tscore, &gscore);
     }
 
-    displayendmessage(bscore, tscore, gscore, gs->status);
+    cmd = displayendmessage(bscore, tscore, gscore, gs->status);
 
     for (;;) {
-	switch (input(TRUE)) {
+	if (cmd == CmdNone)
+	    cmd = input(TRUE);
+	switch (cmd) {
 	  case CmdPrev10:	changecurrentgame(gs, -10);	return TRUE;
 	  case CmdPrevLevel:	changecurrentgame(gs, -1);	return TRUE;
 	  case CmdPrev:		changecurrentgame(gs, -1);	return TRUE;
@@ -900,6 +905,7 @@ static int endinput(gamespec *gs)
 		bell();
 	    return TRUE;
 	}
+	cmd = CmdNone;
     }
 }
 
@@ -963,7 +969,7 @@ static int playgame(gamespec *gs, int firstcmd)
 	cmd = input(FALSE);
 	if (cmd == CmdQuitLevel) {
 	    quitgamestate();
-	    n = -1;
+	    n = -2;
 	    break;
 	}
 	if (!(cmd >= CmdMoveFirst && cmd <= CmdMoveLast)) {
@@ -1044,8 +1050,11 @@ static int playgame(gamespec *gs, int firstcmd)
  */
 static int playbackgame(gamespec *gs)
 {
-    int	render, lastrendered, n;
-
+    int	render, lastrendered, n, cmd;
+    int secondstoskip = -1, hideandseek = FALSE;
+    
+    secondstoskip = getreplaysecondstoskip();
+    
     drawscreen(TRUE);
 
     gs->status = 0;
@@ -1053,12 +1062,44 @@ static int playbackgame(gamespec *gs)
     render = lastrendered = TRUE;
     for (;;) {
 	n = doturn(CmdNone);
-	drawscreen(render);
-	lastrendered = render;
+	hideandseek = (secondstoskip > 0  &&  secondsplayed() < secondstoskip);
+	if (hideandseek) {
+	    lastrendered = FALSE;
+	} else {
+	    drawscreen(render);
+	    lastrendered = render;
+	}
 	if (n)
 	    break;
-	render = waitfortick() || noframeskip;
-	switch (input(FALSE)) {
+	if (hideandseek) {
+	    advancetick();
+	    render = TRUE;
+	    cmd = CmdNone;
+	} else {
+	    render = waitfortick() || noframeskip;
+	    cmd = input(FALSE);
+	}
+	switch (cmd) {
+	  case CmdSeek:
+	  case CmdPrev10:
+	  case CmdNext10:
+	    if (cmd == CmdSeek) {
+	        secondstoskip = getreplaysecondstoskip();
+	    } else {
+	        secondstoskip = secondsplayed() + ((cmd == CmdNext10) ? +10 : -10);
+	    }
+	    quitgamestate();
+	    setgameplaymode(EndPlay);
+	    gs->playmode = Play_None;
+	    endgamestate();
+	    initgamestate(gs->series.games + gs->currentgame,
+			  gs->series.ruleset);
+	    prepareplayback();
+	    gs->playmode = Play_Back;
+	    gs->status = 0;
+	    setgameplaymode(BeginPlay);
+	    lastrendered = FALSE;
+	    break;
 	  case CmdPrevLevel:	changecurrentgame(gs, -1);	goto quitloop;
 	  case CmdNextLevel:	changecurrentgame(gs, +1);	goto quitloop;
 	  case CmdSameLevel:					goto quitloop;
@@ -1298,7 +1339,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	}
 	for (;;) {
 	    f = displaylist("   Welcome to Tile World. Type ? or F1 for help.",
-			    &series->table, &n, scrollinputcallback);
+			    &series->table, &n, LIST_SERIES, scrollinputcallback);
 	    if (f == CmdProceed) {
 		getseriesfromlist(&gs->series, series->list, n);
 		okay = TRUE;

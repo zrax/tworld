@@ -1,15 +1,16 @@
-/* sdltile.c: Functions for rendering tile images.
+/* tile.c: Functions for rendering tile images.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
 #include	<assert.h>
-#include	"SDL.h"
-#include	"sdlgen.h"
+#include	"generic.h"
+#include	"../gen.h"
+#include	"../oshw.h"
 #include	"../err.h"
 #include	"../state.h"
 
@@ -37,8 +38,8 @@
  * for a given id.
  */
 typedef	struct tilemap {
-    SDL_Surface	       *opaque[16];	/* one or more opaque images */
-    SDL_Surface	       *transp[16];	/* one or more transparent images */
+    TW_Surface	       *opaque[16];	/* one or more opaque images */
+    TW_Surface	       *transp[16];	/* one or more transparent images */
     char		celcount;	/* count of animated images */
     char		transpsize;	/* flags for the transparent size */
 } tilemap;
@@ -193,7 +194,7 @@ static tileidinfo const tileidmap[NTILES] = {
 
 /* The heap of remembered surfaces.
  */
-static SDL_Surface    **surfaceheap = NULL;
+static TW_Surface     **surfaceheap = NULL;
 static int		surfacesused = 0;
 static int		surfacesallocated = 0;
 
@@ -203,48 +204,11 @@ static tilemap		tileptr[NTILES];
 
 /* An internal buffer surface.
  */
-static SDL_Surface     *opaquetile = NULL;
-
-/* Create a fresh surface. If transparency is true, the surface is
- * created with 32-bit pixels, so as to ensure a complete alpha
- * channel. Otherwise, the surface is created with the same format as
- * the screen.
- */
-static SDL_Surface *newsurface(int w, int h, int transparency)
-{
-    SDL_Surface	       *s;
-
-    if (transparency) {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	s = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA | SDL_RLEACCEL,
-				 w, h, 32,
-				 0xFF000000, 0x00FF0000,
-				 0x0000FF00, 0x000000FF);
-#else
-	s = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA | SDL_RLEACCEL,
-				 w, h, 32,
-				 0x000000FF, 0x0000FF00,
-				 0x00FF0000, 0xFF000000);
-#endif
-    } else {
-	s = SDL_CreateRGBSurface(SDL_SWSURFACE,
-				 w, h, sdlg.screen->format->BitsPerPixel,
-				 sdlg.screen->format->Rmask,
-				 sdlg.screen->format->Gmask,
-				 sdlg.screen->format->Bmask,
-				 sdlg.screen->format->Amask);
-    }
-    if (!s)
-	die("couldn't create surface: %s", SDL_GetError());
-    if (!transparency && sdlg.screen->format->palette)
-	SDL_SetColors(s, sdlg.screen->format->palette->colors,
-		      0, sdlg.screen->format->palette->ncolors);
-    return s;
-}
+static TW_Surface      *opaquetile = NULL;
 
 /* Add the given surface to the heap of remembered surfaces.
  */
-static void remembersurface(SDL_Surface *surface)
+static void remembersurface(TW_Surface *surface)
 {
     if (surfacesused >= surfacesallocated) {
 	surfacesallocated += 256;
@@ -261,7 +225,7 @@ static void freerememberedsurfaces(void)
 
     for (n = 0 ; n < surfacesused ; ++n)
 	if (surfaceheap[n])
-	    SDL_FreeSurface(surfaceheap[n]);
+	    TW_FreeSurface(surfaceheap[n]);
     free(surfaceheap);
     surfaceheap = NULL;
     surfacesused = 0;
@@ -277,10 +241,10 @@ static int settilesize(int w, int h)
 	warn("tile dimensions must be divisible by four");
 	return FALSE;
     }
-    sdlg.wtile = w;
-    sdlg.htile = h;
-    sdlg.cptile = w * h;
-    opaquetile = newsurface(w, h, FALSE);
+    geng.wtile = w;
+    geng.htile = h;
+    geng.cptile = w * h;
+    opaquetile = TW_NewSurface(w, h, FALSE);
     remembersurface(opaquetile);
     return TRUE;
 }
@@ -292,17 +256,17 @@ static int settilesize(int w, int h)
 /* Overlay a transparent tile image into the given tile-sized buffer.
  * index supplies the index of the transparent image.
  */
-static void addtransparenttile(SDL_Surface *dest, int id, int index)
+static void addtransparenttile(TW_Surface *dest, int id, int index)
 {
-    SDL_Surface	       *src;
-    SDL_Rect		rect = { 0, 0, sdlg.wtile, sdlg.htile };
+    TW_Surface	       *src;
+    TW_Rect		rect = { 0, 0, geng.wtile, geng.htile };
 
     src = tileptr[id].transp[index];
     if (tileptr[id].transpsize & SIZE_EXTLEFT)
-	rect.x += sdlg.wtile;
+	rect.x += geng.wtile;
     if (tileptr[id].transpsize & SIZE_EXTUP)
-	rect.y += sdlg.htile;
-    SDL_BlitSurface(src, &rect, dest, NULL);
+	rect.y += geng.htile;
+    TW_BlitSurface(src, &rect, dest, NULL);
 }
 
 /* Return a surface for the given creature or animation. rect is
@@ -312,10 +276,10 @@ static void addtransparenttile(SDL_Surface *dest, int id, int index)
  * appropriately when the creature's image is larger than a single
  * tile.
  */
-static SDL_Surface *_getcreatureimage(SDL_Rect *rect,
-				      int id, int dir, int moving, int frame)
+static TW_Surface *getcreatureimage(TW_Rect *rect,
+				     int id, int dir, int moving, int frame)
 {
-    SDL_Surface	       *s;
+    TW_Surface	       *s;
     tilemap const      *q;
     int			n;
 
@@ -329,18 +293,18 @@ static SDL_Surface *_getcreatureimage(SDL_Rect *rect,
     if (!q->transpsize || isanimation(id)) {
 	if (moving > 0) {
 	    switch (dir) {
-	      case NORTH:	rect->y += moving * sdlg.htile / 8;	break;
-	      case WEST:	rect->x += moving * sdlg.wtile / 8;	break;
-	      case SOUTH:	rect->y -= moving * sdlg.htile / 8;	break;
-	      case EAST:	rect->x -= moving * sdlg.wtile / 8;	break;
+	      case NORTH:	rect->y += moving * geng.htile / 8;	break;
+	      case WEST:	rect->x += moving * geng.wtile / 8;	break;
+	      case SOUTH:	rect->y -= moving * geng.htile / 8;	break;
+	      case EAST:	rect->x -= moving * geng.wtile / 8;	break;
 	    }
 	}
     }
     if (q->transpsize) {
 	if (q->transpsize & SIZE_EXTLEFT)
-	    rect->x -= sdlg.wtile;
+	    rect->x -= geng.wtile;
 	if (q->transpsize & SIZE_EXTUP)
-	    rect->y -= sdlg.htile;
+	    rect->y -= geng.htile;
     }
 
     n = q->celcount > 1 ? frame : 0;
@@ -360,25 +324,25 @@ static SDL_Surface *_getcreatureimage(SDL_Rect *rect,
  * pixels, the image returned is constructed in a private surface). If
  * rect is not NULL, the width and height fields are filled in.
  */
-static SDL_Surface *_getcellimage(SDL_Rect *rect,
-				  int top, int bot, int timerval)
+static TW_Surface *getcellimage(TW_Rect *rect,
+				 int top, int bot, int timerval)
 {
-    SDL_Surface	       *dest;
+    TW_Surface	       *dest;
     int			nt, nb;
 
     if (!tileptr[top].celcount)
 	die("map element %02X has no suitable image", top);
 
     if (rect) {
-	rect->w = sdlg.wtile;
-	rect->h = sdlg.htile;
+	rect->w = geng.wtile;
+	rect->h = geng.htile;
     }
 
     nt = (timerval + 1) % tileptr[top].celcount;
     if (bot == Nothing || bot == Empty || !tileptr[top].transp[0]) {
 	if (tileptr[top].opaque[nt])
 	    return tileptr[top].opaque[nt];
-	SDL_BlitSurface(tileptr[Empty].opaque[0], NULL, opaquetile, NULL);
+	TW_BlitSurface(tileptr[Empty].opaque[0], NULL, opaquetile, NULL);
 	addtransparenttile(opaquetile, top, nt);
 	return opaquetile;
     }
@@ -388,9 +352,9 @@ static SDL_Surface *_getcellimage(SDL_Rect *rect,
     nb = (timerval + 1) % tileptr[bot].celcount;
     dest = tileptr[Overlay_Buffer].opaque[0];
     if (tileptr[bot].opaque[nb]) {
-	SDL_BlitSurface(tileptr[bot].opaque[nb], NULL, dest, NULL);
+	TW_BlitSurface(tileptr[bot].opaque[nb], NULL, dest, NULL);
     } else {
-	SDL_BlitSurface(tileptr[Empty].opaque[0], NULL, dest, NULL);
+	TW_BlitSurface(tileptr[Empty].opaque[0], NULL, dest, NULL);
 	addtransparenttile(dest, bot, nb);
     }
     addtransparenttile(dest, top, nt);
@@ -398,82 +362,182 @@ static SDL_Surface *_getcellimage(SDL_Rect *rect,
     return dest;
 }
 
+/* Get a generic tile image.
+ */
+#define	gettileimage(id)	(getcellimage(NULL, (id), Empty, -1))
+
+/*
+ * Tile rendering functions.
+ */
+
+/* Copy a single tile to the position (xpos, ypos).
+ */
+static void drawfulltile(TW_Surface *dest, int xpos, int ypos,
+			 TW_Surface *src)
+{
+    TW_Rect	rect = { xpos, ypos, src->w, src->h };
+
+    if (TW_BlitSurface(src, NULL, dest, &rect))
+	warn("%s", TW_GetError());
+}
+
+/* Draw a tile of the given id at the position (xpos, ypos).
+ */
+static void _drawfulltileid(TW_Surface *dest, int xpos, int ypos, int id)
+{
+    drawfulltile(dest, xpos, ypos, gettileimage(id));
+}
+
+/* Copy a tile to the position (xpos, ypos) but clipped to the
+ * displayloc rectangle.
+ */
+static void drawclippedtile(TW_Rect const *rect, TW_Surface *src,
+			    TW_Rect displayloc)
+{
+    int	xoff, yoff, w, h;
+
+    xoff = 0;
+    if (rect->x < displayloc.x)
+	xoff = displayloc.x - rect->x;
+    yoff = 0;
+    if (rect->y < displayloc.y)
+	yoff = displayloc.y - rect->y;
+    w = rect->w - xoff;
+    if (rect->x + rect->w > displayloc.x + displayloc.w)
+	w -= (rect->x + rect->w) - (displayloc.x + displayloc.w);
+    h = rect->h - yoff;
+    if (rect->y + rect->h > displayloc.y + displayloc.h)
+	h -= (rect->y + rect->h) - (displayloc.y + displayloc.h);
+    if (w <= 0 || h <= 0)
+	return;
+
+    {
+	TW_Rect srect = { xoff, yoff, w, h };
+	TW_Rect drect = { rect->x + xoff, rect->y + yoff, 0, 0 };
+	if (TW_BlitSurface(src, &srect, geng.screen, &drect))
+	    warn("%s", TW_GetError());
+    }
+}
+
+/* Render the view of the visible area of the map to the display, with
+ * the view position centered on the display as much as possible. The
+ * gamestate's map and the list of creatures are consulted to
+ * determine what to render.
+ */
+static void _displaymapview(gamestate const *state, TW_Rect displayloc)
+{
+    TW_Rect		rect;
+    TW_Surface	       *s;
+    creature const     *cr;
+    int			xdisppos, ydisppos;
+    int			xorigin, yorigin;
+    int			lmap, tmap, rmap, bmap;
+    int			pos, x, y;
+
+    xdisppos = state->xviewpos / 2 - (NXTILES / 2) * 4;
+    ydisppos = state->yviewpos / 2 - (NYTILES / 2) * 4;
+    if (xdisppos < 0)
+	xdisppos = 0;
+    if (ydisppos < 0)
+	ydisppos = 0;
+    if (xdisppos > (CXGRID - NXTILES) * 4)
+	xdisppos = (CXGRID - NXTILES) * 4;
+    if (ydisppos > (CYGRID - NYTILES) * 4)
+	ydisppos = (CYGRID - NYTILES) * 4;
+    xorigin = displayloc.x - (xdisppos * geng.wtile / 4);
+    yorigin = displayloc.y - (ydisppos * geng.htile / 4);
+
+    geng.mapvieworigin = ydisppos * CXGRID * 4 + xdisppos;
+
+    lmap = xdisppos / 4;
+    tmap = ydisppos / 4;
+    rmap = (xdisppos + 3) / 4 + NXTILES;
+    bmap = (ydisppos + 3) / 4 + NYTILES;
+    for (y = tmap ; y < bmap ; ++y) {
+	if (y < 0 || y >= CXGRID)
+	    continue;
+	for (x = lmap ; x < rmap ; ++x) {
+	    if (x < 0 || x >= CXGRID)
+		continue;
+	    pos = y * CXGRID + x;
+	    rect.x = xorigin + x * geng.wtile;
+	    rect.y = yorigin + y * geng.htile;
+	    s = getcellimage(&rect,
+			     state->map[pos].top.id,
+			     state->map[pos].bot.id,
+			     (state->statusflags & SF_NOANIMATION) ?
+						-1 : state->currenttime);
+	    drawclippedtile(&rect, s, displayloc);
+	}
+    }
+
+    lmap -= 2;
+    tmap -= 2;
+    rmap += 2;
+    bmap += 2;
+    for (cr = state->creatures ; cr->id ; ++cr) {
+	if (cr->hidden)
+	    continue;
+	x = cr->pos % CXGRID;
+	y = cr->pos / CXGRID;
+	if (x < lmap || x >= rmap || y < tmap || y >= bmap)
+	    continue;
+	rect.x = xorigin + x * geng.wtile;
+	rect.y = yorigin + y * geng.htile;
+	s = getcreatureimage(&rect, cr->id, cr->dir, cr->moving, cr->frame);
+	drawclippedtile(&rect, s, displayloc);
+    }
+}
+
 /*
  * Functions for copying individual tiles.
  */
 
-/* Return the color of the pixel at (x, y) on the given surface. (The
- * surface must be locked before calling this function.)
- */
-static Uint32 pixelat(SDL_Surface *s, int x, int y)
-{
-    switch (s->format->BytesPerPixel) {
-      case 1:
-	return (Uint32)((Uint8*)s->pixels + y * s->pitch)[x];
-      case 2:
-	return (Uint32)((Uint16*)((Uint8*)s->pixels + y * s->pitch))[x];
-      case 3:
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	return (Uint32)((((Uint8*)s->pixels + y * s->pitch)[x * 3 + 0] << 16)
-		      | (((Uint8*)s->pixels + y * s->pitch)[x * 3 + 1] << 8)
-		      | (((Uint8*)s->pixels + y * s->pitch)[x * 3 + 2] << 0));
-#else
-	return (Uint32)((((Uint8*)s->pixels + y * s->pitch)[x * 3 + 0] << 0)
-		      | (((Uint8*)s->pixels + y * s->pitch)[x * 3 + 1] << 8)
-		      | (((Uint8*)s->pixels + y * s->pitch)[x * 3 + 2] << 16));
-#endif
-      case 4:
-	return ((Uint32*)((Uint8*)s->pixels + y * s->pitch))[x];
-    }
-    return 0;
-}
-
 /* Create a new surface containing a single tile without any
  * transparent pixels.
  */
-static SDL_Surface *extractopaquetile(SDL_Surface *src,
-				      int ximg, int yimg, int wimg, int himg)
+static TW_Surface *extractopaquetile(TW_Surface *src,
+				     int ximg, int yimg, int wimg, int himg)
 {
-    SDL_Surface	       *dest;
-    SDL_Rect		rect;
+    TW_Surface	       *dest;
+    TW_Rect		rect;
 
     rect.x = ximg;
     rect.y = yimg;
     rect.w = wimg;
     rect.h = himg;
-    dest = newsurface(rect.w, rect.h, FALSE);
-    SDL_BlitSurface(src, &rect, dest, NULL);
+    dest = TW_NewSurface(rect.w, rect.h, FALSE);
+    TW_BlitSurface(src, &rect, dest, NULL);
     return dest;
 }
 
 /* Create a new surface containing a single tile with transparent
  * pixels, as indicated by the given color key.
  */
-static SDL_Surface *extractkeyedtile(SDL_Surface *src,
-				     int ximg, int yimg, int wimg, int himg,
-				     Uint32 transpclr)
+static TW_Surface *extractkeyedtile(TW_Surface *src,
+				    int ximg, int yimg, int wimg, int himg,
+				    uint32_t transpclr)
 {
-    SDL_Surface	       *dest;
-    SDL_Surface	       *temp;
-    SDL_Rect		rect;
+    TW_Surface	       *dest;
+    TW_Surface	       *temp;
+    TW_Rect		rect;
 
-    dest = newsurface(wimg, himg, TRUE);
-    SDL_FillRect(dest, NULL, SDL_MapRGBA(dest->format,
-					 0, 0, 0, SDL_ALPHA_TRANSPARENT));
-    SDL_SetColorKey(src, SDL_SRCCOLORKEY, transpclr);
+    dest = TW_NewSurface(wimg, himg, TRUE);
+    TW_FillRect(dest, NULL, TW_MapRGBA(dest, 0, 0, 0, TW_ALPHA_TRANSPARENT));
+    TW_SetColorKey(src, transpclr);
     rect.x = ximg;
     rect.y = yimg;
     rect.w = dest->w;
     rect.h = dest->h;
-    SDL_BlitSurface(src, &rect, dest, NULL);
-    SDL_SetColorKey(src, 0, 0);
+    TW_BlitSurface(src, &rect, dest, NULL);
+    TW_ResetColorKey(src);
 
     temp = dest;
-    dest = SDL_DisplayFormatAlpha(temp);
-    SDL_FreeSurface(temp);
+    dest = TW_DisplayFormatAlpha(temp);
+    TW_FreeSurface(temp);
     if (!dest)
-	die("%s", SDL_GetError());
-    SDL_SetAlpha(dest, SDL_SRCALPHA | SDL_RLEACCEL, 0);
+	die("%s", TW_GetError());
+    TW_EnableAlpha(dest);
     return dest;
 }
 
@@ -481,84 +545,84 @@ static SDL_Surface *extractkeyedtile(SDL_Surface *src,
  * given transparent color are replaced with the corresponding pixels
  * from the empty tile.
  */
-static SDL_Surface *extractemptytile(SDL_Surface *src,
-				     int ximg, int yimg, int wimg, int himg,
-				     Uint32 transpclr)
+static TW_Surface *extractemptytile(TW_Surface *src,
+				    int ximg, int yimg, int wimg, int himg,
+				    uint32_t transpclr)
 {
-    SDL_Surface	       *dest;
-    SDL_Surface	       *temp;
-    SDL_Rect		rect;
+    TW_Surface	       *dest;
+    TW_Surface	       *temp;
+    TW_Rect		rect;
 
-    dest = newsurface(wimg, himg, FALSE);
+    dest = TW_NewSurface(wimg, himg, FALSE);
 
     if (tileptr[Empty].opaque[0])
-	SDL_BlitSurface(tileptr[Empty].opaque[0], NULL, dest, NULL);
-    SDL_SetColorKey(src, SDL_SRCCOLORKEY, transpclr);
+	TW_BlitSurface(tileptr[Empty].opaque[0], NULL, dest, NULL);
+    TW_SetColorKey(src, transpclr);
     rect.x = ximg;
     rect.y = yimg;
     rect.w = dest->w;
     rect.h = dest->h;
-    SDL_BlitSurface(src, &rect, dest, NULL);
-    SDL_SetColorKey(src, 0, 0);
+    TW_BlitSurface(src, &rect, dest, NULL);
+    TW_ResetColorKey(src);
 
     temp = dest;
-    dest = SDL_DisplayFormat(temp);
-    SDL_FreeSurface(temp);
+    dest = TW_DisplayFormat(temp);
+    TW_FreeSurface(temp);
     if (!dest)
-	die("%s", SDL_GetError());
+	die("%s", TW_GetError());
     return dest;
 }
 
 /* Create a new surface containing a single tile with transparent
  * pixels, as indicated by the mask tile.
  */
-static SDL_Surface *extractmaskedtile(SDL_Surface *src,
-				      int ximg, int yimg, int wimg, int himg,
-				      int xmask, int ymask)
+static TW_Surface *extractmaskedtile(TW_Surface *src,
+				     int ximg, int yimg, int wimg, int himg,
+				     int xmask, int ymask)
 {
-    SDL_Surface	       *dest;
-    SDL_Surface	       *temp;
-    SDL_Rect		rect;
+    TW_Surface	       *dest;
+    TW_Surface	       *temp;
+    TW_Rect		rect;
     unsigned char      *s, *d;
-    Uint32		transp, black;
+    uint32_t		transp, black;
     int			x, y;
 
     rect.x = ximg;
     rect.y = yimg;
     rect.w = wimg;
     rect.h = himg;
-    dest = newsurface(rect.w, rect.h, TRUE);
-    SDL_BlitSurface(src, &rect, dest, NULL);
+    dest = TW_NewSurface(rect.w, rect.h, TRUE);
+    TW_BlitSurface(src, &rect, dest, NULL);
 
-    black = SDL_MapRGB(src->format, 0, 0, 0);
-    transp = SDL_MapRGBA(dest->format, 0, 0, 0, SDL_ALPHA_TRANSPARENT);
+    black = TW_MapRGB(src, 0, 0, 0);
+    transp = TW_MapRGBA(dest, 0, 0, 0, TW_ALPHA_TRANSPARENT);
 
-    if (SDL_MUSTLOCK(src))
-	SDL_LockSurface(src);
-    if (SDL_MUSTLOCK(dest))
-	SDL_LockSurface(dest);
-    d = (Uint8*)dest->pixels;
-    s = (Uint8*)src->pixels + ymask * src->pitch
-			    + xmask * src->format->BytesPerPixel;
+    if (TW_MUSTLOCK(src))
+	TW_LockSurface(src);
+    if (TW_MUSTLOCK(dest))
+	TW_LockSurface(dest);
+    d = (uint8_t*)dest->pixels;
+    s = (uint8_t*)src->pixels + ymask * src->pitch
+			    + xmask * TW_BytesPerPixel(src);
     for (y = 0 ; y < dest->h ; ++y) {
 	for (x = 0 ; x < dest->w ; ++x) {
-	    if (pixelat(src, xmask + x, ymask + y) == black)
-		((Uint32*)d)[x] = transp;
+	    if (TW_PixelAt(src, xmask + x, ymask + y) == black)
+		((uint32_t*)d)[x] = transp;
 	}
 	s += src->pitch;
 	d += dest->pitch;
     }
-    if (SDL_MUSTLOCK(src))
-	SDL_UnlockSurface(src);
-    if (SDL_MUSTLOCK(dest))
-	SDL_UnlockSurface(dest);
+    if (TW_MUSTLOCK(src))
+	TW_UnlockSurface(src);
+    if (TW_MUSTLOCK(dest))
+	TW_UnlockSurface(dest);
 
     temp = dest;
-    dest = SDL_DisplayFormatAlpha(temp);
-    SDL_FreeSurface(temp);
+    dest = TW_DisplayFormatAlpha(temp);
+    TW_FreeSurface(temp);
     if (!dest)
-	die("%s", SDL_GetError());
-    SDL_SetAlpha(dest, SDL_SRCALPHA | SDL_RLEACCEL, 0);
+	die("%s", TW_GetError());
+    TW_EnableAlpha(dest);
     return dest;
 }
 
@@ -571,13 +635,13 @@ static SDL_Surface *extractmaskedtile(SDL_Surface *src,
  * in tiles that are allowed to have transparencies are made
  * transparent.
  */
-static int initsmalltileset(SDL_Surface *tiles)
+static int initsmalltileset(TW_Surface *tiles)
 {
-    SDL_Surface	       *s;
-    Uint32		magenta;
+    TW_Surface	       *s;
+    uint32_t		magenta;
     int			id, n;
 
-    magenta = SDL_MapRGB(tiles->format, 255, 0, 255);
+    magenta = TW_MapRGB(tiles, 255, 0, 255);
 
     for (n = 0 ; n < (int)(sizeof tileidmap / sizeof *tileidmap) ; ++n) {
 	id = tileidmap[n].id;
@@ -586,9 +650,9 @@ static int initsmalltileset(SDL_Surface *tiles)
 	tileptr[id].celcount = 0;
 	tileptr[id].transpsize = 0;
 	if (tileidmap[n].xtransp >= 0) {
-	    s = extractkeyedtile(tiles, tileidmap[n].xopaque * sdlg.wtile,
-					tileidmap[n].yopaque * sdlg.htile,
-					sdlg.wtile, sdlg.htile, magenta);
+	    s = extractkeyedtile(tiles, tileidmap[n].xopaque * geng.wtile,
+					tileidmap[n].yopaque * geng.htile,
+					geng.wtile, geng.htile, magenta);
 	    if (!s)
 		return FALSE;
 	    remembersurface(s);
@@ -596,9 +660,9 @@ static int initsmalltileset(SDL_Surface *tiles)
 	    tileptr[id].opaque[0] = NULL;
 	    tileptr[id].transp[0] = s;
 	} else if (tileidmap[n].xopaque >= 0) {
-	    s = extractopaquetile(tiles, tileidmap[n].xopaque * sdlg.wtile,
-					 tileidmap[n].yopaque * sdlg.htile,
-					 sdlg.wtile, sdlg.htile);
+	    s = extractopaquetile(tiles, tileidmap[n].xopaque * geng.wtile,
+					 tileidmap[n].yopaque * geng.htile,
+					 geng.wtile, geng.htile);
 	    if (!s)
 		return FALSE;
 	    remembersurface(s);
@@ -620,9 +684,9 @@ static int initsmalltileset(SDL_Surface *tiles)
  * as transparent pixels. Then fill in the values of the tileptr
  * array, using tileidmap to identify the individual tile images.
  */
-static int initmaskedtileset(SDL_Surface *tiles)
+static int initmaskedtileset(TW_Surface *tiles)
 {
-    SDL_Surface	       *s;
+    TW_Surface	       *s;
     int			id, n;
 
     for (n = 0 ; n < (int)(sizeof tileidmap / sizeof *tileidmap) ; ++n) {
@@ -632,9 +696,9 @@ static int initmaskedtileset(SDL_Surface *tiles)
 	tileptr[id].transp[0] = NULL;
 	tileptr[id].transpsize = 0;
 	if (tileidmap[n].xopaque >= 0) {
-	    s = extractopaquetile(tiles, tileidmap[n].xopaque * sdlg.wtile,
-					 tileidmap[n].yopaque * sdlg.htile,
-					 sdlg.wtile, sdlg.htile);
+	    s = extractopaquetile(tiles, tileidmap[n].xopaque * geng.wtile,
+					 tileidmap[n].yopaque * geng.htile,
+					 geng.wtile, geng.htile);
 	    if (!s)
 		return FALSE;
 	    remembersurface(s);
@@ -643,12 +707,12 @@ static int initmaskedtileset(SDL_Surface *tiles)
 	}
 	if (tileidmap[n].xtransp >= 0) {
 	    s = extractmaskedtile(tiles,
-				  tileidmap[n].xtransp * sdlg.wtile,
-				  tileidmap[n].ytransp * sdlg.htile,
-				  sdlg.wtile,
-				  sdlg.htile,
-				  (tileidmap[n].xtransp + 3) * sdlg.wtile,
-				  tileidmap[n].ytransp * sdlg.htile);
+				  tileidmap[n].xtransp * geng.wtile,
+				  tileidmap[n].ytransp * geng.htile,
+				  geng.wtile,
+				  geng.htile,
+				  (tileidmap[n].xtransp + 3) * geng.wtile,
+				  tileidmap[n].ytransp * geng.htile);
 	    if (!s)
 		return FALSE;
 	    remembersurface(s);
@@ -669,9 +733,9 @@ static int initmaskedtileset(SDL_Surface *tiles)
  * array at ptrs. transpclr indicates the color of the pixels to
  * replace with the corresponding pixels from the Empty tile.
  */
-static int extractopaquetileseq(SDL_Surface *tiles, SDL_Rect const *rect,
-				int count, SDL_Surface **ptrs,
-				Uint32 transpclr)
+static int extractopaquetileseq(TW_Surface *tiles, TW_Rect const *rect,
+				int count, TW_Surface **ptrs,
+				uint32_t transpclr)
 {
     int	x, n;
 
@@ -691,9 +755,9 @@ static int extractopaquetileseq(SDL_Surface *tiles, SDL_Rect const *rect,
  * array at ptrs. transpclr indicates the color of the pixels to make
  * transparent.
  */
-static int extracttransptileseq(SDL_Surface *tiles, SDL_Rect const *rect,
-				int count, SDL_Surface** ptrs,
-				Uint32 transpclr)
+static int extracttransptileseq(TW_Surface *tiles, TW_Rect const *rect,
+				int count, TW_Surface** ptrs,
+				uint32_t transpclr)
 {
     int	x, n;
 
@@ -716,16 +780,16 @@ static int extracttransptileseq(SDL_Surface *tiles, SDL_Rect const *rect,
  * return, the pointer at pd is updated to point to the first byte in
  * the buffer after the copied tile images.
  */
-static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
-			    int id, int shape, Uint32 transpclr)
+static int extracttileimage(TW_Surface *tiles, int x, int y, int w, int h,
+			    int id, int shape, uint32_t transpclr)
 {
-    SDL_Rect	rect;
+    TW_Rect	rect;
     int		n;
 
     rect.x = x;
     rect.y = y;
-    rect.w = sdlg.wtile;
-    rect.h = sdlg.htile;
+    rect.w = geng.wtile;
+    rect.h = geng.htile;
 
     switch (shape) {
       case TILEIMG_SINGLEOPAQUE:
@@ -766,13 +830,13 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 	if (h == 3) {
 	    tileptr[id].transpsize = SIZE_EXTALL;
 	    tileptr[id].celcount = w / 3;
-	    rect.w = 3 * sdlg.wtile;
-	    rect.h = 3 * sdlg.htile;
+	    rect.w = 3 * geng.wtile;
+	    rect.h = 3 * geng.htile;
 	} else {
 	    tileptr[id].transpsize = 0;
 	    tileptr[id].celcount = w;
-	    rect.w = sdlg.wtile;
-	    rect.h = sdlg.htile;
+	    rect.w = geng.wtile;
+	    rect.h = geng.htile;
 	}
 	extracttransptileseq(tiles, &rect, tileptr[id].celcount,
 			     tileptr[id].transp, transpclr);
@@ -799,7 +863,7 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 		tileptr[id].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
 				     tileptr[id].transp, transpclr);
-		rect.x += sdlg.wtile;
+		rect.x += geng.wtile;
 		tileptr[id + 1].transpsize = 0;
 		tileptr[id + 1].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
@@ -812,7 +876,7 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 		    tileptr[id + n].celcount = 1;
 		    extracttransptileseq(tiles, &rect, 1,
 					 tileptr[id + n].transp, transpclr);
-		    rect.x += sdlg.wtile;
+		    rect.x += geng.wtile;
 		}
 	    } else {
 		warn("invalid packing of creature tiles (%02X=%dx%d)",
@@ -827,7 +891,7 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 				     tileptr[id].transp, transpclr);
 		tileptr[id + 1].transpsize = 0;
 		tileptr[id + 1].celcount = 1;
-		rect.y += sdlg.htile;
+		rect.y += geng.htile;
 		extracttransptileseq(tiles, &rect, 1,
 				     tileptr[id + 1].transp, transpclr);
 		tileptr[id + 2] = tileptr[id];
@@ -837,18 +901,18 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 		tileptr[id].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
 				     tileptr[id].transp, transpclr);
-		rect.x += sdlg.wtile;
+		rect.x += geng.wtile;
 		tileptr[id + 1].transpsize = 0;
 		tileptr[id + 1].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
 				     tileptr[id + 1].transp, transpclr);
-		rect.x -= sdlg.wtile;
-		rect.y += sdlg.htile;
+		rect.x -= geng.wtile;
+		rect.y += geng.htile;
 		tileptr[id + 2].transpsize = 0;
 		tileptr[id + 2].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
 				     tileptr[id + 2].transp, transpclr);
-		rect.x += sdlg.wtile;
+		rect.x += geng.wtile;
 		tileptr[id + 3].transpsize = 0;
 		tileptr[id + 3].celcount = 1;
 		extracttransptileseq(tiles, &rect, 1,
@@ -858,42 +922,42 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
 		tileptr[id].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id].transp, transpclr);
-		rect.x += 4 * sdlg.wtile;
+		rect.x += 4 * geng.wtile;
 		tileptr[id + 1].transpsize = 0;
 		tileptr[id + 1].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id + 1].transp, transpclr);
-		rect.x -= 4 * sdlg.wtile;
-		rect.y += sdlg.htile;
+		rect.x -= 4 * geng.wtile;
+		rect.y += geng.htile;
 		tileptr[id + 2].transpsize = 0;
 		tileptr[id + 2].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id + 2].transp, transpclr);
-		rect.x += 4 * sdlg.wtile;
+		rect.x += 4 * geng.wtile;
 		tileptr[id + 3].transpsize = 0;
 		tileptr[id + 3].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id + 3].transp, transpclr);
 	    } else if (w == 16) {
-		rect.w = sdlg.wtile;
-		rect.h = 2 * sdlg.htile;
+		rect.w = geng.wtile;
+		rect.h = 2 * geng.htile;
 		tileptr[id].transpsize = SIZE_EXTDOWN;
 		tileptr[id].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id].transp, transpclr);
-		rect.x += 4 * sdlg.wtile;
+		rect.x += 4 * geng.wtile;
 		tileptr[id + 2].transpsize = SIZE_EXTUP;
 		tileptr[id + 2].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id + 2].transp, transpclr);
-		rect.x += 4 * sdlg.wtile;
-		rect.w = 2 * sdlg.wtile;
-		rect.h = sdlg.htile;
+		rect.x += 4 * geng.wtile;
+		rect.w = 2 * geng.wtile;
+		rect.h = geng.htile;
 		tileptr[id + 1].transpsize = SIZE_EXTRIGHT;
 		tileptr[id + 1].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
 				     tileptr[id + 1].transp, transpclr);
-		rect.y += sdlg.htile;
+		rect.y += geng.htile;
 		tileptr[id + 3].transpsize = SIZE_EXTLEFT;
 		tileptr[id + 3].celcount = 4;
 		extracttransptileseq(tiles, &rect, 4,
@@ -918,19 +982,19 @@ static int extracttileimage(SDL_Surface *tiles, int x, int y, int w, int h,
  * pointers to each tile image is stored in the appropriate field of
  * the tileptr array.
  */
-static int initlargetileset(SDL_Surface *tiles)
+static int initlargetileset(TW_Surface *tiles)
 {
-    SDL_Rect	       *tilepos = NULL;
-    Uint32		transpclr;
+    TW_Rect	       *tilepos = NULL;
+    uint32_t		transpclr;
     int			row, nextrow;
     int			n, x, y, w, h;
 
-    if (SDL_MUSTLOCK(tiles))
-	SDL_LockSurface(tiles);
+    if (TW_MUSTLOCK(tiles))
+	TW_LockSurface(tiles);
 
-    transpclr = pixelat(tiles, 1, 0);
+    transpclr = TW_PixelAt(tiles, 1, 0);
     for (w = 1 ; w < tiles->w ; ++w)
-	if (pixelat(tiles, w, 0) != transpclr)
+	if (TW_PixelAt(tiles, w, 0) != transpclr)
 	    break;
     if (w == tiles->w) {
 	warn("Can't find tile separators");
@@ -941,7 +1005,7 @@ static int initlargetileset(SDL_Surface *tiles)
 	return FALSE;
     }
     for (h = 1 ; h < tiles->h ; ++h)
-	if (pixelat(tiles, 0, h) != transpclr)
+	if (TW_PixelAt(tiles, 0, h) != transpclr)
 	    break;
     --h;
     if (h % 4 != 0) {
@@ -955,7 +1019,7 @@ static int initlargetileset(SDL_Surface *tiles)
     xalloc(tilepos, (sizeof tileidmap / sizeof *tileidmap) * sizeof *tilepos);
 
     row = 0;
-    nextrow = sdlg.htile + 1;
+    nextrow = geng.htile + 1;
     h = 1;
     x = 0;
     y = 0;
@@ -966,26 +1030,26 @@ static int initlargetileset(SDL_Surface *tiles)
 	w = 0;
 	for (;;) {
 	    ++w;
-	    if (x + w * sdlg.wtile >= tiles->w) {
+	    if (x + w * geng.wtile >= tiles->w) {
 		w = 0;
 		break;
 	    }
-	    if (pixelat(tiles, x + w * sdlg.wtile, row) != transpclr)
+	    if (TW_PixelAt(tiles, x + w * geng.wtile, row) != transpclr)
 		break;
 	}
 	if (!w) {
 	    row = nextrow;
 	    ++nextrow;
-	    y += 1 + h * sdlg.htile;
+	    y += 1 + h * geng.htile;
 	    h = 0;
 	    do {
 		++h;
-		if (y + h * sdlg.htile >= tiles->h) {
+		if (y + h * geng.htile >= tiles->h) {
 		    h = 0;
 		    break;
 		}
-		nextrow += sdlg.htile;
-	    } while (pixelat(tiles, 0, nextrow) == transpclr);
+		nextrow += geng.htile;
+	    } while (TW_PixelAt(tiles, 0, nextrow) == transpclr);
 	    if (!h) {
 		warn("incomplete tile set: missing %02X", tileidmap[n].id);
 		goto failure;
@@ -997,16 +1061,16 @@ static int initlargetileset(SDL_Surface *tiles)
 	tilepos[n].y = y + 1;
 	tilepos[n].w = w;
 	tilepos[n].h = h;
-	x += w * sdlg.wtile;
+	x += w * geng.wtile;
     }
 
-    if (SDL_MUSTLOCK(tiles))
-	SDL_UnlockSurface(tiles);
+    if (TW_MUSTLOCK(tiles))
+	TW_UnlockSurface(tiles);
 
     tileptr[Empty].transpsize = 0;
     tileptr[Empty].celcount = 1;
     tileptr[Empty].opaque[0] = extractopaquetile(tiles, 1, 1,
-						 sdlg.wtile, sdlg.htile);
+						 geng.wtile, geng.htile);
     tileptr[Empty].transp[0] = NULL;
     remembersurface(tileptr[Empty].opaque[0]);
 
@@ -1056,9 +1120,9 @@ void freetileset(void)
 	    tileptr[n].transp[m] = NULL;
 	}
     }
-    sdlg.wtile = 0;
-    sdlg.htile = 0;
-    sdlg.cptile = 0;
+    geng.wtile = 0;
+    geng.htile = 0;
+    geng.cptile = 0;
     opaquetile = NULL;
     freerememberedsurfaces();
 }
@@ -1070,18 +1134,15 @@ void freetileset(void)
  */
 int loadtileset(char const *filename, int complain)
 {
-    SDL_Surface	       *tiles = NULL;
+    TW_Surface	       *tiles = NULL;
     int			f, w, h;
 
-    tiles = SDL_LoadBMP(filename);
+    tiles = TW_LoadBMP(filename, TRUE);
     if (!tiles) {
 	if (complain)
-	    errmsg(filename, "cannot read bitmap: %s", SDL_GetError());
+	    errmsg(filename, "cannot read bitmap: %s", TW_GetError());
 	return FALSE;
     }
-    if (tiles->format->palette && sdlg.screen->format->palette)
-	SDL_SetColors(sdlg.screen, tiles->format->palette->colors,
-		      0, tiles->format->palette->ncolors);
 
     if (tiles->w % 2 != 0) {
 	freetileset();
@@ -1103,15 +1164,16 @@ int loadtileset(char const *filename, int complain)
 	f = FALSE;
     }
 
-    SDL_FreeSurface(tiles);
+    TW_FreeSurface(tiles);
     return f;
 }
 
 /* Initialization.
  */
-int _sdltileinitialize(void)
+int _generictileinitialize(void)
 {
-    sdlg.getcreatureimagefunc = _getcreatureimage;
-    sdlg.getcellimagefunc = _getcellimage;
+    geng.mapvieworigin = -1;
+    geng.displaymapviewfunc = _displaymapview;
+    geng.drawfulltileidfunc = _drawfulltileid;
     return TRUE;
 }

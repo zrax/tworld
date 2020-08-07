@@ -1,12 +1,14 @@
-/* sdltimer.c: Game timing functions.
+/* timer.c: Game timing functions.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
-#include	"SDL.h"
-#include	"sdlgen.h"
+#include	<stdio.h>
+#include	"../gen.h"
+#include	"../oshw.h"
+#include	"generic.h"
 
 /* By default, a second of game time lasts for 1000 milliseconds of
  * real time.
@@ -48,12 +50,12 @@ void settimer(int action)
 	utick = 0;
     } else if (action > 0) {
 	if (nexttickat < 0)
-	    nexttickat = SDL_GetTicks() - nexttickat;
+	    nexttickat = TW_GetTicks() - nexttickat;
 	else
-	    nexttickat = SDL_GetTicks() + mspertick;
+	    nexttickat = TW_GetTicks() + mspertick;
     } else {
 	if (nexttickat > 0)
-	    nexttickat = SDL_GetTicks() - nexttickat;
+	    nexttickat = TW_GetTicks() - nexttickat;
     }
 }
 
@@ -71,7 +73,7 @@ int waitfortick(void)
 {
     int	ms;
 
-    ms = nexttickat - SDL_GetTicks();
+    ms = nexttickat - TW_GetTicks();
     if (showhistogram)
 	if (ms < (int)(sizeof hist / sizeof *hist))
 	    ++hist[ms >= 0 ? ms + 1 : 0];
@@ -85,7 +87,7 @@ int waitfortick(void)
     while (ms < 0)
 	ms += mspertick;
 
-    SDL_Delay(ms);
+    TW_Delay(ms);
 
     ++utick;
     nexttickat += mspertick;
@@ -125,7 +127,7 @@ static void shutdown(void)
 
 /* Initialize and reset the timer.
  */
-int _sdltimerinitialize(int _showhistogram)
+int _generictimerinitialize(int _showhistogram)
 {
     showhistogram = _showhistogram;
     atexit(shutdown);

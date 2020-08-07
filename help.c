@@ -1,7 +1,7 @@
 /* help.c: Displaying online help.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
@@ -49,19 +49,23 @@ tablespec const *yowzitch = &yowzitch_table;
 /* Version and license information.
  */
 static char *vourzhon_items[] = {
-    "1+\267", "1-Tile World: version " VERSION,
-    "1+",     "1-Copyright \251 2001-2006 by Brian Raiter",
-    "1+",     "1-compiled " COMPILE_TIME,
-    "1+\267", "1!This program is free software; you can redistribute it and/or"
-	      " modify it under the terms of the GNU General Public License as"
-	      " published by the Free Software Foundation; either version 2 of"
-	      " the License, or (at your option) any later version.",
-    "1+\267", "1!This program is distributed in the hope that it will be"
-	      " useful, but WITHOUT ANY WARRANTY; without even the implied"
-	      " warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR"
-	      " PURPOSE. See the GNU General Public License for more details.",
-    "1+\267", "1!Bug reports are appreciated, and can be sent to"
-	      " breadbox@muppetlabs.com."
+    "1+*", "1-Tile World: version " VERSION,
+    "1+",  "1-Copyright (c) 2001-2010 by Brian Raiter and Madhav Shanbhag",
+    "1+",  "1-compiled " COMPILE_TIME,
+    "1+*", "1!This program is free software; you can redistribute it and/or"
+	   " modify it under the terms of the GNU General Public License as"
+	   " published by the Free Software Foundation; either version 2 of"
+	   " the License, or (at your option) any later version.",
+    "1+*", "1!This program is distributed in the hope that it will be"
+	   " useful, but WITHOUT ANY WARRANTY; without even the implied"
+	   " warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR"
+	   " PURPOSE. See the GNU General Public License for more details.",
+    "1+*", "1!Bug reports are appreciated, and can be sent to"
+#ifdef __TWPLUSPLUS
+	   " CrapulentCretin@Yahoo.com."
+#else
+	   " breadbox@muppetlabs.com."
+#endif
 };
 static tablespec const vourzhon_table = { 6, 2, 1, -1, vourzhon_items };
 tablespec const *vourzhon = &vourzhon_table;
@@ -242,7 +246,7 @@ void onlinemainhelp(int topic)
       default:				n = 5;		break;
     }
 
-    while (displaylist("HELP", &table, &n, scrollinputcallback)) {
+    while (displaylist("HELP", &table, &n, LIST_HELP, scrollinputcallback)) {
 	if (n == 5)
 	    break;
 	switch (n) {

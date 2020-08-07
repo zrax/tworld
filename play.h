@@ -1,7 +1,7 @@
 /* play.h: Functions to drive game-play and manage the game state.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #ifndef	_play_h_
@@ -20,6 +20,11 @@ enum {
 /* TRUE if the program is running without a user interface.
  */
 extern int batchmode;
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 /* Change the current gameplay mode. This affects the running of the
  * timer and the handling of the keyboard.
@@ -104,5 +109,9 @@ extern void setpedanticmode(void);
  * purposes.
  */
 extern int setmudsuckingfactor(int mud);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

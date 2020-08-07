@@ -1,14 +1,14 @@
 /* sdlsfx.c: Creating the program's sound effects.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
 #include	"SDL.h"
-#include	"sdlgen.h"
+#include	"sdlsfx.h"
 #include	"../err.h"
 #include	"../state.h"
 

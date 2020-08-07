@@ -1,3 +1,5 @@
+2010 Dec 22: version 2.0.0
+* First public release of Tile World 2 featuring numerous improvements.
 
 2006 Apr 17: version 1.3.0
 * Added mouse handling to the code. That includes modifying the SDL code to
@@ -157,7 +159,7 @@
 * Fixed off-by-one timing bug (MS logic) when last move of a level is
   involuntary (discovered by Anders Kaseorg).
 * Changed pause button to work as a toggle (i.e., no other keys will exit
-  pause mode), as requested by Hallgeir Flø.
+  pause mode), as requested by Hallgeir Fl .
 
 2002 Feb 25: version 0.10.5
 
@@ -176,7 +178,7 @@
 
 * Separated out the two kinds of splashes.
 * Fixed changing level by password (broken in 0.10.3; reported by Hallgeir
-  Flø).
+  Fl ).
 * Fixed a couple of bugs in handling invalid levels under Lynx (reported by
   Chuck Sommerville).
 * Fixed several minor bugs (including several reported by Anders Kaseorg).
