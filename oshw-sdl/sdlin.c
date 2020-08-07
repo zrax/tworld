@@ -84,6 +84,7 @@ static keycmdmap const gamekeycmds[] = {
     { SDLK_F1,                   -1, -1,  0,   CmdHelp,               FALSE },
     { 'o',			  0,  0,  0,   CmdStepping,           FALSE },
     { 'o',			 +1,  0,  0,   CmdSubStepping,        FALSE },
+    { 'f',			  0,  0,  0,   CmdRndSlideDir,        FALSE },
     { '\t',                       0, -1,  0,   CmdPlayback,           FALSE },
     { '\t',                      +1, -1,  0,   CmdCheckSolution,      FALSE },
     { 'x',                        0, +1,  0,   CmdReplSolution,       FALSE },
@@ -102,15 +103,7 @@ static keycmdmap const gamekeycmds[] = {
     { SDLK_DOWN,                 +1,  0,  0,   CmdCheatSouth,         TRUE },
     { SDLK_RIGHT,                +1,  0,  0,   CmdCheatEast,          TRUE },
     { SDLK_HOME,                 +1,  0,  0,   CmdCheatHome,          FALSE },
-    { SDLK_F2,                    0,  0,  0,   CmdCheatICChip,        FALSE },
-    { SDLK_F3,                    0,  0,  0,   CmdCheatKeyRed,        FALSE },
-    { SDLK_F4,                    0,  0,  0,   CmdCheatKeyBlue,       FALSE },
-    { SDLK_F5,                    0,  0,  0,   CmdCheatKeyYellow,     FALSE },
-    { SDLK_F6,                    0,  0,  0,   CmdCheatKeyGreen,      FALSE },
-    { SDLK_F7,                    0,  0,  0,   CmdCheatBootsIce,      FALSE },
-    { SDLK_F8,                    0,  0,  0,   CmdCheatBootsSlide,    FALSE },
-    { SDLK_F9,                    0,  0,  0,   CmdCheatBootsFire,     FALSE },
-    { SDLK_F10,                   0,  0,  0,   CmdCheatBootsWater,    FALSE },
+    { SDLK_F10,                   0,  0,  0,   CmdCheatStuff,         FALSE },
     { '\003',                    -1, -1,  0,   CmdQuit,               FALSE },
     { SDLK_F4,                    0,  0, +1,   CmdQuit,               FALSE },
     { 0, 0, 0, 0, 0, 0 }
@@ -498,7 +491,7 @@ tablespec const *keyboardhelp(int which)
 	"1-Ctrl-C", "1-exit the program",
 	"1-Alt-F4", "1-exit the program"
     };
-    static tablespec const keyhelp_twixtgame = { 18, 2, 4, 1,
+    static tablespec const keyhelp_twixtgame = { 18, 2, 2, 1,
 						 twixtgame_items };
 
     static char *scorelist_items[] = {
@@ -510,7 +503,7 @@ tablespec const *keyboardhelp(int which)
 	"1-Ctrl-C", "1-exit the program",
 	"1-Alt-F4", "1-exit the program"
     };
-    static tablespec const keyhelp_scorelist = { 7, 2, 4, 1, scorelist_items };
+    static tablespec const keyhelp_scorelist = { 7, 2, 2, 1, scorelist_items };
 
     static char *scroll_items[] = {
 	"1-up down", "1-move selection",
@@ -520,7 +513,7 @@ tablespec const *keyboardhelp(int which)
 	"1-Ctrl-C", "1-exit the program",
 	"1-Alt-F4", "1-exit the program"
     };
-    static tablespec const keyhelp_scroll = { 6, 2, 4, 1, scroll_items };
+    static tablespec const keyhelp_scroll = { 6, 2, 2, 1, scroll_items };
 
     switch (which) {
       case KEYHELP_INGAME:	return &keyhelp_ingame;

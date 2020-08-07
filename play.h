@@ -17,27 +17,38 @@ enum {
     BeginInput, EndInput, BeginVerify, EndVerify
 };
 
-/* TRUE if the program is running without a user interface.
- */
-extern int batchmode;
-
 /* Change the current gameplay mode. This affects the running of the
  * timer and the handling of the keyboard.
  */
 extern void setgameplaymode(int mode);
 
-/* Initialize the current state to the starting position of the
- * given level.
+/* Initialize the current state to the starting position of the given
+ * level. If withgui is FALSE, the user interface is not created.
  */
-extern int initgamestate(gamesetup *game, int ruleset);
+extern int initgamestate(gamesetup *game, int ruleset, int withgui);
 
 /* Set up the current state to play from its prerecorded solution.
  * FALSE is returned if no solution is available for playback.
  */
 extern int prepareplayback(void);
 
+/* Set the initial stepping value. stepping is a value between 0 and 7
+ * inclusive. (Under MS, the stepping can only be 0 or 4.) If display
+ * is true, a message is displayed to indicate the change.
+ */
 extern int setstepping(int stepping, int display);
+
+/* Change the initial stepping value by adding the given delta. If
+ * display is true, the new stepping value is displayed.
+ */
 extern int changestepping(int delta, int display);
+
+/* Modify the initial random slide direction by rotating it clockwise
+ * If display is true, the new direction is diplayed in a message.
+ * FALSE is returned if the current ruleset doesn't use the initial
+ * random slide direction.
+ */
+extern int rotaterndslidedir(int display);
 
 /* Return the amount of time passed in the current game, in seconds.
  */
@@ -95,8 +106,9 @@ extern int deletesolution(void);
  */
 extern int checksolution(void);
 
-/* Turn pedantic mode on. The ruleset will be slightly changed to be
- * as faithful as possible to the original source material.
+/* Turn pedantic mode on. The ruleset simulation will forgo "standard
+ * play" in favor of being as true as possible to the original source
+ * material.
  */
 extern void setpedanticmode(void);
 

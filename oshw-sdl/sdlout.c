@@ -723,6 +723,113 @@ int displayendmessage(int basescore, int timescore, long totalscore,
     return displayprompticon(completed);
 }
 
+/* Render a sequence of paragraphs on the display. title is a short
+ * string to let the user know what they're looking at. completed
+ * determines the prompt icon that will be displayed in the lower
+ * right-hand corner. The callback function inputcallback is called
+ * repeatedly to determine how to scroll and when to exit. The final
+ * value returned by the callback will be the return value of the
+ * function.
+ */
+int displaytextscroll(char const *title, char const **paragraphs,
+		      int ppcount, int completed,
+		      int (*inputcallback)(int*))
+{
+    SDL_Rect	area, thumb, rect;
+    int	       *linecounts;
+    int		arealines, totallines, topline, maxtop;
+    int		i, n;
+
+    cleardisplay();
+
+    area.x = MARGINW;
+    area.y = screenh - MARGINH - sdlg.font.h;
+    area.w = screenw - 2 * MARGINW;
+    area.h = sdlg.font.h;
+    puttext(&area, title, -1, 0);
+    displayprompticon(completed);
+
+    area.w = screenw * 2 / 3;
+    area.h = screenh - 4 * sdlg.font.h;
+    area.x = (screenw - area.w) / 2;
+    area.y = 2 * sdlg.font.h;
+    arealines = area.h / sdlg.font.h;
+
+    if (!(linecounts = malloc(ppcount * sizeof *linecounts)))
+	memerrexit();
+    totallines = 0;
+    for (i = 0 ; i < ppcount ; ++i) {
+	rect = area;
+	puttext(&rect, paragraphs[i], -1, PT_MULTILINE | PT_CALCSIZE);
+	linecounts[i] = rect.h / sdlg.font.h;
+	totallines += linecounts[i] + 1;
+    }
+    maxtop = totallines - arealines;
+    if (maxtop > 0) {
+	thumb.x = promptloc.x;
+	thumb.y = area.y;
+	thumb.w = MARGINW;
+	thumb.h = area.h * arealines / totallines;
+	if (thumb.h < MARGINH)
+	    thumb.h = MARGINH;
+    } else {
+	maxtop = 0;
+	thumb.h = 0;
+    }
+
+    topline = 0;
+    n = SCROLL_NOP;
+    do {
+	switch (n) {
+	  case SCROLL_NOP:						break;
+	  case SCROLL_UP:		--topline;			break;
+	  case SCROLL_DN:		++topline;			break;
+	  case SCROLL_HALFPAGE_UP:	topline -= arealines / 2;	break;
+	  case SCROLL_HALFPAGE_DN:	topline += arealines / 2;	break;
+	  case SCROLL_PAGE_UP:		topline -= arealines;		break;
+	  case SCROLL_PAGE_DN:		topline += arealines;		break;
+	  case SCROLL_ALLTHEWAY_UP:	topline = 0;			break;
+	  case SCROLL_ALLTHEWAY_DN:	topline = maxtop;		break;
+	  default:			topline = n;			break;
+	}
+	if (topline < 0)
+	    topline = 0;
+	else if (topline > maxtop)
+	    topline = maxtop;
+	SDL_FillRect(sdlg.screen, &area, bkgndcolor(sdlg.textclr));
+	rect = area;
+	n = topline;
+	for (i = 0 ; i < ppcount ; ++i) {
+	    if (n >= linecounts[i]) {
+		n -= linecounts[i];
+	    } else {
+		puttext(&rect, paragraphs[i], -1,
+			PT_MULTILINE | PT_UPDATERECT | PT_SKIPLINES(n));
+		n = 0;
+	    }
+	    if (rect.h <= sdlg.font.h)
+		break;
+	    if (n) {
+		--n;
+	    } else {
+		rect.y += sdlg.font.h;
+		rect.h -= sdlg.font.h;
+	    }
+	}
+	if (maxtop > 0) {
+	    SDL_FillRect(sdlg.screen, &thumb, bkgndcolor(sdlg.textclr));
+	    thumb.y = area.y + topline * (area.h - thumb.h) / maxtop;
+	    SDL_FillRect(sdlg.screen, &thumb, halfcolor(sdlg.textclr));
+	}
+	SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+	n = SCROLL_NOP;
+    } while ((*inputcallback)(&n));
+
+    free(linecounts);
+    cleardisplay();
+    return n;
+}
+
 /* Render a table on the display. title is a short string to let the
  * user know what they're looking at. completed determines the prompt
  * icon that will be displayed in the lower right-hand corner.
@@ -821,7 +928,7 @@ int displaytiletable(char const *title,
 int displaylist(char const *title, tablespec const *table, int *idx,
 		int (*inputcallback)(int*))
 {
-    SDL_Rect		area;
+    SDL_Rect		area, thumb;
     SDL_Rect	       *cols;
     SDL_Rect	       *colstmp;
     int			linecount, itemcount, topitem, index;
@@ -830,7 +937,7 @@ int displaylist(char const *title, tablespec const *table, int *idx,
     cleardisplay();
     area.x = MARGINW;
     area.y = screenh - MARGINH - sdlg.font.h;
-    area.w = screenw - 2 * MARGINW;
+    area.w = screenw - 4 * MARGINW;
     area.h = sdlg.font.h;
     puttext(&area, title, -1, 0);
     area.h = area.y - MARGINH;
@@ -842,6 +949,11 @@ int displaylist(char const *title, tablespec const *table, int *idx,
     itemcount = table->rows - 1;
     topitem = 0;
     linecount = area.h / sdlg.font.h - 1;
+
+    thumb.x = screenw - 2 * MARGINW;
+    thumb.y = area.y;
+    thumb.w = MARGINW;
+    thumb.h = itemcount <= linecount ? 0 : area.h * linecount / itemcount;
 
     index = *idx;
     n = SCROLL_NOP;
@@ -880,6 +992,12 @@ int displaylist(char const *title, tablespec const *table, int *idx,
 	    drawtablerow(table, NULL, &n, 0);
 	for ( ; j < topitem + linecount && j < itemcount ; ++j)
 	    drawtablerow(table, colstmp, &n, j == index ? PT_HILIGHT : 0);
+	if (itemcount > linecount) {
+	    SDL_FillRect(sdlg.screen, &thumb, bkgndcolor(sdlg.textclr));
+	    thumb.y = area.y
+		    + topitem * (area.h - thumb.h) / (itemcount - linecount);
+	    SDL_FillRect(sdlg.screen, &thumb, halfcolor(sdlg.textclr));
+	}
 	SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
 
 	n = SCROLL_NOP;

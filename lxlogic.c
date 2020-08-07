@@ -64,13 +64,9 @@ struct lxstate {
     unsigned char	stuck;		/* Chip is stuck on a teleport */
     unsigned char	pushing;	/* Chip is pushing against something */
     unsigned char	couldntmove;	/* can't-move sound has been played */
-    unsigned char	mapbreached;	/* Border of map has been breached */
+    unsigned char	mapbreached;	/* border of map has been breached */
+    creature		creaturearray[MAX_CREATURES + 1];  /* all creatures */
 };
-
-/* Pedantic mode flag. (Having this variable defined here is a hack,
- * but this is the only module that actually uses it.)
- */
-int			pedanticmode = FALSE;
 
 /* Declarations of (indirectly recursive) functions.
  */
@@ -89,10 +85,6 @@ static int		lastrndslidedir = NORTH;
 /* The most recently used stepping phase value.
  */
 static int		laststepping = 0;
-
-/* The memory used to hold the list of creatures.
- */
-static creature	       *creaturearray = NULL;
 
 /* A pointer to the game state, used so that it doesn't have to be
  * passed to every single function.
@@ -129,6 +121,7 @@ static gamestate       *state;
 #define	hidehint()		(state->statusflags &= ~SF_SHOWHINT)
 #define	markinvalid()		(state->statusflags |= SF_INVALID)
 #define	ismarkedinvalid()	(state->statusflags & SF_INVALID)
+#define	ispedanticmode()	(state->statusflags & SF_PEDANTIC)
 
 #define	chipsneeded()		(state->chipsneeded)
 
@@ -139,6 +132,7 @@ static gamestate       *state;
 
 #define	getlxstate()		((struct lxstate*)state->localstateinfo)
 
+#define	creaturearray()		(getlxstate()->creaturearray)
 #define	completed()		(getlxstate()->completed)
 #define	togglestate()		(getlxstate()->togglestate)
 #define	couldntmove()		(getlxstate()->couldntmove)
@@ -283,7 +277,7 @@ static int trapfrombutton(int pos)
     xyconn     *xy;
     int		i;
 
-    if (pedanticmode) {
+    if (ispedanticmode()) {
 	i = pos;
 	for (;;) {
 	    ++i;
@@ -309,7 +303,7 @@ static int clonerfrombutton(int pos)
     xyconn     *xy;
     int		i;
 
-    if (pedanticmode) {
+    if (ispedanticmode()) {
 	i = pos;
 	for (;;) {
 	    ++i;
@@ -392,7 +386,7 @@ static creature *newcreature(void)
 	warn("Ran out of room in the creatures array!");
 	return NULL;
     }
-    if (pedanticmode && cr - creaturelist() >= PMAX_CREATURES)
+    if (ispedanticmode() && cr - creaturelist() >= PMAX_CREATURES)
 	return NULL;
 
     cr->hidden = TRUE;
@@ -678,7 +672,7 @@ static int canmakemove(creature const *cr, int dir, int flags)
     if (x < 0 || x >= CXGRID)
 	return FALSE;
     if (y < 0 || y >= CYGRID) {
-	if (pedanticmode) {
+	if (ispedanticmode()) {
 	    if (flags & CMM_STARTMOVEMENT) {
 		mapbreached() = TRUE;
 		warn("map breach in pedantic mode at (%d %d)", x, y);
@@ -1262,9 +1256,9 @@ static int endmovement(creature *cr)
 	  case Key_Blue:
 	  case Key_Yellow:
 	  case Key_Green:
-	    if (pedanticmode)
-		if (possession(floor) == 255)
-		    possession(floor) = -1;
+	    if (possession(floor) == 255)
+		possession(floor) = -1;
+	    /*FALLTHROUGH*/
 	  case Boots_Ice:
 	  case Boots_Slide:
 	  case Boots_Fire:
@@ -1556,22 +1550,24 @@ static void initialhousekeeping(void)
 	warn("Mark %d (%d).", ++mark, currenttime());
 	currentinput() = NIL;
     }
-    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatICChip) {
+    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatStuff) {
 	switch (currentinput()) {
 	  case CmdCheatNorth:		--yviewoffset();		break;
 	  case CmdCheatWest:		--xviewoffset();		break;
 	  case CmdCheatSouth:		++yviewoffset();		break;
 	  case CmdCheatEast:		++xviewoffset();		break;
 	  case CmdCheatHome:		xviewoffset()=yviewoffset()=0;	break;
-	  case CmdCheatKeyRed:		++possession(Key_Red);		break;
-	  case CmdCheatKeyBlue:		++possession(Key_Blue);		break;
-	  case CmdCheatKeyYellow:	++possession(Key_Yellow);	break;
-	  case CmdCheatKeyGreen:	++possession(Key_Green);	break;
-	  case CmdCheatBootsIce:	++possession(Boots_Ice);	break;
-	  case CmdCheatBootsSlide:	++possession(Boots_Slide);	break;
-	  case CmdCheatBootsFire:	++possession(Boots_Fire);	break;
-	  case CmdCheatBootsWater:	++possession(Boots_Water);	break;
-	  case CmdCheatICChip:	if (chipsneeded()) --chipsneeded();	break;
+	  case CmdCheatStuff:
+	    possession(Key_Red) = 127;
+	    possession(Key_Blue) = 127;
+	    possession(Key_Yellow) = 127;
+	    possession(Key_Green) = 127;
+	    possession(Boots_Ice) = 127;
+	    possession(Boots_Slide) = 127;
+	    possession(Boots_Fire) = 127;
+	    possession(Boots_Water) = 127;
+	    chipsneeded() = chipsneeded() ? 0 : 1;
+	    break;
 	}
 	currentinput() = NIL;
 	setnosaving();
@@ -1660,10 +1656,10 @@ static int initgame(gamelogic *logic)
 
     setstate(logic);
     num = state->game->number;
-    creaturelist() = creaturearray + 1;
+    creaturelist() = creaturearray() + 1;
     cr = creaturelist();
 
-    if (pedanticmode)
+    if (ispedanticmode())
 	if (state->statusflags & SF_BADTILES)
 	    markinvalid();
 
@@ -1675,12 +1671,12 @@ static int initgame(gamelogic *logic)
 	    cell->bot.id = crtile(Block, NORTH);
 	if (ismsspecial(cell->top.id) && cell->top.id != Exited_Chip) {
 	    cell->top.id = Wall;
-	    if (pedanticmode)
+	    if (ispedanticmode())
 		markinvalid();
 	}
 	if (ismsspecial(cell->bot.id) && cell->bot.id != Exited_Chip) {
 	    cell->bot.id = Wall;
-	    if (pedanticmode)
+	    if (ispedanticmode())
 		markinvalid();
 	}
 	if (cell->bot.id != Empty) {
@@ -1716,7 +1712,7 @@ static int initgame(gamelogic *logic)
 	    cell->top.id = cell->bot.id;
 	    cell->bot.id = Empty;
 	}
-	if (pedanticmode)
+	if (ispedanticmode())
 	    if (cell->top.id == Wall_North || cell->top.id == Wall_West)
 		markinvalid();
     }
@@ -1873,8 +1869,6 @@ static int endgame(gamelogic *logic)
 static void shutdown(gamelogic *logic)
 {
     (void)logic;
-    free(creaturearray);
-    creaturearray = NULL;
 }
 
 /* The exported function: Initialize and return the module's gamelogic
@@ -1884,9 +1878,6 @@ gamelogic *lynxlogicstartup(void)
 {
     static gamelogic	logic;
 
-    creaturearray = calloc(MAX_CREATURES + 1, sizeof *creaturearray);
-    if (!creaturearray)
-	memerrexit();
     lastrndslidedir = NORTH;
     laststepping = 0;
 

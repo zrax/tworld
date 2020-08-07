@@ -79,7 +79,7 @@ typedef	struct solutioninfo {
 #define	MOUSERANGEMAX	+9
 #define	MOUSERANGE	19
 
-/* The complete list of commands that the user can given.
+/* The complete list of commands that the user can give.
  */
 enum {
     CmdNone = NIL,
@@ -120,26 +120,19 @@ enum {
     CmdVolumeDown,
     CmdStepping,
     CmdSubStepping,
+    CmdRndSlideDir,
     CmdProceed,
+    CmdPreserve,
+    CmdQuit,
     CmdDebugCmd1,
     CmdDebugCmd2,
-    CmdQuit,
-    CmdPreserve,
     CmdCheatNorth,
     CmdCheatWest,
     CmdCheatSouth,
     CmdCheatEast,
     CmdCheatHome,
-    CmdCheatKeyRed,
-    CmdCheatKeyBlue,
-    CmdCheatKeyYellow,
-    CmdCheatKeyGreen,
-    CmdCheatBootsIce,
-    CmdCheatBootsSlide,
-    CmdCheatBootsFire,
-    CmdCheatBootsWater,
-    CmdCheatICChip,
-    CmdCount
+    CmdCheatStuff,
+    CmdInvalid
 };
 
 /* True if cmd is a simple directional command, i.e. a single
@@ -208,6 +201,14 @@ typedef	struct gamesetup {
 #define	SGF_REPLACEABLE		0x0002	/* solution is marked as replaceable */
 #define	SGF_SETNAME		0x0004	/* internal to solution.c */
 
+/* A structure for storing a message text.
+ */
+typedef struct taggedtext {
+    int		tag;			/* number of the associated level */
+    int		linecount;		/* size of the following array */
+    char      **lines;			/* the text, one paragraph per line */
+} taggedtext;
+
 /* The collection of data maintained for each series.
  */
 typedef	struct gameseries {
@@ -221,6 +222,8 @@ typedef	struct gameseries {
     char	       *mapfilename;	/* the name of said file */
     fileinfo		savefile;	/* the file holding the solutions */
     char	       *savefilename;	/* non-default name for said file */
+    taggedtext	       *messages;	/* the set of tagged messages */
+    char	       *msgfilename;	/* the file providing the messages */
     int			currentlevel;	/* most recently visited level no. */
     int			solheadersize;	/* size of extra solution header */
     char		filebase[256];	/* the level set's filename */

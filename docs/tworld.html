@@ -86,7 +86,7 @@ stepping upon them. The key disappears from the map and appears in
 your possession. Keys in your possession are displayed on the
 right-hand side of the window.
 <p>
-Besides keys and chip, there are also four kinds of special footgear
+Besides keys and chips, there are also four kinds of special footgear
 that Chip can collect. Like keys, boots can be picked up simply by
 walking over them. (There is no limit to the number of boots you can
 have.) These boots permit Chip to walk across four different kinds of
@@ -267,6 +267,8 @@ will automatically be deprecated.</td></tr>
 <td>toggles between even-step and odd-step offset.</td></tr>
 <tr><td><tt>Shift</tt>-<tt>O</tt>&nbsp;</td>
 <td>(Lynx-mode only) increments the stepping offset by one.</td></tr>
+<tr><td><tt>F</tt>&nbsp;</td>
+<td>(Lynx-mode only) rotates the initial "random" force floor direction.</td></tr>
 <tr><td><tt>Ctrl</tt>-<tt>X</tt>&nbsp;</td>
 <td>deprecates the best solution for that level. If the level is then
 succesfully completed again, the saved solution will be replaced with
@@ -376,7 +378,7 @@ named on the command line.</td></tr>
 output, and exit.</td></tr>
 <tr><td><tt>-F</tt>,&nbsp;<tt>--full-screen</tt>&nbsp;</td>
 <td>Run in full-screen mode.</td></tr>
-<tr><td><tt>-H</tt>,&nbsp;<tt>--histogram</tt>&nbsp;</td>
+<tr><td><tt>--histogram</tt>&nbsp;</td>
 <td>Upon exit, display a histogram of idle time on standard output. (This
 option is used for evaluating optimization efforts.)</td></tr>
 <tr><td><tt>--h</tt>,&nbsp;<tt>--help</tt>&nbsp;</td>
@@ -466,6 +468,12 @@ line, the configuration file can contain any of the following lines:
 <p>
 This line permits password-checking to be enabled/disabled when
 playing the levels in the set. The default is <tt>y</tt>.
+<p>
+<tt>messages =</tt><i>TEXTFILE</i>
+<p>
+This line specifies a messages file to provide short textual messages
+to be displayed in between levels during play. <i>TEXTFILE</i> names a file
+located in the data directory.
 <p>
 <tt>ruleset = </tt><i>ms|lynx</i>
 <p>

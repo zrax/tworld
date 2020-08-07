@@ -40,6 +40,20 @@ Bugs in the Lynx game logic emulation
   towards him. That is, a block starts moving into the square that Chip
   occupies, but in the same frame, Chip starts pushing the block in the
   opposite direction. This is impossible to do in TW.
+* Tile World fails to emulate several situations where Chip starts out on
+  top of something other than floor, and starts the level without moving.
+  In the original Lynx game, if Chip is atop water, dirt, a blue wall,
+  footgear, a key, or an exit, then if Chip doesn't move the tile takes
+  effect immediately (with Chip dying, winning, or clearing or collecting
+  the object). Tile World generally has tiles take effect when Chip enters
+  them. (Note, however, that this is not a universal pattern: in the
+  original game if Chip starts out on fire, a bomb, or a chip, then the
+  tile does not take effect until Chip leaves and reenters.) Unfortunately,
+  the community is loathe to see these issues addressed, as various
+  user-created levels now exist that depend on the current behavior.
+  Possibly some of them could be changed without causing problems, but
+  fixing Chip starting on e.g. the exit or a key would ruin a few levels in
+  CCLP1.
 * There are a number of miscellaneous emulation bugs, mostly involving Chip
   being stuck on teleports. These are documented more thoroughly in the
   lxbugs.txt file on the website.

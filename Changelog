@@ -1,4 +1,18 @@
 
+2015 Sep 10: version 1.3.2
+
+* Added the messages feature, so that sets can have prolog/epilog texts
+  attached to levels.
+* Added an init file (to the save directory) to save the user's volume
+  level and last-played levelset.
+* Introduced a UI control to set the initial random-slide floor direction
+  in a Lynx level.
+* Changed key count to wrap around, so that picking up 256 keys of one
+  color resets its count to zero. (This used to be a documented difference
+  between Tile World and the original Lynx, but the new release of CC1/CC2
+  follows the original's behavior, even though these are 32-bit programs.
+  So I'm taking the hint and doing likewise.)
+
 2015 Jul 24: version 1.3.1
 
 * Fixed a couple of embarrassing bugs for 64-bit systems.

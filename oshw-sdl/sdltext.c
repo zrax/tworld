@@ -93,8 +93,8 @@ static int makefontfromsurface(fontinfo *pf, SDL_Surface *surface)
     return TRUE;
 }
 
-/* Given a text and a maximum horizontal space to occupy, return
- * the amount of vertial space needed to render the entire text with
+/* Given a text and a maximum horizontal space to occupy, return the
+ * amount of vertical space needed to render the entire text with
  * word-wrapping.
  */
 static int measuremltext(unsigned char const *text, int len, int maxwidth)
@@ -107,7 +107,11 @@ static int measuremltext(unsigned char const *text, int len, int maxwidth)
     brk = 0;
     for (n = 0, w = 0 ; n < len ; ++n) {
 	w += sdlg.font.w[text[n]];
-	if (isspace(text[n])) {
+	if (text[n] == '\n') {
+	    h += sdlg.font.h;
+	    w = 0;
+	    brk = 0;
+	} else if (isspace(text[n])) {
 	    brk = w;
 	} else if (w > maxwidth) {
 	    h += sdlg.font.h;
@@ -254,6 +258,13 @@ static void drawtext(SDL_Rect *rect, unsigned char const *text,
 	rect->w = w;
 	return;
     }
+    if (rect->y <= -sdlg.font.h) {
+	if (flags & PT_UPDATERECT) {
+	    rect->y += sdlg.font.h;
+	    rect->h -= sdlg.font.h;
+	}
+	return;
+    }
     if (w >= rect->w) {
 	w = rect->w;
 	l = r = 0;
@@ -317,7 +328,8 @@ static void drawmultilinetext(SDL_Rect *rect, unsigned char const *text,
 			      int len, int flags)
 {
     SDL_Rect	area;
-    int		index, brkw, brkn;
+    int		skip;
+    int		index, newindex, brkw, brkn;
     int		w, n;
 
     if (flags & PT_CALCSIZE) {
@@ -329,25 +341,36 @@ static void drawmultilinetext(SDL_Rect *rect, unsigned char const *text,
 	len = strlen((char const*)text);
 
     area = *rect;
+    skip = flags & PT_SKIPLINES(0xFF);
     brkw = brkn = 0;
-    index = 0;
+    index = newindex = 0;
     for (n = 0, w = 0 ; n < len ; ++n) {
 	w += sdlg.font.w[text[n]];
-	if (isspace(text[n])) {
+	if (text[n] == '\n') {
+	    newindex = n + 1;
+	    brkn = n;
+	    w = 0;
+	} else if (isspace(text[n])) {
 	    brkn = n;
 	    brkw = w;
 	} else if (w > rect->w) {
 	    if (brkw) {
-		drawtext(&area, text + index, brkn - index,
-				 flags | PT_UPDATERECT);
-		index = brkn + 1;
+		newindex = brkn + 1;
 		w -= brkw;
 	    } else {
-		drawtext(&area, text + index, n - index,
-				 flags | PT_UPDATERECT);
-		index = n;
+		newindex = n;
+		brkn = n;
 		w = sdlg.font.w[text[n]];
 	    }
+	}
+	if (newindex) {
+	    if (skip)
+		--skip;
+	    else
+		drawtext(&area, text + index, brkn - index,
+			 flags | PT_UPDATERECT);
+	    index = newindex;
+	    newindex = 0;
 	    brkw = 0;
 	}
     }
@@ -433,7 +456,7 @@ static SDL_Rect *_measuretable(SDL_Rect const *area, tablespec const *table)
 	}
     }
 
-    sep = sdlg.font.w[' '] * table->sep;
+    sep = sdlg.font.w['x'] * table->sep;
     w = -sep;
     for (i = 0 ; i < table->cols ; ++i)
 	w += colsizes[i].w + sep;
@@ -441,7 +464,7 @@ static SDL_Rect *_measuretable(SDL_Rect const *area, tablespec const *table)
     if (diff < 0 && table->collapse >= 0) {
 	w = -diff;
 	if (colsizes[table->collapse].w < w)
-	    w = colsizes[table->collapse].w - sdlg.font.w[' '];
+	    w = colsizes[table->collapse].w - sdlg.font.w['x'];
 	colsizes[table->collapse].w -= w;
 	diff += w;
     }

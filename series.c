@@ -11,8 +11,10 @@
 #include	"defs.h"
 #include	"err.h"
 #include	"fileio.h"
+#include	"cmdline.h"
 #include	"solution.h"
 #include	"unslist.h"
+#include	"messages.h"
 #include	"series.h"
 
 /* The signature bytes of the data files.
@@ -38,11 +40,21 @@ typedef	struct seriesdata {
 /* The directory containing the series files (data files and
  * configuration files).
  */
-char	       *seriesdir = NULL;
+static char const      *seriesdir = NULL;
 
 /* The directory containing the configured data files.
  */
-char	       *seriesdatdir = NULL;
+static char const      *seriesdatdir = NULL;
+
+/* Getting and setting the series directory.
+ */
+char const *getseriesdir(void)		{ return seriesdir; }
+void setseriesdir(char const *dir)	{ seriesdir = dir; }
+
+/* Getting and setting the series data directory.
+ */
+char const *getseriesdatdir(void)	{ return seriesdatdir; }
+void setseriesdatdir(char const *dir)	{ seriesdatdir = dir; }
 
 /* Calculate a hash value for the given block of data.
  */
@@ -325,6 +337,8 @@ int readseriesfile(gameseries *series)
 	undomschanges(series);
     markunsolvablelevels(series);
     readsolutions(series);
+    if (series->msgfilename)
+	series->messages = readmessagesfile(series->msgfilename);
     return TRUE;
 }
 
@@ -343,6 +357,10 @@ void freeseriesdata(gameseries *series)
     series->mapfilename = NULL;
     free(series->savefilename);
     series->savefilename = NULL;
+    free(series->msgfilename);
+    series->msgfilename = NULL;
+    freetaggedtext(series->messages);
+    series->messages = NULL;
     series->gsflags = 0;
     series->currentlevel = 0;
 
@@ -402,8 +420,7 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 	    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
 					  skippathname(value));
 	} else if (!strcmp(name, "lastlevel")) {
-	    n = (int)strtol(value, &p, 10);
-	    if (*p || n <= 0) {
+	    if (!parseint(value, &n, 0) || n <= 0) {
 		fileerr(file, "invalid lastlevel in configuration file");
 		return NULL;
 	    }
@@ -420,6 +437,8 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 		series->gsflags |= GSF_IGNOREPASSWDS;
 	    else
 		series->gsflags &= ~GSF_IGNOREPASSWDS;
+	} else if (!strcmp(name, "messages")) {
+	    series->msgfilename = getpathforfileindir(seriesdatdir, value);
 	} else if (!strcmp(name, "fixlynx")) {
 	    if (tolower(*value) == 'n')
 		series->gsflags &= ~GSF_LYNXFIXES;
@@ -480,6 +499,8 @@ static int getseriesfile(char *filename, void *data)
     series->mapfilename = NULL;
     clearfileinfo(&series->savefile);
     series->savefilename = NULL;
+    series->msgfilename = NULL;
+    series->messages = NULL;
     series->gsflags = 0;
     series->currentlevel = 0;
     series->allocated = 0;
@@ -559,7 +580,7 @@ static int getseriesfiles(char const *preferred, gameseries **list, int *count)
 	    errmsg(preferred, "couldn't read data file");
 	    return FALSE;
 	}
-	*seriesdir = '\0';
+	setseriesdir("");
 	s.list[0].gsflags |= GSF_NODEFAULTSAVE;
     } else {
 	if (!*seriesdir)
@@ -647,7 +668,7 @@ int createserieslist(char const *preferredfile, gameseries **pserieslist,
     *pcount = listsize;
     table->rows = listsize + 1;
     table->cols = 2;
-    table->sep = 4;
+    table->sep = 2;
     table->collapse = 0;
     table->items = ptrs;
     return TRUE;
