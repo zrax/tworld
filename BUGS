@@ -3,11 +3,13 @@ Contents
 * Bugs in the MS game logic emulation
 * Bugs in the Lynx game logic emulation
 * Other bugs and misfeatures
-* TODO: Missing features
 ___________________________________________________________________________
 
 Bugs in the MS game logic emulation
 
+* There are numerous situations in the MS game that cause a moused goal to
+  be cancelled for which TW will keep trying. A clearer understanding of
+  those situations is needed.
 * The MS game checks for input more than once per tick. Probably this was
   done to catch last-minute keyboard events, but it has the effect that by
   having more than one input event in the queue, Chip can, under certain
@@ -20,9 +22,6 @@ Bugs in the MS game logic emulation
   do not believe that this optimization has a real effect on the gameplay.
   It does, however, make it easier to examine the screen when pushing
   against a force floor.
-* The MS game permits movement via the mouse, which allows for a few
-  unusual maneuvers that are difficult or even impossible to do with the
-  keyboard. Tile World does not have any form of mouse input.
 * There are a number of miscellaneous emulation bugs, mostly involving
   "illegal" tile combinations. These are documented more thoroughly in the
   msbugs.txt file on the website.
@@ -30,16 +29,6 @@ ___________________________________________________________________________
 
 Bugs in the Lynx game logic emulation
 
-* The Lynx game only permits 128 creatures (including Chip) to exist
-  simultaneously. Thus, a clone machine activated when the population is at
-  maximum will "run out". The emulator does not enforce any such maximum.
-  Fixing this would put a limit on the kinds of new levels that people
-  could create under the Lynx ruleset, so it has been intentionally allowed
-  to stand.
-* The Lynx game tracks how many keys of each color Chips carries with a
-  single 8-bit counter. Thus if Chip is carrying 255 keys of a single
-  color, picking up one more will cause them all to disappear. For obvious
-  reasons, this difference has been intentionally allowed to stand.
 * Under the real Lynx game it is possible to push a block diagonally
   without moving at all. This is done by pushing against a wall, and then
   pushing diagonally against a neighboring block very briefly. The block
@@ -49,30 +38,14 @@ Bugs in the Lynx game logic emulation
   towards him. That is, a block starts moving into the square that Chip
   occupies, but in the same frame, Chip starts pushing the block in the
   opposite direction. This is impossible to do in TW.
-* Teleports are handled incorrectly when Chip enters a teleport and no exit
-  is available, including at the teleport just entered. There are obscure
-  behaviors that Chip displays after getting trapped which Tile World fails
-  to capture.
-* Most of the above emulation bugs are documented more thoroughly in the
+* There are a number of miscellaneous emulation bugs, mostly involving Chip
+  being stuck on teleports. These are documented more thoroughly in the
   lxbugs.txt file on the website.
 ___________________________________________________________________________
 
 Other bugs and misfeatures
 
-* TW does not perfectly emulate how MS Chips' Challenge reads the .dat
-  file. The latter uses the level size field at the beginning of each level
-  to move from level to level in the file, thus if one level is actually
-  larger than its stated size it will still begin reading the next level
-  from where the level size would have it begin. Likewise, it doesn't
-  notice if the field section size is inconsistent with the overall size,
-  or if the last field extends past the field section size. TW generally
-  refuses to accept levels with inconsistent data. Finally, TW ignores
-  field 8 entries unless they are exactly five bytes long.
-___________________________________________________________________________
-
-TODO: Missing features
-
-* Add a mouse interface for MS emulation. This involves handling mouse
-  events, plotting a path, being able to store an entire sequence of moves
-  in the input queue, and (groan) adding a new type of record to the
-  save-file format.
+* TW ignores field 8 entries in the .dat file unless they are exactly five
+  bytes long. In this case, it simply ignores the field 6 password. The MS
+  game will remember both passwords and allow either one to be used
+  (although if both are present it will only show the field 8 password).
