@@ -29,6 +29,7 @@ mklynxcc" if you want to also build a copy of mklynxcc (see below).
 Running "make install" as root will do the following:
 
 * Copy the tworld binary to /usr/local/games.
+* Copy the tworld.6 manpage to /usr/local/man/man6.
 * Create /usr/local/share/tworld if it does not exist. (Or whatever
   directory you specified to ./configure.)
 * Copy the external resources (i.e., the bitmaps and wave files) to
@@ -51,15 +52,3 @@ program will change a normal .dat file to one that will use the Lynx
 ruleset when played. By making a copy of a .dat file and running this
 utility on the copy, you can see how the levels work (or don't work) with
 the Lynx ruleset.
-
-However, the main purpose of this utility is to create a Lynx version of
-the original chips.dat, so you can play the original version of the game.
-When you run this utility on your chips.dat file (or rather, on a separate
-copy of your chips.dat file), include the -x option. This will have the
-added effect on the .dat file of restoring the wall on level 88 (SPIRALS)
-that MS removed, assuming your chips.dat is one of those with a removed
-wall. (It will also fix the four passwords that were changed from the
-original Lynx codes -- levels 7, 10, 28, and 96.) The resulting .dat file
-will thus provide a more accurate emulation of the original game. (Though
-not perfect -- to be perfect it should remove level 145 and replace it with
-a fractal generator.)

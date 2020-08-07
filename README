@@ -5,22 +5,25 @@ Tile World is an emulation of the game "Chip's Challenge" for the Atari
 Lynx, created by Chuck Sommerville, and later ported to MS Windows by
 Microsoft (among other ports).
 
-This is a beta release of Tile World, meaning that I consider the program
-to be "feature-complete". However, the amount of work that needs to be done
-before official release remains to be seen.
+IMPORTANT NOTE: Tile World is an emulation of the game engines only. It
+does not come with the chips.dat file that contains the original level set.
+This file is copyrighted and cannot be freely distributed. The chips.dat
+file was originally distributed with the MS version of "Chip's Challenge".
+If you have a copy of this version of the game, you can use that file to
+play the game in Tile World. If you do not have a copy of this file,
+however, you can still play Tile World with the many freely available level
+files created by fans of the original game.
+
+This is a pre-release version of Tile World, meaning that I currently
+believe the program to be complete. Documentation and some final testing
+are the main tasks that need to be completed before making a 1.0 release.
 
 For directions on getting the program set up and running, see the INSTALL
 file.
 
-Tile World is an emulation of the game engines only. It does not come with
-the chips.dat level file, which is copyrighted and cannot be freely
-distributed. If you do not own a copy of the MS game, however, you can
-still play Tile World with the many freely available level files created by
-fans of the original game.
-
   License
 
-Tile World is copyright (C) 2001 by Brian Raiter. This program is free
+Tile World is copyright (C) 2001,2002 by Brian Raiter. This program is free
 software; you can redistribute it and/or modify it under the terms of the
 GNU General Public License as published by the Free Software Foundation;
 either version 2 of the License, or (at your option) any later version.
@@ -69,4 +72,4 @@ not already been documented.
 
 Brian Raiter
 <breadbox@muppetlabs.com>
-November 2001
+January 2002

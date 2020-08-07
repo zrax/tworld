@@ -1,5 +1,13 @@
 
-2002 Jan ??: version 0.10.1
+2002 Jan 20: version 0.10.2
+
+* Auto-deprecate saved games that are broken.
+* Added some more protection against Ctrl-Ms in text files.
+* Fix for die-if-no-soundcard bug (reported by Bill Darrah).
+* Added resources entries for changing the color scheme.
+* Added hackish "fixlynx" keyword.
+
+2002 Jan 13: version 0.10.1
 
 * Fixed the bug in the lynx emulation where Chip survived when he
   shouldn't, using a gross little hack. I hate it. But I've been sitting on

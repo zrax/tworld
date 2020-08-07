@@ -320,7 +320,7 @@ int changevolume(int delta, int display)
     volume = (SDL_MIX_MAXVOLUME * v + 9) / 10;
     if (display) {
 	sprintf(buf, "Volume: %d", v);
-	setdisplaymsg(buf, 1000, 1000);
+	setdisplaymsg(buf, 1000, -1);
     }
     return TRUE;
 }
@@ -340,11 +340,9 @@ static void shutdown(void)
 int _sdlsfxinitialize(int silence)
 {
     atexit(shutdown);
+    enabled = !silence;
     initonomatopoeia();
-    if (silence) {
-	enabled = FALSE;
-	return TRUE;
-    }
-    enabled = TRUE;
-    return setaudiosystem(TRUE);
+    if (enabled)
+	setaudiosystem(TRUE);
+    return TRUE;
 }
