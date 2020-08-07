@@ -12,9 +12,13 @@ ac_help=
 ac_default_prefix=/usr/local
 # Any additions from configure.in:
 ac_help="$ac_help
-  --with-debug           Build with debugging info"
+  --with-debug            Build with debugging info"
 ac_help="$ac_help
-  --with-sdl             Build SDL version (default)"
+  --with-sharedir=DIR     Explicitly set the shared data directory"
+ac_help="$ac_help
+  --with-sdl              Build SDL version (default)"
+ac_help="$ac_help
+  --with-win32            Set defaults for a windows build"
 
 # Initialize some variables set by options.
 # The variables have the same names as the options, with
@@ -529,30 +533,42 @@ fi
 test -z "$CC" && CC="gcc"
 test -z "$CFLAGS" && CFLAGS=" -Wall -W -O2 -fomit-frame-pointer"
 test -z "$LDFLAGS" && LDFLAGS=" -Wall -W -s"
-LOADLIBES=""
+
 
 # Check whether --with-debug or --without-debug was given.
 if test "${with_debug+set}" = set; then
   withval="$with_debug"
   if test $withval = yes ; then
-	   CFLAGS=" -Wall -W -ggdb"
-	   LDFLAGS=" -Wall -W -ggdb"
-	 fi
+	       CFLAGS=" -Wall -W -ggdb"
+	       LDFLAGS=" -Wall -W -ggdb"
+	     fi
 fi
 
 
-cflags=$CFLAGS
-oshwcflags=$CFLAGS
-ldflags=$LDFLAGS
-loadlibes=$LOADLIBES
+LOADLIBES=""
+OSHWCFLAGS=$CFLAGS
+sharedir="$datadir/tworld"
+otherobjs=""
+
+
+# Check whether --with-sharedir or --without-sharedir was given.
+if test "${with_sharedir+set}" = set; then
+  withval="$with_sharedir"
+  sharedir=$withval
+else
+  sharedir="$datadir/tworld"
+fi
+
+
 
 OSHWDIR="sdl"
+
 # Check whether --with-sdl or --without-sdl was given.
 if test "${with_sdl+set}" = set; then
   withval="$with_sdl"
   if test $withval = yes ; then
-	   OSHWDIR="sdl"
-	 fi
+	       OSHWDIR="sdl"
+	     fi
 fi
 
 
@@ -568,7 +584,7 @@ if test "$OSHWDIR" = "sdl" ; then
   # Extract the first word of "sdl-config", so it can be a program name with args.
 set dummy sdl-config; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
-echo "configure:572: checking for $ac_word" >&5
+echo "configure:588: checking for $ac_word" >&5
 if eval "test \"`echo '$''{'ac_cv_prog_sdlpresent'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -598,9 +614,23 @@ fi
   if test -z "$sdlpresent" ; then
     { echo "configure: error: SDL installation not found." 1>&2; exit 1; }
   fi
-  oshwcflags=$CFLAGS' $(shell sdl-config --cflags)'
-  loadlibes=$LOADLIBES' $(shell sdl-config --libs)'
+  CFLAGS=$CFLAGS' $(shell sdl-config --cflags)'
+  OSHWCFLAGS=$OSHWCFLAGS' $(shell sdl-config --cflags)'
+  LOADLIBES=$LOADLIBES' $(shell sdl-config --libs)'
 fi
+
+
+# Check whether --with-win32 or --without-win32 was given.
+if test "${with_win32+set}" = set; then
+  withval="$with_win32"
+  if test $withval = yes ; then
+	       sharedir="."
+	       otherobjs=" tworldres.o"
+	     fi
+fi
+
+
+
 
 
 
@@ -755,10 +785,10 @@ s%@infodir@%$infodir%g
 s%@mandir@%$mandir%g
 s%@sdlpresent@%$sdlpresent%g
 s%@CC@%$CC%g
-s%@cflags@%$cflags%g
-s%@oshwcflags@%$oshwcflags%g
-s%@ldflags@%$ldflags%g
-s%@loadlibes@%$loadlibes%g
+s%@OSHWCFLAGS@%$OSHWCFLAGS%g
+s%@LOADLIBES@%$LOADLIBES%g
+s%@sharedir@%$sharedir%g
+s%@otherobjs@%$otherobjs%g
 
 CEOF
 EOF

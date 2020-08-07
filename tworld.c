@@ -20,6 +20,10 @@
 #include	"cmdline.h"
 #include	"ver.h"
 
+/* Bell-ringing macro.
+ */
+#define	bell()	(silence ? (void)0 : ding())
+
 /* The data needed to identify what is being played.
  */
 typedef	struct gamespec {
@@ -41,8 +45,9 @@ typedef	struct startupdata {
 /* Online help.
  */
 static char const *yowzitch = 
-	"Usage: tworld [-hvlsqH] [-DS DIR] [NAME] [LEVEL]\n"
-	"   -D  Read shared data from DIR instead of the default\n"
+	"Usage: tworld [-hvlsqH] [-DRS DIR] [NAME] [LEVEL]\n"
+	"   -D  Read data files from DIR instead of the default\n"
+	"   -R  Read shared resources from DIR instead of the default\n"
 	"   -S  Save games in DIR instead of the default\n"
 	"   -q  Run quietly\n"
 	"   -H  Produce histogram of idle time upon exit\n"
@@ -69,10 +74,13 @@ static char const *vourzhon =
 	"   Please direct bug reports to breadbox@muppetlabs.com, or post\n"
 	"them on annexcafe.chips.challenge.\n";
 
+/* A FALSE value suppresses sound and the console bell.
+ */
 static int	silence = FALSE;
-static int	showhistogram = FALSE;
 
-#define	bell()	(silence ? (void)0 : ding())
+/* TRUE if the user requested an idle-time histogram.
+ */
+static int	showhistogram = FALSE;
 
 /*
  * The top-level user interface functions.
@@ -120,7 +128,7 @@ static void showscores(gamespec *gs)
     freescorelist(texts, listsize);
 }
 
-/*
+/* Mark the current level's solution as replaceable.
  */
 static void replaceablesolution(gamespec *gs)
 {
@@ -147,7 +155,7 @@ static void endinput(gamespec *gs, int status)
 	  case CmdNext10:	gs->currentgame += 10;		return;
 	  case CmdProceed:	if (status > 0) ++gs->currentgame; return;
 	  case CmdPlayback:	gs->playback = !gs->playback;	return;
-	  case CmdHelp:		gameplayhelp();			break;
+	  case CmdHelp:		gameplayhelp();			return;
 	  case CmdSeeScores:	showscores(gs);			return;
 	  case CmdKillSolution:	replaceablesolution(gs);	return;
 	  case CmdQuitLevel:					exit(0);
@@ -245,29 +253,6 @@ static void playgame(gamespec *gs)
     gs->currentgame += n;
 }
 
-/* A minimal interface for invalid levels that lets the user move
- * to another level.
- */
-static void noplaygame(gamespec *gs)
-{
-    for (;;) {
-	drawscreen();
-	switch (input(TRUE)) {
-	  case CmdPrev10:	gs->currentgame -= 10;	return;
-	  case CmdPrev:		--gs->currentgame;	return;
-	  case CmdPrevLevel:	--gs->currentgame;	return;
-	  case CmdNextLevel:	++gs->currentgame;	return;
-	  case CmdNext:		++gs->currentgame;	return;
-	  case CmdNext10:	gs->currentgame += 10;	return;
-	  case CmdSeeScores:	showscores(gs);		return;
-	  case CmdHelp:		gameplayhelp();		return;
-	  case CmdQuitLevel:				exit(0);
-	  case CmdQuit:					exit(0);
-	  default:		bell();			break;
-	}
-    }
-}
-
 /* Play back the user's best solution for the current level.
  */
 static void playbackgame(gamespec *gs)
@@ -314,15 +299,39 @@ static void playbackgame(gamespec *gs)
     gs->playback = FALSE;
 }
 
+/* A minimal interface for invalid levels that lets the user move
+ * to another level.
+ */
+static void noplaygame(gamespec *gs)
+{
+    for (;;) {
+	drawscreen();
+	switch (input(TRUE)) {
+	  case CmdPrev10:	gs->currentgame -= 10;	return;
+	  case CmdPrev:		--gs->currentgame;	return;
+	  case CmdPrevLevel:	--gs->currentgame;	return;
+	  case CmdNextLevel:	++gs->currentgame;	return;
+	  case CmdNext:		++gs->currentgame;	return;
+	  case CmdNext10:	gs->currentgame += 10;	return;
+	  case CmdSeeScores:	showscores(gs);		return;
+	  case CmdHelp:		gameplayhelp();		return;
+	  case CmdQuitLevel:				exit(0);
+	  case CmdQuit:					exit(0);
+	  default:		bell();			break;
+	}
+    }
+}
+
 /*
- * Ancillary top-level functions.
+ * Initialization functions.
  */
 
 /* Assign values to the different directories that the program uses.
  */
-static void initdirs(char const *root, char const *save)
+static void initdirs(char const *res, char const *series, char const *save)
 {
     unsigned int	maxpath = getpathbufferlen() - 1;
+    char const	       *root = NULL;
     char const	       *dir;
 
     if (!save && (dir = getenv("TWORLDSAVEDIR")) && *dir) {
@@ -332,7 +341,7 @@ static void initdirs(char const *root, char const *save)
 	    warn("Value of environment variable TWORLDSAVEDIR is too long");
     }
 
-    if (!root) {
+    if (!res || !series) {
 	if ((dir = getenv("TWORLDDIR")) && *dir) {
 	    if (strlen(dir) < maxpath - 8)
 		root = dir;
@@ -349,10 +358,16 @@ static void initdirs(char const *root, char const *save)
     }
 
     resdir = getpathbuffer();
-    strcpy(resdir, root);
+    if (res)
+	strcpy(resdir, res);
+    else
+	strcpy(resdir, root);
 
     seriesdir = getpathbuffer();
-    combinepath(seriesdir, root, "data");
+    if (series)
+	strcpy(seriesdir, series);
+    else
+	combinepath(seriesdir, root, "data");
 
     savedir = getpathbuffer();
     if (!save) {
@@ -376,7 +391,8 @@ static void initdirs(char const *root, char const *save)
 static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 {
     cmdlineinfo	opts;
-    char const *optrootdir = NULL;
+    char const *optresdir = NULL;
+    char const *optseriesdir = NULL;
     char const *optsavedir = NULL;
     int		ch, n;
 
@@ -386,7 +402,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     start->listseries = FALSE;
     start->listscores = FALSE;
 
-    initoptions(&opts, argc - 1, argv + 1, "D:HS:hlqsv");
+    initoptions(&opts, argc - 1, argv + 1, "D:HR:S:hlqsv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -400,7 +416,8 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	    else
 		strncpy(start->filename, opts.val, getpathbufferlen() - 1);
 	    break;
-	  case 'D':	optrootdir = opts.val;				break;
+	  case 'D':	optseriesdir = opts.val;			break;
+	  case 'R':	optresdir = opts.val;				break;
 	  case 'S':	optsavedir = opts.val;				break;
 	  case 'H':	showhistogram = TRUE;				break;
 	  case 'q':	silence = TRUE;					break;
@@ -426,7 +443,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	strcpy(start->filename, "chips.dat");
     start->filename[getpathbufferlen() - 1] = '\0';
 
-    initdirs(optrootdir, optsavedir);
+    initdirs(optresdir, optseriesdir, optsavedir);
 
     return TRUE;
 }
@@ -526,8 +543,8 @@ static int startup(gamespec *gs, startupdata const *start)
  * main().
  */
 
-/* Initialize the system and enter an infinite loop of displaying a
- * playing the selected level.
+/* Initialize the system and enter an infinite loop of displaying and
+ * playing levels.
  */
 int main(int argc, char *argv[])
 {
@@ -539,6 +556,8 @@ int main(int argc, char *argv[])
 
     if (!startup(&spec, &start))
 	return EXIT_FAILURE;
+
+    cleardisplay();
 
     for (;;) {
 	if (spec.currentgame < 0) {

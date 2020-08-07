@@ -11,6 +11,11 @@
 #include	"random.h"
 #include	"lxlogic.h"
 
+/* The walker's PRNG seed value. Don't change this; it needs to
+ * remain forever constant.
+ */
+#define	WALKER_PRNG_SEED	105977040UL
+
 #undef assert
 #define	assert(test)	((test) || (die("internal error: failed sanity check" \
 				        " (%s)\nPlease report this error to"  \
@@ -18,22 +23,33 @@
 
 /* Internal status flags.
  */
-#define	SF_GREENTOGGLE		0x0001
-#define	SF_COULDNTMOVE		0x0002
+#define	SF_GREENTOGGLE		0x0001	/* green button has been toggled */
+#define	SF_COULDNTMOVE		0x0002	/* can't-move sound has been played */
+#define	SF_CHIPPUSHING		0x0004	/* Chip is pushing against something */
 
 static int advancecreature(creature *cr, int oob);
+
+/* A pointer to the game state, used so that it doesn't have to be
+ * passed to every single function.
+ */
+static gamestate *state;
 
 /* The direction used the last time something stepped onto a random
  * slide floor.
  */
 static int lastrndslidedir = NORTH;
 
-static int xviewoffset = 0, yviewoffset = 0;
-
-/* A pointer to the game state, used so that it doesn't have to be
- * passed to every single function.
+/* The PRNG used for the walkers.
  */
-static gamestate *state;
+static prng		walkerprng;
+
+/* The memory used to hold the list of creatures.
+ */
+static creature		creaturearray[CXGRID * CYGRID];
+
+#define	MAX_CREATURES	((int)(sizeof creaturearray / sizeof *creaturearray))
+
+static int xviewoffset = 0, yviewoffset = 0;
 
 /*
  * Accessor macros for various fields in the game state. Many of the
@@ -49,12 +65,11 @@ static gamestate *state;
 #define	chipdir()		(getchip()->dir)
 
 #define	mainprng()		(&state->mainprng)
-#define	restartprng()		(&state->restartprng)
 
+#define	timelimit()		(state->timelimit)
 #define	currenttime()		(state->currenttime)
 #define	currentinput()		(state->currentinput)
 #define	lastmove()		(state->lastmove)
-#define	displayflags()		(state->displayflags)
 #define	xviewpos()		(state->xviewpos)
 #define	yviewpos()		(state->yviewpos)
 
@@ -69,6 +84,9 @@ static gamestate *state;
 #define	iscouldntmoveset()	(state->statusflags & SF_COULDNTMOVE)
 #define	setcouldntmove()	(state->statusflags |= SF_COULDNTMOVE)
 #define	resetcouldntmove()	(state->statusflags &= ~SF_COULDNTMOVE)
+#define	ispushing()		(state->statusflags & SF_CHIPPUSHING)
+#define	setpushing()		(state->statusflags |= SF_CHIPPUSHING)
+#define	resetpushing()		(state->statusflags &= ~SF_CHIPPUSHING)
 
 #define	chipsneeded()		(state->chipsneeded)
 
@@ -138,8 +156,8 @@ static int getslidedir(int floor, int advance)
       case Slide_East:		return EAST;
       case Slide_Random:
 	if (advance)
-	    state->rndslidedir = right(state->rndslidedir);
-	return state->rndslidedir;
+	    lastrndslidedir = right(lastrndslidedir);
+	return lastrndslidedir;
     }
     warn("Invalid floor %d handed to getslidedir()\n", floor);
     assert(!"getslidedir() called with an invalid object");
@@ -246,8 +264,10 @@ static creature *addclone(creature *old)
 	}
     }
 
-    if (new - creaturelist() + 1 >= CXGRID * CYGRID)
-	die("Ran out of room in the creatures array!");
+    if (new - creaturelist() + 1 >= MAX_CREATURES) {
+	warn("Ran out of room in the creatures array!");
+	return NULL;
+    }
 
     *new = *old;
 
@@ -458,8 +478,12 @@ static int canpushblock(creature *block, int dir, int noreally);
  * possible side effects are exposing a blue/hidden wall, and causing
  * a block to be pushed.)
  */
-static int canmakemove(creature const *cr, int dir,
-		       int noreally, int releasing)
+
+#define	CMM_EXPOSEWALLS		0x0001
+#define	CMM_PUSHBLOCKS		0x0002
+#define	CMM_RELEASING		0x0004
+
+static int canmakemove(creature const *cr, int dir, int flags)/*noreally, int releasing)*/
 {
     creature   *other;
     int		floorfrom, floorto;
@@ -479,7 +503,7 @@ static int canmakemove(creature const *cr, int dir,
     floorfrom = floorat(cr->pos);
     floorto = floorat(to);
 
-    if ((floorfrom == Beartrap || floorfrom == CloneMachine) && !releasing)
+    if ((floorfrom == Beartrap || floorfrom == CloneMachine) && !(flags & CMM_RELEASING))
 	return FALSE;
 
     if (isslide(floorfrom) && (cr->id != Chip || !possession(Boots_Slide)))
@@ -497,11 +521,11 @@ static int canmakemove(creature const *cr, int dir,
 	    return FALSE;
 	other = lookupcreature(to, FALSE);
 	if (other && other->id == Block) {
-	    if (!canpushblock(other, dir, noreally))
+	    if (!canpushblock(other, dir, flags & ~CMM_RELEASING))
 		return FALSE;
 	}
 	if (floorto == HiddenWall_Temp || floorto == BlueWall_Real) {
-	    if (noreally)
+	    if (flags & CMM_EXPOSEWALLS)
 		floorat(to) = Wall;
 	    return FALSE;
 	}
@@ -532,18 +556,20 @@ static int canmakemove(creature const *cr, int dir,
  * direction. If noreally is two or more, then the indicated movement
  * of the block will be initiated.
  */
-static int canpushblock(creature *block, int dir, int noreally)
+static int canpushblock(creature *block, int dir, int flags)
 {
     assert(block && block->id == Block);
     assert(floorat(block->pos) != CloneMachine);
     assert(dir != NIL);
 
-    if (!canmakemove(block, dir, noreally, FALSE))
+    if (!canmakemove(block, dir, flags))
 	return FALSE;
-    if (noreally > 1) {
+    if (flags & CMM_PUSHBLOCKS) {
 	block->tdir = dir;
-	if (advancecreature(block, FALSE))
+	if (advancecreature(block, FALSE)) {
 	    addsoundeffect(SND_BLOCK_MOVING);
+	    setpushing();
+	}
     }
 
     return TRUE;
@@ -614,7 +640,7 @@ static void choosecreaturemove(creature *cr)
 	break;
       case Walker:
 	choices[0] = dir;
-	choices[1] = randomof3(restartprng(),
+	choices[1] = randomof3(&walkerprng,
 			       left(dir), back(dir), right(dir));
 	break;
       case Blob:
@@ -643,7 +669,7 @@ static void choosecreaturemove(creature *cr)
     }
     for (n = 0 ; n < 4 && choices[n] != NIL ; ++n) {
 	cr->tdir = choices[n];
-	if (canmakemove(cr, choices[n], 0, FALSE))
+	if (canmakemove(cr, choices[n], 0))
 	    return;
     }
 
@@ -663,10 +689,12 @@ static void choosechipmove(creature *cr, int discard)
     currentinput() = NIL;
     if (dir == NIL || discard) {
 	cr->tdir = NIL;
-	return;
+    } else {
+	lastmove() = dir;
+	cr->tdir = dir;
     }
-    lastmove() = dir;
-    cr->tdir = dir;
+    if (cr->tdir == NIL)
+	resetpushing();
 }
 
 /* This function determines if the given creature is currently being
@@ -743,13 +771,15 @@ static int teleportcreature(creature *cr)
 	    pos += CXGRID * CYGRID;
 	if (floorat(pos) == Teleport) {
 	    cr->pos = pos;
-	    n = canmakemove(cr, cr->dir, 0, FALSE);
+	    n = canmakemove(cr, cr->dir, 0);
 	    cr->pos = origpos;
 	    if (n)
 		break;
 	    if (pos == origpos) {
-		if (cr->id == Chip)
+		if (cr->id == Chip) {
 		    addsoundeffect(SND_CANT_MOVE);
+		    setpushing();
+		}
 		return TRUE;
 	    }
 	}
@@ -779,7 +809,8 @@ static int activatecloner(int pos)
 	return FALSE;
     clone = addclone(cr);
     if (!advancecreature(cr, TRUE)) {
-	clone->hidden = TRUE;
+	if (clone)
+	    clone->hidden = TRUE;
 	return FALSE;
     }
     return TRUE;
@@ -827,14 +858,18 @@ static int startmovement(creature *cr, int releasing)
 
     floorfrom = floorat(cr->pos);
 
-    if (cr->id == Chip && !possession(Boots_Slide)) {
-	if (isslide(floorfrom) && cr->tdir == NIL)
-	    cr->state |= CS_SLIDETOKEN;
-	else if (!isice(floorfrom) || possession(Boots_Ice))
-	    cr->state &= ~CS_SLIDETOKEN;
+    if (cr->id == Chip) {
+	resetpushing();
+	if (!possession(Boots_Slide)) {
+	    if (isslide(floorfrom) && cr->tdir == NIL)
+		cr->state |= CS_SLIDETOKEN;
+	    else if (!isice(floorfrom) || possession(Boots_Ice))
+		cr->state &= ~CS_SLIDETOKEN;
+	}
     }
 
-    if (!canmakemove(cr, dir, 2, releasing)) {
+    if (!canmakemove(cr, dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS
+		     | (releasing ? CMM_RELEASING : 0))) {/*2, releasing)) {*/
 	if (isice(floorfrom) && (cr->id != Chip || !possession(Boots_Ice))) {
 	    cr->dir = back(dir);
 	    applyicewallturn(cr);
@@ -844,6 +879,7 @@ static int startmovement(creature *cr, int releasing)
 		setcouldntmove();
 		addsoundeffect(SND_CANT_MOVE);
 	    }
+	    setpushing();
 	}
 	return FALSE;
     }
@@ -1166,6 +1202,9 @@ static void verifymap(void)
  */
 static void initialhousekeeping(void)
 {
+    if (getchip()->id == Pushing_Chip)
+	getchip()->id = Chip;
+
     if (isgreentoggleset())
 	togglewalls();
     resetgreentoggle();
@@ -1173,9 +1212,10 @@ static void initialhousekeeping(void)
     if (currentinput() == CmdDebugCmd2) {
 	dumpmap();
 	exit(0);
+	currentinput() = NIL;
     } else if (currentinput() == CmdDebugCmd1) {
 	static int mark = 0;
-	warn("Mark %d.", ++mark);
+	warn("Mark %d (%d).", ++mark, currenttime());
 	currentinput() = NIL;
     }
     if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatICChip) {
@@ -1241,6 +1281,7 @@ static int checkforending(void)
     }
     if (iscompleted())
 	return +1;
+
     return 0;
 }
 
@@ -1288,6 +1329,9 @@ static void preparedisplay(void)
 		addsoundeffect(SND_SLIDING);
 	}
     }
+
+    if (ispushing())
+	cr->id = Pushing_Chip;
 }
 
 /*
@@ -1448,6 +1492,8 @@ int lynx_initgame(gamestate *pstate)
 	    layer2[pos++] = game->map2[n];
     }
 
+    creaturelist() = creaturearray;
+
     cr = creaturelist();
 
     n = -1;
@@ -1464,6 +1510,7 @@ int lynx_initgame(gamestate *pstate)
 	    cr->id = fileids[layer1[pos]].id;
 	    cr->dir = fileids[layer1[pos]].dir;
 	    cr->moving = 0;
+	    cr->hidden = FALSE;
 	    if (cr->id == Chip) {
 		if (n >= 0)
 		    die("Multiple Chips on the map!");
@@ -1473,6 +1520,9 @@ int lynx_initgame(gamestate *pstate)
 		cr->state = 0;
 		claimlocation(pos);
 	    }
+	    cr->fdir = NIL;
+	    cr->tdir = NIL;
+	    cr->waits = 0;
 	    ++cr;
 	}
     }
@@ -1497,19 +1547,16 @@ int lynx_initgame(gamestate *pstate)
 			  = possession(Boots_Fire)
 			  = possession(Boots_Water) = 0;
 
-    displayflags() = 0;
-
     resetgreentoggle();
-    if (state->initrndslidedir == NIL) {
-	if (state->rndslidedir == NIL)
-	    state->rndslidedir = lastrndslidedir;
-	state->initrndslidedir = state->rndslidedir;
-    } else
-	state->rndslidedir = state->initrndslidedir;
+    restartprng(&walkerprng, WALKER_PRNG_SEED);
+    if (state->initrndslidedir == NIL)
+	state->initrndslidedir = lastrndslidedir;
+    else
+	lastrndslidedir = state->initrndslidedir;
 
     for (cr = creaturelist() ; cr->id ; ++cr) {
 	if (isice(floorat(cr->pos)) && cr->dir != NIL
-				    && !canmakemove(cr, cr->dir, 0, FALSE)) {
+				    && !canmakemove(cr, cr->dir, 0)) {
 	     cr->dir = back(cr->dir);
 	     applyicewallturn(cr);
 	}
@@ -1521,7 +1568,6 @@ int lynx_initgame(gamestate *pstate)
 
 int lynx_endgame(gamestate *pstate)
 {
-    lastrndslidedir = state->rndslidedir;
     xviewoffset = yviewoffset = 0;
     return pstate != NULL;
 }
@@ -1533,6 +1579,11 @@ int lynx_advancegame(gamestate *pstate)
     creature   *cr;
 
     setstate(pstate);
+
+    if (timelimit() && currenttime() >= timelimit()) {
+	addsoundeffect(SND_CHIP_LOSES);
+	return -1;
+    }
 
     initialhousekeeping();
 

@@ -1,3 +1,14 @@
+2001 Nov 14: version 0.8.4
+
+* Rewrote a lot of the display code to avoid redundant drawing of areas of
+  the screen. Didn't really make it faster, but I did make it more to my
+  liking. Also rewrote all of the text display code.
+* Removed gamestate data that was only needed by one of the logic modules
+  and made it private to that module.
+* Fixed bug found by Mike L. regarding the ordering of clones (MS).
+* Fixed bug regarding Chip trying to move on random force floors (MS).
+* Added code to indicate when Chip is pushing (Lynx).
+
 2001 Nov 10: version 0.8.3
 
 * MS logic bug fix (clone machine would get stuck if clone died while
@@ -8,14 +19,14 @@
 
 2001 Nov 08: version 0.8.2
 
-* Found problem with teleports: creatures provide their own teleport
+* Found problem with teleports (MS): creatures provide their own teleport
   blockage! Fixed.
 * Careful investigation revealed more timing bugs with buttons, teleports,
-  and maybe beartraps as well. Rewrote the endmovement() function until
-  everything was being done in the right order.
+  and maybe beartraps as well (MS). Rewrote the endmovement() function
+  until everything was being done in the right order.
 * Added an "rc" file which can be edited to change the filenames of the
   external resources.
-* Discovered and fixed a discrepancy in the slide delay.
+* Discovered and fixed a discrepancy in the slide delay (MS).
 * The usual sundry tweaks.
 
 2001 Oct 29: version 0.8.1
@@ -27,7 +38,7 @@
 2001 Oct 28: version 0.8.0
 
 * Fixed bug introduced in 0.7.2 which caused Chip to "come to rest" when he
-  couldn't make a forced move.
+  couldn't make a forced move (MS).
 * Fixed buried beartrap behavior in MS game logic.
 * Altered the solution file format (been wanting to do that for a long
   time).
@@ -36,7 +47,7 @@
 
 2001 Oct 23: version 0.7.2
 
-* Fixed two bugs in MS game logic discovered by Anders Kaesorg (creatures
+* Fixed two bugs in MS game logic discovered by Anders Kaseorg (creatures
   entering random slide floors, and Chip causing slide delay).
 * Rewrote the clone machine code to better match the internals of the MS
   game (thanks to recent discoveries). Also fixed the red-button logic so
@@ -44,7 +55,7 @@
 
 2001 Oct 22: version 0.7.1
 
-* Fixed bug in MS game logic found by Anders Kaesorg (button not recognized
+* Fixed bug in MS game logic found by Anders Kaseorg (button not recognized
   when hit by a block being pushed by Chip while on the slip list).
 
 2001 Oct 21: version 0.7.0
@@ -80,7 +91,7 @@
 
 * Made some changes in the game-saving code to avoid an infinite loop that
   was sometimes happening under Windows.
-* Fixed two bugs in MS game logic identified by Anders Kaesorg. (1. Chip
+* Fixed two bugs in MS game logic identified by Anders Kaseorg. (1. Chip
   can only attempt to move once per tick -- a failed move still counts. 2.
   Creatures moving onto the slide list make their first slide move in the
   same tick.)

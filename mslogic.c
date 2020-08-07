@@ -30,7 +30,6 @@
 
 #define	creatureid(id)		((id) & ~3)
 #define	creaturedirid(id)	(idxdir((id) & 3))
-#define	creaturetile(id, dir)	((id) | diridx(dir))
 
 static int advancecreature(creature *cr, int dir);
 
@@ -43,8 +42,7 @@ static int xviewoffset = 0, yviewoffset = 0;
 
 /*
  * Accessor macros for various fields in the game state. Many of the
- * macros can be used as an lvalue.
- */
+ * macros can be used as an lvalue.  */
 
 #define	setstate(p)		(state = (p))
 
@@ -62,7 +60,6 @@ static int xviewoffset = 0, yviewoffset = 0;
 #define	timelimit()		(state->timelimit)
 #define	currenttime()		(state->currenttime)
 #define	currentinput()		(state->currentinput)
-#define	displayflags()		(state->displayflags)
 #define	xviewpos()		(state->xviewpos)
 #define	yviewpos()		(state->yviewpos)
 
@@ -317,21 +314,16 @@ static void removefromsliplist(creature *cr)
 #define	FS_BROKEN		0x08
 
 /* Translate a slide floor into the direction it points in. In the
- * case of a random slide floor, if advance is TRUE a new direction
- * shall be selected; otherwise the current direction is used.
+ * case of a random slide floor, a new direction is selected.
  */
-static int getslidedir(int floor, int advance)
+static int getslidedir(int floor)
 {
     switch (floor) {
       case Slide_North:		return NORTH;
       case Slide_West:		return WEST;
       case Slide_South:		return SOUTH;
       case Slide_East:		return EAST;
-      case Slide_Random:
-	if (!advance)
-	    return NIL;
-	state->rndslidedir = 1 << random4(mainprng());
-	return state->rndslidedir;
+      case Slide_Random:	return 1 << random4(mainprng());
     }
     return NIL;
 }
@@ -495,6 +487,7 @@ static void togglewalls(void)
 /* Creature state flags.
  */
 #define	CS_RELEASED		0x01	/* can leave a beartrap */
+#define	CS_CLONING		0x02	/* cannot move this tick */
 #define	CS_HASMOVED		0x04	/* already used current move */
 #define	CS_TURNING		0x08	/* is turning around */
 #define	CS_SLIP			0x10	/* is on the slip list */
@@ -584,7 +577,7 @@ static void updatecreature(creature const *cr)
     if (cr->state & CS_TURNING)
 	dir = right(dir);
 
-    tile->id = creaturetile(id, dir);
+    tile->id = crtile(id, dir);
     tile->state = 0;
 }
 
@@ -688,7 +681,7 @@ static void startfloormovement(creature *cr, int floor)
     if (isice(floor))
 	dir = icewallturn(floor, cr->dir);
     else if (isslide(floor))
-	dir = getslidedir(floor, TRUE);
+	dir = getslidedir(floor);
     else if (floor == Teleport)
 	dir = cr->dir;
     else if (floor == Beartrap && cr->id == Block)
@@ -913,7 +906,7 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	if (issomeoneat(to)) {
 	    if (!(flags & CMM_CLONECANTBLOCK))
 		return FALSE;
-	    if (cellat(to)->top.id != creaturetile(cr->id, cr->dir))
+	    if (cellat(to)->top.id != crtile(cr->id, cr->dir))
 		return FALSE;
 	}
 	if (isboots(cellat(to)->top.id))
@@ -965,6 +958,8 @@ static void choosecreaturemove(creature *cr)
 
     if (floor == CloneMachine || floor == Beartrap) {
 	if (floor == Beartrap && !(cr->state & CS_RELEASED))
+	    return;
+	if (floor == CloneMachine && (cr->state & CS_CLONING))
 	    return;
 	switch (cr->id) {
 	  case Tank:
@@ -1082,7 +1077,7 @@ static void choosecreaturemove(creature *cr)
  */
 static void choosechipmove(creature *cr, int discard)
 {
-    int	floor, dir;
+    int	dir;
 
     cr->tdir = NIL;
 
@@ -1101,12 +1096,17 @@ static void choosechipmove(creature *cr, int discard)
     if (dir == NIL || discard)
 	return;
 
+#if 0
     if (cr->state & CS_SLIDE) {
-	floor = floorat(cr->pos);
+	int floor = floorat(cr->pos);
 	if (isslide(floor) && !possession(Boots_Slide)
 			   && dir == getslidedir(floor, FALSE))
 	    return;
     }
+#else
+    if ((cr->state & CS_SLIDE) && dir == cr->dir)
+	return;
+#endif
 
     lastmove() = dir;
     cr->tdir = dir;
@@ -1199,7 +1199,8 @@ static void activatecloner(int buttonpos)
 	dummy.pos = pos;
 	if (!canmakemove(&dummy, dummy.dir, CMM_CLONECANTBLOCK))
 	    return;
-	cellat(pos)->top.state |= FS_CLONING;
+	cr = awakencreature(pos);
+	cr->state |= CS_CLONING;
 	if (cellat(pos)->bot.id == CloneMachine)
 	    cellat(pos)->bot.state |= FS_CLONING;
     }
@@ -1628,6 +1629,7 @@ static void floormovements(void)
 
 static void createclones(void)
 {
+#if 0
     maptile    *tile;
     int		pos;
 
@@ -1638,6 +1640,13 @@ static void createclones(void)
 	    awakencreature(pos);
 	}
     }
+#else
+    int	n;
+
+    for (n = 0 ; n < creaturecount ; ++n)
+	if (creatures[n]->state & CS_CLONING)
+	    creatures[n]->state &= ~CS_CLONING;
+#endif
 }
 
 /*
@@ -1934,6 +1943,7 @@ static struct { unsigned char isfloor, id, dir; } const fileids[] = {
  */
 int ms_initgame(gamestate *pstate)
 {
+    static creature	dummycrlist;
     unsigned char	layer1[CXGRID * CYGRID];
     unsigned char	layer2[CXGRID * CYGRID];
     mapcell	       *cell;
@@ -1974,8 +1984,8 @@ int ms_initgame(gamestate *pstate)
 	    transparent = iskey(cell->top.id) || isboots(cell->top.id);
 	    layer1[pos] = 0;
 	} else {
-	    cell->top.id = creaturetile(fileids[layer1[pos]].id,
-					fileids[layer1[pos]].dir);
+	    cell->top.id = crtile(fileids[layer1[pos]].id,
+				  fileids[layer1[pos]].dir);
 	    transparent = fileids[layer1[pos]].id != Chip
 		       && fileids[layer1[pos]].id != Block;
 	}
@@ -1987,8 +1997,8 @@ int ms_initgame(gamestate *pstate)
 					|| cell->bot.id == SwitchWall_Open))
 		cell->bot.state |= FS_BROKEN;
 	} else {
-	    cell->bot.id = creaturetile(fileids[layer2[pos]].id,
-					fileids[layer2[pos]].dir);
+	    cell->bot.id = crtile(fileids[layer2[pos]].id,
+				  fileids[layer2[pos]].dir);
 	}
     }
 
@@ -2029,7 +2039,9 @@ int ms_initgame(gamestate *pstate)
 	    layer1[pos] = 0;
 	}
     }
-    state->creatures[0].id = 0;
+
+    dummycrlist.id = 0;
+    state->creatures = &dummycrlist;
 
     chipsneeded() = game->chips;
     possession(Key_Red) = possession(Key_Blue)
@@ -2077,7 +2089,7 @@ int ms_advancegame(gamestate *pstate)
     if (currenttime() && !(currenttime() & 1)) {
 	for (n = 1 ; n < creaturecount ; ++n) {
 	    cr = creatures[n];
-	    if (cr->hidden)
+	    if (cr->hidden || (cr->state & CS_CLONING))
 		continue;
 	    choosemove(cr);
 	    if (cr->tdir != NIL)

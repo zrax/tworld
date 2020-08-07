@@ -54,6 +54,9 @@ Bugs in the Lynx game logic emulation
   maximum. Of course, fixing this would put a limit on the kinds of new
   levels that people could create under the Lynx ruleset -- so this one may
   be better off as it is....
+* On levels where Chips starts out on a force floor, if he begins the level
+  without moving, the force floor doesn't take effect until after the first
+  frame. In the emulation, the force floor takes effect from the get-go.
 ___________________________________________________________________________
 
 Other bugs and misfeatures
