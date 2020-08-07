@@ -1,6 +1,6 @@
 /* sdltext.c: Font-rendering functions for SDL.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -342,6 +342,7 @@ static void drawmultilinetext(SDL_Rect *rect, unsigned char const *text,
 	    } else {
 		drawtext(&area, text + index, n - index,
 				 flags | PT_UPDATERECT);
+		index = n;
 		w = sdlg.font.w[text[n]];
 	    }
 	    brkw = 0;
@@ -366,7 +367,7 @@ static void drawmultilinetext(SDL_Rect *rect, unsigned char const *text,
 static void _puttext(SDL_Rect *rect, char const *text, int len, int flags)
 {
     if (!sdlg.font.h)
-	die("no font available! (how did I get this far??)");
+	die("no font available! (how did I get this far?)");
 
     if (len < 0)
 	len = text ? strlen(text) : 0;

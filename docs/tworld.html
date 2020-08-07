@@ -264,8 +264,9 @@ program.</td></tr>
 At most other points, the <tt>Q</tt> key will abort the current activity
 and return to the start of the current level.
 <p>
-Finally, the program can be exited at any time by pressing either
-<tt>Ctrl</tt>-<tt>C</tt> or <tt>Alt</tt>-<tt>F4</tt>.
+Finally, the program can be exited at any time by pressing
+<tt>Shift</tt>-<tt>Q</tt>. <tt>Ctrl</tt>-<tt>C</tt> or <tt>Alt</tt>-<tt>F4</tt> will also force an immediate
+exit.
 <p>
 <a name="5"></a>
 <h3>
@@ -346,6 +347,9 @@ exit.</td></tr>
 <tr><td><tt>-p</tt>&nbsp;</td>
 <td>Turn off all password-checking. This option allows the normal sequence
 of levels to be bypassed.</td></tr>
+<tr><td><tt>-n</tt>&nbsp;<i>N</i>&nbsp;</td>
+<td>Set the initial volume level to <i>N</i>. <i>N</i> is an integer from 0 to 10,
+0 being silence and 10 being the default level.</td></tr>
 <tr><td><tt>-q</tt>&nbsp;</td>
 <td>Run quietly. All sounds, including the ringing of the terminal bell,
 are suppressed.</td></tr>
@@ -585,7 +589,7 @@ the resource, level set, and data file directories.</td></tr>
 License
 </h3>
 <p>
-Tile World is copyright (C) 2001, 2002 by Brian Raiter.
+Tile World is copyright (C) 2001-2004 by Brian Raiter.
 <p>
 This program is free software; you can redistribute it and/or  
 modify it under the terms of the GNU General Public License as 
@@ -637,13 +641,15 @@ Atari discontinued support for the Lynx in 1994. When Epyx went under,
 the rights to their games were purchased by Bridgestone Multimedia.
 Responding to the success of "Chip's Challenge", Chuck Sommerville
 created a sequel ("Chip's Challenge 2"). The sequel included the
-original game as a proper subset, and Bridgestone holds the rights to
-both games. Unfortunately, the company has not seen fit to actually
-release "Chip's Challenge 2", and by now it is highly unlikely that
-they ever will. Since Chuck Sommerville no longer has rights to either
-game, and Microsoft no longer sells either of the Entertainment Packs,
-"Chip's Challenge" is no longer available (except by purchasing a used
-version, or obtaining an illegal copy of same).
+original game as a proper subset, and the company held the rights to
+both games. Bridgestone Multimedia, who has now become Alpha Omega
+Publications, unfortunately did not see fit to actually release
+"Chip's Challenge 2", and by now it is highly unlikely that it ever
+will be released. Since Chuck Sommerville no longer has rights to
+either game, and Microsoft no longer sells either of the Entertainment
+Packs, the original "Chip's Challenge" is no longer available except
+by purchasing a used copy of one of the aforementioned Entertainment
+Packs (or by downloading an illegal copy).
 <p>
 In 2001, the author began writing "Tile World" with the intention of
 recreating a version of the MS game for the Linux platform. At the
@@ -712,11 +718,11 @@ glyphs in the bitmap. The height of each pixel in the left column
 indicates the height of the row of pixels above each row of glyphs.
 All other pixels in the left column will have the background color.
 <p>
-The glyphs in a given will be separated from each other by a single
-column of pixels. This column will be indicated by a glyph-colored
-pixel directly above it, in the row of pixels. All other pixels in the
-rows will have the background color. There will also be a
-glyph-colored pixel immediately after the last glyph in a row. (The
+The glyphs in a given row will be separated from each other by a
+single column of pixels. This column will be indicated by a
+glyph-colored pixel directly above it, in the row of pixels. All other
+pixels in the rows will have the background color. There will also be
+a glyph-colored pixel immediately after the last glyph in a row. (The
 net result is that every glyph will have a glyph-colored pixel on
 either side.) Each row can contain any number of glyphs; anything to
 the right of the last glyph in a row is ignored.
@@ -978,11 +984,11 @@ tiles are laid out in a 7x16 grid. The first four columns are the same
 as with the masked format. The remaining three columns contain the
 creatures, boots, and keys (again, as with the small format) with a
 solid background of magenta pixels (RGB=255,0,255). When the bitmap is
-read by Tile World, all magenta pixels in the will be made
-transparent. (Magenta pixels in the first four columns will not be
-altered.) If you wish to use magenta in any of these tiles (e.g., for
-the balls), then you will have to use one of the other formats
-instead.
+read by Tile World, all magenta pixels in the last three columns will
+be made transparent. (Magenta pixels in the first four columns will
+not be altered.) If you wish to use magenta in any of these tiles
+(e.g., for the balls), then you will have to use one of the other
+formats instead.
 <p>
 The <i>large format</i> is the only format that permits inclusion of animated
 tiles. This format has a less rigid layout. Tiles are arranged in rows
@@ -1080,10 +1086,15 @@ The possible "sub-layouts" of the images of these 12 tiles are:
 <ul>
 <li>1x1: A single image. The lone image is used to display the creature,
 regardless of its movement or orientation.
+<li>1x2: Two images side by side. The left image shows the creature
+moving N and S, and the right image shows the creature moving W and E.
 <li>1x4: Four images in a single row, showing the creature moving N, W,
 S, and E, respectively.
-<li>2x2: Four images as before, but arranged in a square. The top two
-images show N and W movement, and S and E constitute the bottom row.
+<li>2x1: Two images, arranged in a column. The top image shows the
+creature moving N and S, and the bottom image shows the creature
+moving W and E.
+<li>2x2: Four images arranged in a square. The top two images show N and
+W movement, and S and E constitute the bottom row.
 <li>2x8: Sixteen images, giving four animated images per direction. The
 top row contains the four N images followed by the four W images,
 and the bottom row contains the four S images followed by the four E

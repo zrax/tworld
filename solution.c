@@ -1,11 +1,12 @@
 /* solution.c: Functions for reading and writing the solution files.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
 #include	<stdlib.h>
+#include	<string.h>
 #include	<ctype.h>
 #include	"defs.h"
 #include	"err.h"
@@ -30,7 +31,7 @@
  *  11    initial random slide direction (only used in Lynx ruleset)
  * 12-15  initial random number generator value
  * 16-19  time of solution in ticks
- * 19-??  solution bytes
+ * 19-xx  solution bytes
  *
  * If the offset field is 0, then none of the other fields are
  * present. (This permits the file to contain padding.) If the offset

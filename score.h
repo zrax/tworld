@@ -1,6 +1,6 @@
 /* score.h: Calculating and formatting the scores.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -14,7 +14,7 @@
  * and the total score for the series.
  */
 extern int getscoresforlevel(gameseries const *series, int level,
-			     int *base, int *bonus, int *total);
+			     int *base, int *bonus, long *total);
 
 /* Produce a table showing the player's scores for the given series,
  * formatted in columns. Each level in the series is listed in a

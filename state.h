@@ -1,6 +1,6 @@
 /* state.h: Definitions for embodying the state of a game in progress.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -167,7 +167,7 @@ typedef struct creature {
     unsigned char	id;		/* type of creature */
     unsigned char	dir;		/* current direction of creature */
     signed char		moving;		/* positional offset of creature */
-    unsigned char	frame;		/* explicit animation index */
+    signed char		frame;		/* explicit animation index */
     unsigned char	hidden;		/* TRUE if creature is invisible */
     unsigned char	state;		/* internal state value */
     unsigned char	tdir;		/* internal state value */

@@ -1,6 +1,6 @@
 /* sdlout.c: Creating the program's displays.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -59,9 +59,21 @@ static int		fullscreen = FALSE;
 
 /* Coordinates specifying the placement of the various screen elements.
  */
-static SDL_Rect		titleloc, infoloc, rinfoloc, invloc, hintloc;
-static SDL_Rect		promptloc, displayloc, messageloc;
 static int		screenw, screenh;
+static SDL_Rect		rinfoloc;
+static SDL_Rect		locrects[7];
+
+#define	displayloc	(locrects[0])
+#define	titleloc	(locrects[1])
+#define	infoloc		(locrects[2])
+#define	invloc		(locrects[3])
+#define	hintloc		(locrects[4])
+#define	messageloc	(locrects[5])
+#define	promptloc	(locrects[6])
+
+/* TRUE means that the screen is in need of a full update.
+ */
+static int		fullredraw = TRUE;
 
 /*
  * Display initialization functions.
@@ -151,10 +163,10 @@ static int createprompticons(void)
 static int layoutscreen(void)
 {
     static char const  *scoretext = "888  DRAWN AND QUARTERED"
-				    "   8,888  888,888  888,888";
-    static char const  *hinttext = "Total Score  8888888";
+				    "   88,888  8,888,888  8,888,888";
+    static char const  *hinttext = "Total Score  88888888";
     static char const  *chipstext = "Chips";
-    static char const  *timertext = " 888";
+    static char const  *timertext = " 88888";
 
     int			fullw, infow, texth;
 
@@ -186,7 +198,7 @@ static int layoutscreen(void)
 
     puttext(&rinfoloc, chipstext, -1, PT_CALCSIZE);
     rinfoloc.x = infoloc.x + rinfoloc.w + MARGINW;
-    rinfoloc.y = infoloc.y;
+    rinfoloc.y = infoloc.y + 3 * texth;
     puttext(&rinfoloc, timertext, -1, PT_CALCSIZE);
     rinfoloc.h = 2 * texth;
 
@@ -249,6 +261,7 @@ static int createdisplay(void)
 void cleardisplay(void)
 {
     SDL_FillRect(sdlg.screen, NULL, bkgndcolor(sdlg.textclr));
+    fullredraw = TRUE;
 }
 
 /*
@@ -557,7 +570,13 @@ int displaygame(void const *state, int timeleft, int besttime)
     displaymapview(state);
     displayinfo(state, timeleft, besttime);
     displaymsg(FALSE);
-    SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+    if (fullredraw) {
+	SDL_UpdateRect(sdlg.screen, 0, 0, 0, 0);
+	fullredraw = FALSE;
+    } else {
+	SDL_UpdateRects(sdlg.screen,
+			sizeof locrects / sizeof *locrects, locrects);
+    }
     return TRUE;
 }
 
@@ -566,7 +585,7 @@ int displaygame(void const *state, int timeleft, int besttime)
  * If the latter, then the other arguments can contain point values
  * that will be reported to the user.
  */
-int displayendmessage(int basescore, int timescore, int totalscore,
+int displayendmessage(int basescore, int timescore, long totalscore,
 		      int completed)
 {
     char	buf[32];
@@ -577,13 +596,13 @@ int displayendmessage(int basescore, int timescore, int totalscore,
 	rect = hintloc;
 	puttext(&rect, "Level Completed", -1, PT_CENTER | PT_UPDATERECT);
 	puttext(&rect, "", 0, PT_CENTER | PT_UPDATERECT);
-	n = sprintf(buf, "Time Bonus %04d", timescore);
+	n = sprintf(buf, "Time Bonus  %04d", timescore);
 	puttext(&rect, buf, n, PT_CENTER | PT_UPDATERECT);
-	n = sprintf(buf, "Level Bonus %05d", basescore);
+	n = sprintf(buf, "Level Bonus  %05d", basescore);
 	puttext(&rect, buf, n, PT_CENTER | PT_UPDATERECT);
-	n = sprintf(buf, "Level Score %05d", timescore + basescore);
+	n = sprintf(buf, "Level Score  %05d", timescore + basescore);
 	puttext(&rect, buf, n, PT_CENTER | PT_UPDATERECT);
-	n = sprintf(buf, "Total Score %07d", totalscore);
+	n = sprintf(buf, "Total Score  %07ld", totalscore);
 	puttext(&rect, buf, n, PT_CENTER | PT_UPDATERECT);
 	fillrect(&rect);
 	SDL_UpdateRect(sdlg.screen, hintloc.x, hintloc.y,

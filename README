@@ -173,12 +173,16 @@ the internet. Much of it is focused on maximizing your score on the
 original level set for the MS game, but you will also find lots of general
 help and useful information as well.
 
-Richard Field and Jimmy Vermeer both maintain a page of links to nearly
-everything on the net related to "Chip's Challenge". Between the two of
-them you can probably find what you're looking for, if it's out there:
+Jimmy Vermeer maintains a page of links to nearly everything on the net
+related to "Chip's Challenge". From there you probably find what you're
+looking for, if it's out there:
 
-  http://www.agt.net/public/nfield/ChipChallenge/chip.htm
   http://www.geocities.com/purpletentacle1977ca/links.html
+
+Anders Kaseorg's site contains the Chip's Challenge FAQ, as well as the AVI
+repository and a web interface to the newsgroup:
+
+  http://chips.kaseorg.com/
 
 The grand repository of user-created level sets can be found at the
 chips_challenge Yahoo group:
@@ -195,15 +199,14 @@ Finally, Tile World's home page is at:
 
   License
 
-Tile World is copyright (C) 2001, 2002 by Brian Raiter. This program is
-free software; you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version. This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License, included in this distribution in the file COPYING, for more
-details.
+Tile World is copyright (C) 2001-2004 by Brian Raiter. This program is free
+software; you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation;
+either version 2 of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License,
+included in this distribution in the file COPYING, for more details.
 
   Bugs
 
@@ -228,14 +231,15 @@ these files in the public domain.
 "Chip's Challenge" was designed by Chuck Sommerville, who is also the
 author of the original Lynx program.
 
-"Chip's Challenge" is a registered trademark of Bridgestone Multimedia.
+"Chip's Challenge" is a registered trademark of Alpha Omega Publications.
 
 Creating this program would have been flatly impossible without the help of
 several fans of "Chip's Challenge". The author would particularly like to
 acknowledge Anders Kaseorg for sharing the fruits of his investigations
 into the game logic of the MS version and for being an effective bug
-hunter, and Chuck Sommerville for his pointers regarding the game logic of
-the Lynx version and his unfailing support of this project.
+hunter, Chuck Sommerville for his pointers regarding the game logic of the
+Lynx version and his unfailing support of this project, and "CCExplore" for
+his in-depth investigations of esoteric game behavior.
 
 Many other regulars of the annexcafe.chips.challenge newsgroup assisted
 with bug reports, suggestions, and all-around encouragement. Their help is
@@ -249,4 +253,4 @@ written without the information they made freely available.
 Last but not least, a tip of the hat to John K. Elion for writing ChipEdit.
 
 Brian Raiter
-May 2002
+October 2004

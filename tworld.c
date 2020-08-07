@@ -1,6 +1,6 @@
 /* tworld.c: The top-level module.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -46,7 +46,6 @@ typedef	struct startupdata {
     int		listseries;	/* TRUE if the files should be listed */
     int		listscores;	/* TRUE if the scores should be listed */
     int		listtimes;	/* TRUE if the times should be listed */
-    int		finished;	/* TRUE if the program is done */
 } startupdata;
 
 /* Structure used to hold the complete list of available series.
@@ -77,9 +76,17 @@ static int	showhistogram = FALSE;
  */
 static int	mudsucking = 1;
 
+/* Frame-skipping disable flag.
+ */
+static int	noframeskip = FALSE;
+
 /* The sound buffer scaling factor.
  */
 static int	soundbufsize = -1;
+
+/* The initial volume level.
+ */
+static int	volumelevel = -1;
 
 /* The top of the stack of subtitles.
  */
@@ -470,7 +477,7 @@ static void changesubtitle(char const *subtitle)
 static void dohelp(int topic)
 {
     pushsubtitle("Help");
-    onlinehelp(topic);
+    onlinemainhelp(topic);
     popsubtitle();
 }
 
@@ -591,7 +598,8 @@ static int startinput(gamespec *gs)
 static int endinput(gamespec *gs)
 {
     char	yn[2] = "";
-    int		bscore = 0, tscore = 0, gscore = 0;
+    int		bscore = 0, tscore = 0;
+    long	gscore = 0;
     int		n;
 
     if (gs->status < 0) {
@@ -701,7 +709,7 @@ static int playgame(gamespec *gs, int firstcmd)
 	lastrendered = render;
 	if (n)
 	    break;
-	render = waitfortick();
+	render = waitfortick() || noframeskip;
 	cmd = input(FALSE);
 	if (cmd == CmdQuitLevel) {
 	    quitgamestate();
@@ -728,7 +736,14 @@ static int playgame(gamespec *gs, int firstcmd)
 	      case CmdPauseGame:
 		setgameplaymode(SuspendPlay);
 		setdisplaymsg("(paused)", 1, 1);
-		while (input(TRUE) != CmdPauseGame) ;
+		for (;;) {
+		    switch (input(TRUE)) {
+		      case CmdQuit:		exit(0);
+		      case CmdPauseGame:	break;
+		      default:			continue;
+		    }
+		    break;
+		}
 		setgameplaymode(ResumePlay);
 		cmd = CmdNone;
 		break;
@@ -752,6 +767,8 @@ static int playgame(gamespec *gs, int firstcmd)
 	    }
 	}
     }
+    if (!lastrendered)
+	drawscreen(TRUE);
     setgameplaymode(EndPlay);
     if (n > 0)
 	if (replacesolution())
@@ -788,13 +805,13 @@ static int playbackgame(gamespec *gs)
 	lastrendered = render;
 	if (n)
 	    break;
-	render = waitfortick();
+	render = waitfortick() || noframeskip;
 	switch (input(FALSE)) {
 	  case CmdPrevLevel:	changecurrentgame(gs, -1);	goto quitloop;
 	  case CmdNextLevel:	changecurrentgame(gs, +1);	goto quitloop;
 	  case CmdSameLevel:					goto quitloop;
-	  case CmdPlayback:	gs->playback = FALSE;		goto quitloop;
-	  case CmdQuitLevel:	gs->playback = FALSE;		goto quitloop;
+	  case CmdPlayback:					goto quitloop;
+	  case CmdQuitLevel:					goto quitloop;
 	  case CmdQuit:						exit(0);
 	  case CmdVolumeUp:
 	    changevolume(+2, TRUE);
@@ -805,7 +822,14 @@ static int playbackgame(gamespec *gs)
 	  case CmdPauseGame:
 	    setgameplaymode(SuspendPlay);
 	    setdisplaymsg("(paused)", 1, 1);
-	    while (input(TRUE) != CmdPauseGame) ;
+	    for (;;) {
+		switch (input(TRUE)) {
+		  case CmdQuit:		exit(0);
+		  case CmdPauseGame:	break;
+		  default:		continue;
+		}
+		break;
+	    }
 	    setgameplaymode(ResumePlay);
 	    break;
 	  case CmdHelp:
@@ -815,6 +839,8 @@ static int playbackgame(gamespec *gs)
 	    break;
 	}
     }
+    if (!lastrendered)
+	drawscreen(TRUE);
     setgameplaymode(EndPlay);
     gs->playback = FALSE;
     if (n < 0)
@@ -922,7 +948,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 		    break;
 	}
 	for (;;) {
-	    f = displaylist(" Welcome to Tile World. Select your destination.",
+	    f = displaylist("    Welcome to Tile World. Type ? for help.",
 			    &series->table, &n, scrollinputcallback);
 	    if (f == CmdProceed) {
 		getseriesfromlist(&gs->series, series->list, n);
@@ -931,6 +957,10 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	    } else if (f == CmdQuitLevel) {
 		okay = FALSE;
 		break;
+	    } else if (f == CmdHelp) {
+		pushsubtitle("Help");
+		onlinefirsthelp();
+		popsubtitle();
 	    }
 	}
     }
@@ -1109,8 +1139,9 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     listdirs = FALSE;
     mudsucking = 1;
     soundbufsize = 0;
+    volumelevel = -1;
 
-    initoptions(&opts, argc - 1, argv + 1, "aD:dfHhL:lm:pqR:S:stVv");
+    initoptions(&opts, argc - 1, argv + 1, "aD:dFfHhL:lm:n:pqR:S:stVv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -1129,7 +1160,8 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	  case 'R':	optresdir = opts.val;				break;
 	  case 'S':	optsavedir = opts.val;				break;
 	  case 'H':	showhistogram = !showhistogram;			break;
-	  case 'f':	fullscreen = !fullscreen;			break;
+	  case 'f':	noframeskip = !noframeskip;			break;
+	  case 'F':	fullscreen = !fullscreen;			break;
 	  case 'p':	usepasswds = !usepasswds;			break;
 	  case 'q':	silence = !silence;				break;
 	  case 'a':	++soundbufsize;					break;
@@ -1138,6 +1170,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	  case 's':	start->listscores = TRUE;			break;
 	  case 't':	start->listtimes = TRUE;			break;
 	  case 'm':	mudsucking = atoi(opts.val);			break;
+	  case 'n':	volumelevel = atoi(opts.val);			break;
 	  case 'h':	printtable(stdout, yowzitch); 	   exit(EXIT_SUCCESS);
 	  case 'v':	puts(VERSION);		 	   exit(EXIT_SUCCESS);
 	  case 'V':	printtable(stdout, vourzhon); 	   exit(EXIT_SUCCESS);
@@ -1179,6 +1212,8 @@ static int initializesystem(void)
     if (!initresources())
 	return FALSE;
     setkeyboardrepeat(TRUE);
+    if (volumelevel >= 0)
+	setvolume(volumelevel, FALSE);
     return TRUE;
 }
 

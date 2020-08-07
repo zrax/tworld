@@ -1,12 +1,13 @@
 /* score.c: Calculating scores and formatting the display of same.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
+#include	<math.h>
 #include	"defs.h"
 #include	"err.h"
 #include	"play.h"
@@ -14,7 +15,7 @@
 
 /* Translate a number into an ASCII string, complete with commas.
  */
-static char const *commify(int number)
+static char const *commify(unsigned long number)
 {
     static char	buf[32];
     char       *dest = buf + sizeof buf;
@@ -36,13 +37,15 @@ static char const *commify(int number)
 /* Return the user's scores for a given level.
  */
 int getscoresforlevel(gameseries const *series, int level,
-		      int *base, int *bonus, int *total)
+		      int *base, int *bonus, long *total)
 {
-    gamesetup	       *game;
-    int			levelscore, timescore;
-    unsigned int	totalscore;
-    int			n;
+    gamesetup   *game;
+    int		levelscore, timescore;
+    long	totalscore;
+    int		n;
 
+    *base = 0;
+    *bonus = 0;
     totalscore = 0;
     for (n = 0, game = series->games ; n < series->count ; ++n, ++game) {
 	if (n >= series->allocated)
@@ -75,15 +78,15 @@ int getscoresforlevel(gameseries const *series, int level,
 int createscorelist(gameseries const *series, int usepasswds,
 		    int **plevellist, int *pcount, tablespec *table)
 {
-    gamesetup	       *game;
-    char	      **ptrs;
-    char	       *textheap;
-    char	       *blank;
-    int		       *levellist = NULL;
-    unsigned int	levelscore, timescore;
-    unsigned int	totalscore;
-    int			count;
-    int			used, j, n;
+    gamesetup  *game;
+    char      **ptrs;
+    char       *textheap;
+    char       *blank;
+    int	       *levellist = NULL;
+    int		levelscore, timescore;
+    long	totalscore;
+    int		count;
+    int		used, j, n;
 
     if (plevellist) {
 	levellist = malloc((series->count + 2) * sizeof *levellist);
@@ -196,10 +199,11 @@ int createtimelist(gameseries const *series, int showfractions,
     char	      **ptrs;
     char	       *textheap;
     char	       *untimed;
+    char		tmp[16];
     int		       *levellist = NULL;
     long		leveltime;
     int			count;
-    int			used, j, n;
+    int			used, secs, j, n;
 
     if (plevellist) {
 	levellist = malloc((series->count + 1) * sizeof *levellist);
@@ -236,36 +240,22 @@ int createtimelist(gameseries const *series, int showfractions,
 	ptrs[n++] = textheap + used;
 	used += 1 + sprintf(textheap + used, "1-%.64s", game->name);
 	if (game->time) {
-	    leveltime = (game->time + 1) * TICKS_PER_SECOND;
-	    leveltime -= game->besttime + 1;
+	    leveltime = game->time * TICKS_PER_SECOND - game->besttime;
 	    ptrs[n++] = textheap + used;
 	    used += 1 + sprintf(textheap + used, "1+%d", game->time);
 	} else {
-	    leveltime = 1000 * TICKS_PER_SECOND - game->besttime - 1;
+	    leveltime = 999 * TICKS_PER_SECOND - game->besttime;
 	    ptrs[n++] = untimed;
 	}
+	secs = (leveltime + TICKS_PER_SECOND - 1) / TICKS_PER_SECOND;
 	ptrs[n++] = textheap + used;
-	switch (showfractions) {
-	  case 0:
-	    used += 1 + sprintf(textheap + used, "1+%ld",
-				leveltime / TICKS_PER_SECOND);
-	    break;
-	  case 1:
-	    if (leveltime < TICKS_PER_SECOND - 1) {
-		leveltime = TICKS_PER_SECOND - leveltime;
-		used += 1 + sprintf(textheap + used, "1+-%ld - .%01ld",
-			      leveltime / TICKS_PER_SECOND,
-			      ((10 * leveltime) / TICKS_PER_SECOND) % 10);
-	    } else {
-		used += 1 + sprintf(textheap + used, "1+%ld - .%01ld",
-			      leveltime / TICKS_PER_SECOND,
-			      9 - ((10 * leveltime) / TICKS_PER_SECOND) % 10);
-	    }
-	    break;
-	  default:
-	    used += 1 + sprintf(textheap + used, "1+%.*f", showfractions,
-				(double)leveltime / TICKS_PER_SECOND);
-	    break;
+	if (showfractions) {
+	    double i, f;
+	    f = modf((double)leveltime / TICKS_PER_SECOND, &i);
+	    sprintf(tmp, "%.*f", showfractions, (f < 0 ? -f : 1.0 - f));
+	    used += 1 + sprintf(textheap + used, "1+%d - %s", secs, tmp + 1);
+	} else {
+	    used += 1 + sprintf(textheap + used, "1+%d", secs);
 	}
 	if (plevellist)
 	    levellist[count] = j;

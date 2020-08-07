@@ -1,10 +1,11 @@
 /* play.c: Top-level game-playing functions.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
+#include	<string.h>
 #include	"defs.h"
 #include	"err.h"
 #include	"state.h"
@@ -172,6 +173,10 @@ int doturn(int cmd)
 
     state.soundeffects &= ~((1 << SND_ONESHOT_COUNT) - 1);
     state.currenttime = gettickcount();
+    if (state.currenttime >= 0x7FFFFFF) {
+	warn("timer reached its maximum size of 77.672 days -- quitting now");
+	return -1;
+    }
     if (state.replay < 0) {
 	if (cmd != CmdPreserve)
 	    state.currentinput = cmd;

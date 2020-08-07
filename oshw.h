@@ -1,6 +1,6 @@
 /* oshw.h: Platform-specific functions that talk with the OS/hardware.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -157,7 +157,7 @@ extern int displaygame(void const *state, int timeleft, int besttime);
  * for the level, and the user's total score for the series; these
  * scores will be displayed to the user.
  */
-extern int displayendmessage(int basescore, int timescore, int totalscore,
+extern int displayendmessage(int basescore, int timescore, long totalscore,
 			     int completed);
 
 /* Display a (very short) message for the given number of
@@ -240,11 +240,15 @@ extern void playsoundeffects(unsigned long sfx);
  */
 extern void clearsoundeffects(void);
 
-/* Change the current volume level. Volume ranges from 0 (silence) to
- * 10 (the default). Setting the sound to zero causes sound effects to
- * be displayed as textual onomatopoeia. If display is TRUE, the new
+/* Set the current volume level. Volume ranges from 0 (silence) to 10
+ * (the default). Setting the sound to zero causes sound effects to be
+ * displayed as textual onomatopoeia. If display is TRUE, the new
  * volume level will be displayed to the user. FALSE is returned if
  * the sound system is not currently active.
+ */
+extern int setvolume(int volume, int display);
+
+/* Alters the current volume level by delta.
  */
 extern int changevolume(int delta, int display);
 

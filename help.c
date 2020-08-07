@@ -1,11 +1,12 @@
 /* help.c: Displaying online help.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
 #include	"defs.h"
+#include	"err.h"
 #include	"state.h"
 #include	"oshw.h"
 #include	"ver.h"
@@ -17,16 +18,18 @@
 /* Help for command-line options.
  */
 static char *yowzitch_items[] = {
-    "3-Usage: tworld [-hvVdlstpqaH] [-DLRS DIR] [NAME] [LEVEL]",
+    "3-Usage: tworld [-hvVdlstpqFaHf] [-n N] [-DLRS DIR] [NAME] [LEVEL]",
     "1-", "1+-D", "1-Read data files from DIR instead of the default.",
     "1-", "1+-L", "1-Read level sets from DIR instead of the default.",
     "1-", "1+-R", "1-Read resource files from DIR instead of the default.",
     "1-", "1+-S", "1-Save games in DIR instead of the default.",
     "1-", "1+-p", "1-Disable password checking.",
-    "1-", "1+-f", "1-Run in fullscreen mode.",
+    "1-", "1+-F", "1-Run in fullscreen mode.",
     "1-", "1+-q", "1-Run quietly.",
+    "1-", "1+-n", "1-Set initial volume level to N.",
     "1-", "1+-a", "1-Double the size of the sound buffer (can be repeated).",
     "1-", "1+-H", "1-Produce histogram of idle time upon exit.",
+    "1-", "1+-f", "1-Disable frame-skipping.",
     "1-", "1+-l", "1-Display the list of available data files and exit.",
     "1-", "1+-s", "1-Display scores for the selected data file and exit.",
     "1-", "1+-t", "1-Display times for the selected data file and exit.",
@@ -37,14 +40,14 @@ static char *yowzitch_items[] = {
     "3-NAME specifies which data file to use.",
     "3-LEVEL specifies which level to start at."
 };
-static tablespec const yowzitch_table = { 18, 3, 2, -1, yowzitch_items };
+static tablespec const yowzitch_table = { 20, 3, 2, -1, yowzitch_items };
 tablespec const *yowzitch = &yowzitch_table;
 
 /* Version and license information.
  */
 static char *vourzhon_items[] = {
     "1+\267", "1-Tile World: version " VERSION,
-    "1+",     "1-Copyright \251 2001, 2002, 2003 by Brian Raiter",
+    "1+",     "1-Copyright \251 2001-2004 by Brian Raiter",
     "1+",     "1-compiled " COMPILE_TIME,
     "1+\267", "1!This program is free software; you can redistribute it and/or"
 	      " modify it under the terms of the GNU General Public License as"
@@ -212,7 +215,7 @@ static int scrollinputcallback(int *move)
 /* Display the list of help topics and allow the user to select which
  * ones to view.
  */
-void onlinehelp(int topic)
+void onlinemainhelp(int topic)
 {
     static char *items[] = {
 	"2-",
@@ -252,5 +255,36 @@ void onlinehelp(int topic)
 	}
     }
 
+    cleardisplay();
+}
+
+/* Display help explaining the purpose of the initial level set
+ * selection screen.
+ */
+void onlinefirsthelp(void)
+{
+    static char *items[] = {
+	"1!Welcome to Tile World!",
+	"1-",
+	"1!In order to begin, you must first decide which level set you"
+	" wish to play. The opening screen shows you the list of all the"
+	" level sets that are currently available. Use the up and down"
+	" arrows to move the selection. When the level set of your choice"
+	" is selected, press Enter to begin.",
+	"1-",
+	"1!If the list is long, you may also use the PgUp and PgDn keys to"
+	" scroll one windowful at a time.",
+	"1-",
+	"1!At any point in the program, you may use the Q key to quit the"
+	" current activity and go back up one step. Typing Shift-Q will"
+	" exit Tile World completely. Typing ? at any time will bring up"
+	" a list of online help topics.",
+	"1-",
+	"1!Now, press any key to go back to the list of level sets."
+    };
+    static tablespec const table = { 9, 1, 0, 1, items };
+
+    displaytable("HELP", &table, -1);
+    anykey();
     cleardisplay();
 }

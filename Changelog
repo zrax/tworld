@@ -1,4 +1,33 @@
 
+2004 Oct 04: version 1.2.0
+* Fixed a bug (MS logic) preventing cloned tanks from turning around when
+  they hadn't yet left the clone machine.
+* Fixed another longstanding bug (MS logic) involving a tank indirectly
+  pushing a blue button. Again, the bug was fixed explicitly instead of
+  trying to make the behavior arise naturally from the code.
+* Improved some of the behavior of blocks being pushed (Lynx logic).
+* Improved some of the behavior of blocked teleports (Lynx logic).
+* Altered animations to run for either 11 or 12 frames, depending on the
+  parity of their initial frame, as discovered by ccexplore. (This finally
+  killed the nine-lived clone-boosting bug in ICEHOUSE!) Also modified the
+  point during the frame when animations get removed.
+* Changed the Lynx walker to use a PRNG equivalent to the original, as
+  worked out by ccexplore.
+* Fixed bug (MS logic) in how a block is removed from the slip list when
+  being pushed by Chip (reported by Shmuel Siegel).
+* Fixed bug (MS logic) with deferred button presses; TW was incorrectly
+  deferring Chip's button presses and not just those caused by block
+  pushing.
+* Fixed a horrid bug when encountering bogus values in a dat file. (The
+  code was meant to gracefully ignore the broken level and continue reading
+  the next level, but it failed to move the file position out of the broken
+  level before doing so.)
+* Fixed keyboard routines so that they now understand characters as well as
+  keystrokes (thus e.g. the program recognizes "?" when entered on a
+  European keyboard).
+* Added a help screen for the initial file menu.
+* A few other minor bug fixes and miscellaneous improvements.
+
 2003 Mar 15: version 1.1.3
 * Put the display code through another significant rewrite. This time, the
   rewrite seems to have succeeded in improving speeds, at all pixel depths.

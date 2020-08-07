@@ -1,10 +1,11 @@
 /* lxlogic.c: The game logic for the Lynx ruleset.
  *
- * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001-2004 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
 #include	<stdlib.h>
+#include	<string.h>
 #include	"defs.h"
 #include	"err.h"
 #include	"state.h"
@@ -16,13 +17,15 @@
  */
 #define	MAX_CREATURES	(2 * CXGRID * CYGRID)
 
-/* The walker's PRNG seed value. Don't change this; it needs to
- * remain forever constant.
+/* Temporary "holding" values used in place of a direction.
  */
-#define	WALKER_PRNG_SEED	105977040UL
+#define	WALKER_TURN	(NORTH | SOUTH | EAST)
+#define	BLOB_TURN	(NORTH | SOUTH | WEST)
 
+/* My internal assertion macro.
+ */
 #ifdef NDEBUG
-#define	_assert(test)
+#define	_assert(test)	((void)0)
 #else
 #define	_assert(test)	((test) || (die("internal error: failed sanity check" \
 				        " (%s)\nPlease report this error to"  \
@@ -40,16 +43,17 @@ enum {
 /* Status information specific to the Lynx game logic.
  */
 struct lxstate {
-    unsigned char	greentoggle;	/* green button has been toggled */
+    unsigned char	endgametimer;	/* end-game countdown timer */
     unsigned char	couldntmove;	/* can't-move sound has been played */
     unsigned char	pushing;	/* Chip is pushing against something */
-    unsigned char	completed;	/* level completed successfully */
-    prng		walkerprng;	/* the PRNG used for the walkers */
+    unsigned char	stuck;		/* Chip is stuck on a teleport */
     creature	       *chiptocr;	/* is Chip colliding with a creature */
     short		chiptopos;	/*   just starting to move itself? */
+    unsigned char	prng1;		/* the values used to make the */
+    unsigned char	prng2;		/*   pseudorandom number sequence */
     signed char		xviewoffset;	/* offset of map view center */
     signed char		yviewoffset;	/*   position from position of Chip */
-    unsigned char	endgametimer;	/* end-game countdown timer */
+    unsigned char	completed;	/* level completed successfully */
 };
 
 /* Declarations of (indirectly recursive) functions.
@@ -65,6 +69,11 @@ static int const	delta[] = { 0, -CXGRID, -1, 0, +CXGRID, 0, 0, 0, +1 };
  * slide floor.
  */
 static int		lastrndslidedir = NORTH;
+
+/* The current stepping value, giving the subsecond offset of the
+ * timer. This affects when teeth move.
+ */
+static int		stepping = 2;
 
 /* The memory used to hold the list of creatures.
  */
@@ -113,14 +122,15 @@ static gamestate       *state;
 #define	getlxstate()		((struct lxstate*)state->localstateinfo)
 
 #define	completed()		(getlxstate()->completed)
-#define	greentoggle()		(getlxstate()->greentoggle)
 #define	couldntmove()		(getlxstate()->couldntmove)
 #define	chippushing()		(getlxstate()->pushing)
+#define	chipstuck()		(getlxstate()->stuck)
 #define	chiptopos()		(getlxstate()->chiptopos)
 #define	chiptocr()		(getlxstate()->chiptocr)
+#define	prngvalue1()		(getlxstate()->prng1)
+#define	prngvalue2()		(getlxstate()->prng2)
 #define	xviewoffset()		(getlxstate()->xviewoffset)
 #define	yviewoffset()		(getlxstate()->yviewoffset)
-#define	walkerprng()		(&(getlxstate()->walkerprng))
 
 #define	inendgame()		(getlxstate()->endgametimer)
 #define	startendgametimer()	(getlxstate()->endgametimer = 12 + 1)
@@ -171,6 +181,21 @@ static short *_possession(int obj)
     warn("Invalid object %d handed to possession()\n", obj);
     _assert(!"possession() called with an invalid object");
     return NULL;
+}
+
+/* The pseudorandom number generator, used by walkers and blobs. This
+ * exactly matches the PRNG used in the original Lynx game.
+ */
+static unsigned char lynx_prng(void)
+{
+    unsigned char n;
+
+    n = (prngvalue1() >> 2) - prngvalue1();
+    if (!(prngvalue1() & 0x02))
+        --n;
+    prngvalue1() = (prngvalue1() >> 1) | (prngvalue2() & 0x80);
+    prngvalue2() = (prngvalue2() << 1) | (n & 0x01);
+    return (prngvalue1() ^ prngvalue2()) & 0xFF;
 }
 
 /*
@@ -264,6 +289,10 @@ static void togglewalls(void)
 	    floorat(pos) = SwitchWall_Open;
 }
 
+/* Quell any continuous sound effects coming from what Chip is
+ * standing on. If includepushing is TRUE, also quell the sound of any
+ * blocks being pushed.
+ */
 static void resetfloorsounds(int includepushing)
 {
     stopsoundeffect(SND_SKATING_FORWARD);
@@ -286,7 +315,8 @@ static void resetfloorsounds(int includepushing)
 #define	CS_FDIRMASK		0x0F	/* temp storage for forced moves */
 #define	CS_SLIDETOKEN		0x10	/* can move off of a slide floor */
 #define	CS_REVERSE		0x20	/* needs to turn around */
-#define	CS_NOISYMOVEMENT	0x40	/* block was pushed by Chip */
+#define	CS_PUSHED		0x40	/* block was pushed by Chip */
+#define	CS_TELEPORTED		0x80	/* creature was just teleported */
 
 #define	getfdir(cr)	((cr)->state & CS_FDIRMASK)
 #define	setfdir(cr, d)	((cr)->state = ((cr)->state & ~CS_FDIRMASK) \
@@ -309,7 +339,7 @@ static creature *lookupcreature(int pos, int includechip)
     return NULL;
 }
 
-/* Return a new creature.
+/* Return a fresh creature.
  */
 static creature *newcreature(void)
 {
@@ -329,20 +359,7 @@ static creature *newcreature(void)
     return cr;
 }
 
-/* Mark a creature as dead.
- */
-static void killcreature(creature *cr)
-{
-    cr->hidden = TRUE;
-    if (cr->state & CS_NOISYMOVEMENT)
-	stopsoundeffect(SND_BLOCK_MOVING);
-    if (cr->id != Chip)
-	removeclaim(cr->pos);
-    if (isanimation(cr->id))
-	clearanimated(cr->pos);
-}
-
-/* Turn around any and all tanks not currently inbetween moves.
+/* Flag all tanks to turn around.
  */
 static void turntanks(void)
 {
@@ -359,30 +376,36 @@ static void turntanks(void)
     }
 }
 
-/* Start an animation sequence at the spot formerly occupied by the
- * given creature.
+/* Start an animation sequence at the spot (formerly) occupied by the
+ * given creature. The creature's slot in the creature list is reused
+ * by the animation sequence.
  */
-static creature *addanimation(creature const *cr, int id)
+static void removecreature(creature *cr, int animationid)
 {
-    creature   *anim;
-
-    anim = newcreature();
-    if (!anim)
-	return NULL;
-    anim->id = id;
-    anim->dir = cr->dir;
-    anim->pos = cr->pos;
-    anim->moving = cr->moving;
-    anim->frame = 12;
-    anim->hidden = FALSE;
-    anim->state = 0;
-    anim->tdir = NIL;
-    if (anim->moving == 8) {
-	anim->pos -= delta[anim->dir];
-	anim->moving = 0;
+    if (cr->id != Chip)
+	removeclaim(cr->pos);
+    if (cr->state & CS_PUSHED)
+	stopsoundeffect(SND_BLOCK_MOVING);
+    cr->id = animationid;
+    cr->frame = ((currenttime() + stepping) & 1) ? 12 : 11;
+    --cr->frame;
+    cr->hidden = FALSE;
+    cr->state = 0;
+    cr->tdir = NIL;
+    if (cr->moving == 8) {
+	cr->pos -= delta[cr->dir];
+	cr->moving = 0;
     }
     markanimated(cr->pos);
-    return anim;
+}
+
+/* End the given animation sequence (thus removing the final vestige
+ * of an ex-creature).
+ */
+static void removeanimation(creature *cr)
+{
+    cr->hidden = TRUE;
+    clearanimated(cr->pos);
 }
 
 /* Abort the animation sequence occuring at the given location.
@@ -392,41 +415,16 @@ static int stopanimationat(int pos)
     creature   *anim;
 
     for (anim = creaturelist() ; anim->id ; ++anim) {
-	if (anim->pos == pos && isanimation(anim->id)) {
-	    killcreature(anim);
+	if (!anim->hidden && anim->pos == pos && isanimation(anim->id)) {
+	    removeanimation(anim);
 	    return TRUE;
 	}
     }
     return FALSE;
 }
 
-/* Start an animation sequence at the spot formerly occupied by the
- * given creature.
- */
-static void removecreature(creature *cr, int animationid)
-{
-#if 1
-    addanimation(cr, animationid);
-    killcreature(cr);
-#else
-    if (cr->id != Chip)
-	removeclaim(cr->pos);
-    cr->id = animationid;
-    cr->frame = 12;
-    cr->hidden = FALSE;
-    if (cr->state & CS_NOISYMOVEMENT)
-	stopsoundeffect(SND_BLOCK_MOVING);
-    cr->state = 0;
-    cr->tdir = NIL;
-    if (cr->moving == 8) {
-	cr->pos -= delta[cr->dir];
-	cr->moving = 0;
-    }
-    markanimated(cr->pos);
-#endif
-}
-
-/* What happens when Chip dies.
+/* What happens when Chip dies. reason indicates the cause of death.
+ * also is either NULL or points to a creature that dies with Chip.
  */
 static void removechip(int reason, creature *also)
 {
@@ -636,19 +634,24 @@ static struct { unsigned char chip, block, creature; } const movelaws[] = {
     { 0, 0, 0 }
 };
 
-/* Including the flag CMM_RELEASING in a call to canmakemove indicates
- * that the creature in question is being moved out of a beartrap or
- * clone machine, moves that would normally be forbidden.
+/* Including the flag CMM_RELEASING in a call to canmakemove()
+ * indicates that the creature in question is being moved out of a
+ * beartrap or clone machine, moves that would normally be forbidden.
  * CMM_EXPOSEWALLS causes blue and hidden walls to be exposed in the
  * case of Chip. CMM_PUSHBLOCKS causes blocks to be pushed when in the
- * way of Chip.
+ * way of Chip. CMM_PUSHBLOCKSNOW causes blocks to be pushed
+ * immediately, instead of waiting for the block's turn to move.
+ * CMM_CLEARANIMATIONS causes animations in the destination square to
+ * be immediately quelled.
  */
-#define	CMM_EXPOSEWALLS		0x0001
-#define	CMM_PUSHBLOCKS		0x0002
-#define	CMM_RELEASING		0x0004
+#define	CMM_RELEASING		0x0001
+#define	CMM_EXPOSEWALLS		0x0002
+#define	CMM_PUSHBLOCKS		0x0004
+#define	CMM_PUSHBLOCKSNOW	0x0008
+#define	CMM_CLEARANIMATIONS	0x0010
 
 /* Return TRUE if the given block is allowed to be moved in the given
- * direction. If flags includes CMM_PUSHBLOCKS, then the indicated
+ * direction. If flags includes CMM_PUSHBLOCKSNOW, then the indicated
  * movement of the block will be initiated.
  */
 static int canpushblock(creature *block, int dir, int flags)
@@ -658,26 +661,24 @@ static int canpushblock(creature *block, int dir, int flags)
     _assert(dir != NIL);
 
     if (!canmakemove(block, dir, flags)) {
-	if (!block->moving && (flags & CMM_PUSHBLOCKS))
+	if (!block->moving && (flags & (CMM_PUSHBLOCKS | CMM_PUSHBLOCKSNOW)))
 	    block->dir = dir;
 	return FALSE;
     }
-    if (flags & CMM_PUSHBLOCKS) {
+    if (flags & (CMM_PUSHBLOCKS | CMM_PUSHBLOCKSNOW)) {
+	block->dir = dir;
 	block->tdir = dir;
-	if (advancecreature(block, FALSE) > 0) {
-	    chippushing() = TRUE;
-	    addsoundeffect(SND_BLOCK_MOVING);
-	    block->state |= CS_NOISYMOVEMENT;
-	} else {
-	    warn("Thought block could move, but it couldn't!");
-	}
+	block->state |= CS_PUSHED;
+	if (flags & CMM_PUSHBLOCKSNOW)
+	    advancecreature(block, FALSE);
     }
 
     return TRUE;
 }
 
 /* Return TRUE if the given creature is allowed to attempt to move in
- * the given direction.
+ * the given direction. Side effects can and will occur from calling
+ * this function, as indicated by flags.
  */
 static int canmakemove(creature const *cr, int dir, int flags)
 {
@@ -737,6 +738,9 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	    return FALSE;
 	if (issomeoneat(to))
 	    return FALSE;
+	if (flags & CMM_CLEARANIMATIONS)
+	    if (ismarkedanimated(to))
+		stopanimationat(to);
     } else {
 	if (!(movelaws[floorfrom].creature & DIR_OUT(dir)))
 	    return FALSE;
@@ -746,6 +750,9 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	    return FALSE;
 	if (floorto == Fire && cr->id != Fireball)
 	    return FALSE;
+	if (flags & CMM_CLEARANIMATIONS)
+	    if (ismarkedanimated(to))
+		stopanimationat(to);
     }
 
     return TRUE;
@@ -768,6 +775,7 @@ static void choosecreaturemove(creature *cr)
 
     if (isanimation(cr->id))
 	return;
+
     cr->tdir = NIL;
     if (cr->id == Block)
 	return;
@@ -818,14 +826,13 @@ static void choosecreaturemove(creature *cr)
 	break;
       case Walker:
 	choices[0] = dir;
-	choices[1] = randomof3(walkerprng(),
-			       left(dir), back(dir), right(dir));
+	choices[1] = WALKER_TURN;
 	break;
       case Blob:
-	choices[0] = 1 << random4(mainprng());
+	choices[0] = BLOB_TURN;
 	break;
       case Teeth:
-	if ((currenttime() >> 2) & 1)
+	if ((currenttime() + stepping) & 4)
 	    return;
 	if (getchip()->hidden)
 	    return;
@@ -847,9 +854,19 @@ static void choosecreaturemove(creature *cr)
 	pdir = choices[0];
 	break;
     }
+
     for (n = 0 ; n < 4 && choices[n] != NIL ; ++n) {
+	if (choices[n] == WALKER_TURN) {
+	    m = lynx_prng() & 3;
+	    choices[n] = cr->dir;
+	    while (m--)
+		choices[n] = right(choices[n]);
+	} else if (choices[n] == BLOB_TURN) {
+	    int cw[4] = { NORTH, EAST, SOUTH, WEST };
+	    choices[n] = cw[random4(mainprng())];
+	}
 	cr->tdir = choices[n];
-	if (canmakemove(cr, choices[n], 0))
+	if (canmakemove(cr, choices[n], CMM_CLEARANIMATIONS))
 	    return;
     }
 
@@ -864,18 +881,43 @@ static void choosecreaturemove(creature *cr)
 static void choosechipmove(creature *cr, int discard)
 {
     int	dir;
+    int	f1, f2;
+
+    chippushing() = FALSE;
 
     dir = currentinput();
     currentinput() = NIL;
 
     if (dir == NIL || discard) {
 	cr->tdir = NIL;
-    } else {
-	lastmove() = dir;
-	cr->tdir = dir;
+	return;
     }
-    if (cr->tdir == NIL)
-	chippushing() = FALSE;
+
+    lastmove() = dir;
+    cr->tdir = dir;
+
+    if (cr->tdir != NIL)
+	dir = cr->tdir;
+    else if (getfdir(cr) != NIL)
+	dir = getfdir(cr);
+    else
+	return;
+
+    if ((dir & (NORTH | SOUTH)) && (dir & (EAST | WEST))) {
+	if (cr->dir & dir) {
+	    f1 = canmakemove(cr, cr->dir, CMM_PUSHBLOCKS);
+	    f2 = canmakemove(cr, cr->dir ^ dir, CMM_PUSHBLOCKS);
+	    dir = !f1 && f2 ? dir ^ cr->dir : cr->dir;
+	} else {
+	    if (canmakemove(cr, dir & (EAST | WEST), CMM_PUSHBLOCKS))
+		dir &= EAST | WEST;
+	    else
+		dir &= NORTH | SOUTH;
+	}
+	cr->tdir = dir;
+    } else {
+	(void)canmakemove(cr, dir, CMM_PUSHBLOCKS);
+    }
 }
 
 /* This function determines if the given creature is currently being
@@ -909,9 +951,16 @@ static int getforcedmove(creature *cr)
 	    return FALSE;
 	setfdir(cr, getslidedir(floor, TRUE));
 	return !(cr->state & CS_SLIDETOKEN);
+#if 0
     } else if (floor == Teleport) {
 	setfdir(cr, cr->dir);
 	return TRUE;
+#else
+    } else if (cr->state & CS_TELEPORTED) {
+	cr->state &= ~CS_TELEPORTED;
+	setfdir(cr, cr->dir);
+	return TRUE;
+#endif
     }
 
     return FALSE;
@@ -935,6 +984,9 @@ static int choosemove(creature *cr)
     return cr->tdir != NIL || getfdir(cr) != NIL;
 }
 
+/* Update the location that Chip is currently moving into (and reset
+ * the pointer to the creature that Chip is colliding with).
+ */
 static void checkmovingto(void)
 {
     creature   *cr;
@@ -983,11 +1035,9 @@ static int teleportcreature(creature *cr)
 	    if (n)
 		break;
 	    if (pos == origpos) {
-		if (cr->id == Chip) {
-		    addsoundeffect(SND_CANT_MOVE);
-		    chippushing() = TRUE;
-		}
-		return TRUE;
+		if (cr->id == Chip)
+		    chipstuck() = TRUE;
+		return FALSE;
 	    }
 	}
     }
@@ -1000,6 +1050,7 @@ static int teleportcreature(creature *cr)
 
     if (cr->id == Chip)
 	addsoundeffect(SND_TELEPORTING);
+    cr->state |= CS_TELEPORTED;
     return TRUE;
 }
 
@@ -1013,7 +1064,16 @@ static int activatecloner(int pos)
 
     if (pos < 0)
 	return FALSE;
-    _assert(floorat(pos) == CloneMachine);
+    if (pos >= CXGRID * CYGRID) {
+	warn("Off-map cloning attempted: (%d %d)",
+	     pos % CXGRID, pos / CXGRID);
+	return FALSE;
+    }
+    if (floorat(pos) != CloneMachine) {
+	warn("Red button not connected to a clone machine at (%d %d)",
+	     pos % CXGRID, pos / CXGRID);
+	return FALSE;
+    }
     cr = lookupcreature(pos, TRUE);
     if (!cr)
 	return FALSE;
@@ -1037,6 +1097,16 @@ static void springtrap(int pos)
 
     if (pos < 0)
 	return;
+    if (pos >= CXGRID * CYGRID) {
+	warn("Off-map trap opening attempted: (%d %d)",
+	     pos % CXGRID, pos / CXGRID);
+	return;
+    }
+    if (floorat(pos) != Beartrap) {
+	warn("Brown button not connected to a beartrap at (%d %d)",
+	     pos % CXGRID, pos / CXGRID);
+	return;
+    }
     cr = lookupcreature(pos, TRUE);
     if (cr && cr->dir != NIL)
 	advancecreature(cr, TRUE);
@@ -1055,9 +1125,9 @@ static void springtrap(int pos)
  */
 static int startmovement(creature *cr, int releasing)
 {
-    int	dir;
-    int	floorfrom;
-    int	f1, f2;
+    creature   *other;
+    int		dir;
+    int		floorfrom;
 
     _assert(cr->moving <= 0);
 
@@ -1070,18 +1140,7 @@ static int startmovement(creature *cr, int releasing)
 
     if ((dir & (NORTH | SOUTH)) && (dir & (EAST | WEST))) {
 	_assert(cr->id == Chip);
-	if (cr->dir & dir) {
-	    f1 = canmakemove(cr, cr->dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS);
-	    f2 = canmakemove(cr, cr->dir ^ dir,
-			     CMM_EXPOSEWALLS | CMM_PUSHBLOCKS);
-	    dir = !f1 && f2 ? dir ^ cr->dir : cr->dir;
-	} else {
-	    if (canmakemove(cr, dir & (EAST | WEST),
-			    CMM_EXPOSEWALLS | CMM_PUSHBLOCKS))
-		dir &= EAST | WEST;
-	    else
-		dir &= NORTH | SOUTH;
-	}
+	_assert(!"This should never have been able to happen");
     }
 
     cr->dir = dir;
@@ -1090,7 +1149,6 @@ static int startmovement(creature *cr, int releasing)
 
     if (cr->id == Chip) {
 	_assert(!cr->hidden);
-	chippushing() = FALSE;
 	if (!possession(Boots_Slide)) {
 	    if (isslide(floorfrom) && cr->tdir == NIL)
 		cr->state |= CS_SLIDETOKEN;
@@ -1099,8 +1157,9 @@ static int startmovement(creature *cr, int releasing)
 	}
     }
 
-    if (!canmakemove(cr, dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS
-					| (releasing ? CMM_RELEASING : 0))) {
+    if (!canmakemove(cr, dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKSNOW |
+					CMM_CLEARANIMATIONS |
+					(releasing ? CMM_RELEASING : 0))) {
 	if (cr->id == Chip) {
 	    if (!couldntmove()) {
 		couldntmove() = TRUE;
@@ -1111,8 +1170,6 @@ static int startmovement(creature *cr, int releasing)
 	if (isice(floorfrom) && (cr->id != Chip || !possession(Boots_Ice))) {
 	    cr->dir = back(dir);
 	    applyicewallturn(cr);
-	    if (cr->id == Chip)
-		chippushing() = FALSE;
 	}
 	return 0;
     }
@@ -1130,8 +1187,6 @@ static int startmovement(creature *cr, int releasing)
 	return -1;
     }
     cr->pos += delta[dir];
-    if (ismarkedanimated(cr->pos))
-	stopanimationat(cr->pos);
     if (cr->id != Chip)
 	claimlocation(cr->pos);
 
@@ -1143,18 +1198,22 @@ static int startmovement(creature *cr, int releasing)
     }
     if (cr->id == Chip) {
 	couldntmove() = FALSE;
-	cr = lookupcreature(cr->pos, FALSE);
-	if (cr) {
-	    removechip(CHIP_COLLIDED, cr);
+	other = lookupcreature(cr->pos, FALSE);
+	if (other) {
+	    removechip(CHIP_COLLIDED, other);
 	    return -1;
 	}
+    }
+
+    if (cr->state & CS_PUSHED) {
+	chippushing() = TRUE;
+	addsoundeffect(SND_BLOCK_MOVING);
     }
 
     return +1;
 }
 
-/* Determine the speed of a moving creature. (Speed is measured in
- * eighths of a tile per tick.)
+/* Continue the given creature's move.
  */
 static int continuemovement(creature *cr)
 {
@@ -1164,6 +1223,9 @@ static int continuemovement(creature *cr)
 	return TRUE;
 
     _assert(cr->moving > 0);
+
+    if (cr->id == Chip && chipstuck())
+	return TRUE;
 
     speed = cr->id == Blob ? 1 : 2;
     floor = floorat(cr->pos);
@@ -1186,10 +1248,10 @@ static int endmovement(creature *cr)
     int	floor;
     int	survived = TRUE;
 
-    _assert(cr->moving <= 0);
-
     if (isanimation(cr->id))
 	return TRUE;
+
+    _assert(cr->moving <= 0);
 
     floor = floorat(cr->pos);
 
@@ -1306,6 +1368,11 @@ static int endmovement(creature *cr)
 	}
 	survived = FALSE;
 	break;
+#if 0
+      case Teleport:
+	teleportcreature(cr);
+	break;
+#endif
       case Beartrap:
 	addsoundeffect(SND_TRAP_ENTERED);
 	break;
@@ -1314,7 +1381,7 @@ static int endmovement(creature *cr)
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Green:
-	greentoggle() = !greentoggle();
+	togglewalls();
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Red:
@@ -1344,7 +1411,7 @@ static int advancecreature(creature *cr, int releasing)
     char	tdir = NIL;
     int		f;
 
-    if (cr->moving <= 0) {
+    if (cr->moving <= 0 && !isanimation(cr->id)) {
 	if (releasing) {
 	    _assert(cr->dir != NIL);
 	    tdir = cr->tdir;
@@ -1488,26 +1555,20 @@ static void initialhousekeeping(void)
 	}
     }
 
-    if (greentoggle())
-	togglewalls();
-    greentoggle() = FALSE;
-
     for (cr = creaturelist() ; cr->id ; ++cr) {
 	if (cr->hidden)
 	    continue;
-	if (isanimation(cr->id) && cr->frame <= 0) {
-	    killcreature(cr);
-	} else if (cr->state & CS_REVERSE) {
+	if (cr->state & CS_REVERSE) {
 	    cr->state &= ~CS_REVERSE;
 	    if (cr->moving <= 0)
 		cr->dir = back(cr->dir);
 	}
     }
     for (cr = creaturelist() ; cr->id ; ++cr) {
-	if (cr->state & CS_NOISYMOVEMENT) {
+	if (cr->state & CS_PUSHED) {
 	    if (cr->hidden || cr->moving <= 0) {
 		stopsoundeffect(SND_BLOCK_MOVING);
-		cr->state &= ~CS_NOISYMOVEMENT;
+		cr->state &= ~CS_PUSHED;
 	    }
 	}
     }
@@ -1528,7 +1589,7 @@ static void initialhousekeeping(void)
 	  case CmdCheatWest:		--xviewoffset();		break;
 	  case CmdCheatSouth:		++yviewoffset();		break;
 	  case CmdCheatEast:		++xviewoffset();		break;
-	  case CmdCheatHome:		xviewoffset()=yviewoffset()= 0;	break;
+	  case CmdCheatHome:		xviewoffset()=yviewoffset()=0;	break;
 	  case CmdCheatKeyRed:		++possession(Key_Red);		break;
 	  case CmdCheatKeyBlue:		++possession(Key_Blue);		break;
 	  case CmdCheatKeyYellow:	++possession(Key_Yellow);	break;
@@ -1552,17 +1613,7 @@ static void initialhousekeeping(void)
  */
 static void finalhousekeeping(void)
 {
-    creature   *cr;
-
-    for (cr = creaturelist() ; cr->id ; ++cr)
-	if (!cr->hidden && isanimation(cr->id))
-	    --cr->frame;
-    for (--cr ; cr >= creaturelist() ; --cr) {
-	if (cr->hidden || cr->moving || isanimation(cr->id))
-	    continue;
-	if (floorat(cr->pos) == Teleport)
-	    teleportcreature(cr);
-    }
+    return;
 }
 
 /* Set the state fields specifically used to produce the output.
@@ -1591,7 +1642,7 @@ static void preparedisplay(void)
 	    showhint();
 	else
 	    hidehint();
-	if (chippushing())
+	if (chip->id == Chip && chippushing())
 	    chip->id = Pushing_Chip;
 	if (chip->moving) {
 	    resetfloorsounds(FALSE);
@@ -1618,7 +1669,7 @@ static void preparedisplay(void)
 }
 
 /*
- * The exported functions.
+ * The functions provided by the gamelogic struct.
  */
 
 /* Translation table for the codes used by the data file to define the
@@ -1888,15 +1939,16 @@ static int initgame(gamelogic *logic)
 			  = possession(Boots_Water) = 0;
 
     resetendgametimer();
-    greentoggle() = FALSE;
     couldntmove() = FALSE;
     chippushing() = FALSE;
+    chipstuck() = FALSE;
     completed() = FALSE;
     chiptopos() = -1;
     chiptocr() = NULL;
+    prngvalue1() = 0;
+    prngvalue2() = 0;
     xviewoffset() = 0;
     yviewoffset() = 0;
-    restartprng(walkerprng(), WALKER_PRNG_SEED);
 
     preparedisplay();
     return !ismarkedinvalid();
@@ -1916,8 +1968,14 @@ static int advancegame(gamelogic *logic)
     for (--cr ; cr >= creaturelist() ; --cr) {
 	setfdir(cr, NIL);
 	cr->tdir = NIL;
-	if (cr->hidden || isanimation(cr->id))
+	if (cr->hidden)
 	    continue;
+	if (isanimation(cr->id)) {
+	    --cr->frame;
+	    if (cr->frame < 0)
+		removeanimation(cr);
+	    continue;
+	}
 	if (cr->moving <= 0)
 	    choosemove(cr);
     }
@@ -1940,6 +1998,16 @@ static int advancegame(gamelogic *logic)
 	    springtrap(trapfrombutton(cr->pos));
     }
 
+    for (cr = creaturelist() ; cr->id ; ++cr) ;
+    for (--cr ; cr >= creaturelist() ; --cr) {
+	if (cr->hidden)
+	    continue;
+	if (cr->moving)
+	    continue;
+	if (floorat(cr->pos) == Teleport)
+	    teleportcreature(cr);
+    }
+
     finalhousekeeping();
 
     preparedisplay();
@@ -1955,12 +2023,16 @@ static int advancegame(gamelogic *logic)
     return 0;
 }
 
+/* Free resources associated with the current game state.
+ */
 static int endgame(gamelogic *logic)
 {
     (void)logic;
     return TRUE;
 }
 
+/* Free all allocated resources for this module.
+ */
 static void shutdown(gamelogic *logic)
 {
     (void)logic;
@@ -1968,6 +2040,9 @@ static void shutdown(gamelogic *logic)
     creaturearray = NULL;
 }
 
+/* The exported function: Initialize and return the module's gamelogic
+ * structure.
+ */
 gamelogic *lynxlogicstartup(void)
 {
     static gamelogic	logic;
