@@ -547,7 +547,7 @@ fi
 
 LOADLIBES=""
 OSHWCFLAGS=$CFLAGS
-sharedir="${datadir}/tworld"
+sharedir='${datadir}/tworld'
 otherobjs=""
 
 
@@ -555,8 +555,6 @@ otherobjs=""
 if test "${with_sharedir+set}" = set; then
   withval="$with_sharedir"
   sharedir=$withval
-else
-  sharedir="$datadir/tworld"
 fi
 
 
@@ -584,7 +582,7 @@ if test "$OSHWDIR" = "sdl" ; then
   # Extract the first word of "sdl-config", so it can be a program name with args.
 set dummy sdl-config; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
-echo "configure:588: checking for $ac_word" >&5
+echo "configure:586: checking for $ac_word" >&5
 if eval "test \"`echo '$''{'ac_cv_prog_sdlpresent'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -614,7 +612,6 @@ fi
   if test -z "$sdlpresent" ; then
     { echo "configure: error: SDL installation not found." 1>&2; exit 1; }
   fi
-  CFLAGS=$CFLAGS' $(shell sdl-config --cflags)'
   OSHWCFLAGS=$OSHWCFLAGS' $(shell sdl-config --cflags)'
   LOADLIBES=$LOADLIBES' $(shell sdl-config --libs)'
 fi

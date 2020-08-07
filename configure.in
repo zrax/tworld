@@ -21,7 +21,7 @@ AC_ARG_WITH(debug,
 
 LOADLIBES=""
 OSHWCFLAGS=$CFLAGS
-sharedir="${datadir}/tworld"
+sharedir='${datadir}/tworld'
 otherobjs=""
 
 dnl
@@ -31,8 +31,7 @@ dnl
 
 AC_ARG_WITH(sharedir,
 	    [  --with-sharedir=DIR     Explicitly set the shared data directory],
-	    [sharedir=$withval],
-	    [sharedir="$datadir/tworld"])
+	    [sharedir=$withval])
 
 dnl
 dnl	--with-sdl selects SDL as the OS/hardware layer.
@@ -60,7 +59,6 @@ if test "$OSHWDIR" = "sdl" ; then
   if test -z "$sdlpresent" ; then
     AC_MSG_ERROR([SDL installation not found.])
   fi
-  CFLAGS=$CFLAGS' $(shell sdl-config --cflags)'
   OSHWCFLAGS=$OSHWCFLAGS' $(shell sdl-config --cflags)'
   LOADLIBES=$LOADLIBES' $(shell sdl-config --libs)'
 fi

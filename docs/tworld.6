@@ -1,4 +1,4 @@
-.TH tworld 6 "Oct 2004" "Tile World"
+.TH tworld 6 "Feb 2006" "Tile World"
 .LO 1
 .SH NAME
 tworld \- Tile World
@@ -170,8 +170,11 @@ can also be used for the same purpose. Other keys have the following
 functions:
 .P
 .TP
-.B Ctrl-H
+.B Bkspc
 pauses the game; press any key to resume play.
+.TP
+.B Ctrl-H
+same as Bkspc.
 .TP
 .B Ctrl-N
 stops the current game and moves forward to the next level.
@@ -222,8 +225,19 @@ moves back ten levels.
 displays a prompt and accepts a password, then jumps to the level with
 that password.
 .TP
-.B Ctrl-I
+.B Tab
 plays back the best solution for that level.
+.TP
+.B Shift-Tab
+verifies the best solution for that level. If the solution is no
+longer valid (e.g. because the level has been altered), the solution
+will automatically be deprecated.
+.TP
+.B Ctrl-I
+same as Tab.
+.TP
+.B Shift-Ctrl-I
+same as Shift-Tab.
 .TP
 .B O
 toggles between even-step and odd-step offset.
@@ -235,6 +249,10 @@ toggles between even-step and odd-step offset.
 deprecates the best solution for that level. If the level is then
 succesfully completed again, the saved solution will be replaced with
 the new one, whether or not it had a better time.
+.TP
+.B Shift-Ctrl-X
+deletes the saved solution for that level. If confirmed, the
+solution will be immediately removed from the solution file.
 .TP
 .B S
 displays the list of known levels and their current scores. The score
@@ -293,8 +311,7 @@ below).
 tworld is normally invoked without arguments. The program begins by
 displaying a list of the available level sets. After a level set is
 chosen, the program jumps to the first unsolved level to begin
-play. However, the name of a level set can be specified directly on
-the command line, as well as the number of a level to start with.
+play.
 .P
 The available command-line options are enumerated in the following
 table. (Windows users: The options that cause the program to display
@@ -334,23 +351,29 @@ instead of the default directory.
 .B -l
 Write a list of available level sets to standard output and exit.
 .TP
-.B -p
-Turn off all password-checking. This option allows the normal sequence
-of levels to be bypassed.
-.TP
 .BI "-n " N
 Set the initial volume level to
 .IR "N" ,
 0 being silence and 10 being
 full volume. The default level is 10.
 .TP
+.B -P
+Turn on pedantic mode, forcing the Lynx ruleset to emulate the
+original game as closely as possible. See
+.B LYNX RULESET DIFFERENCES
+below.
+.TP
+.B -p
+Turn off all password-checking. This option allows the normal sequence
+of levels to be bypassed.
+.TP
 .B -q
 Run quietly. All sounds, including the ringing of the terminal bell,
 are suppressed.
 .TP
 .B -r
-Run in read-only mode. No changes will be made to the solution
-files.
+Run in read-only mode. This guarantees that no changes will be made
+to the solution files.
 .TP
 .BI "-R " DIR
 Read resource data from
@@ -379,6 +402,63 @@ output and exit.
 .TP
 .B -v
 Display the program's version number on standard output and exit.
+.P
+Besides the above options, tworld can accept up to three
+command-line arguments: the name of a level set, the number of a level
+to start on, and the name of an alternate solution file. If the name
+of an installed level set is specified, then Tile World will start up
+in that set, skipping the initial level set selection.
+.P
+If the specified level set is not a simple name but is a pathname
+(relative or absolute), then Tile World will use that level set only,
+without requiring that it first be installed. No solutions will be
+saved unless an explicit solution file is also supplied on the
+command-line.
+.br
+.SH LYNX RULESET DIFFERENCES
+The Lynx ruleset emulation intentionally diverges from the original in
+four aspects. They are as follows:
+.P
+.TP 2
+.PD 0
+*
+On the Atari Lynx, no more than 128 creatures could exist at one
+time. Attempting to create a 129th creature with a clone machine
+would cause it to "run out". Tile World imposes no such limit.
+.TP
+*
+In a similar vein, Chip could not carry more than 255 keys of one
+color. Picking up a 256th key would cause the key counter to "wrap
+around" to zero. Tile World permits any number of keys to be carried.
+.TP
+*
+On the Atari Lynx, there were no Wall North or Wall West tiles.
+These two tiles were introduced by the MS version, even though they do
+not appear in the original level set. Tile World nonetheless permits
+these tiles to be used in Lynx levels.
+.TP
+*
+The Atari Lynx did not permit arbitrary wiring of buttons. Brown
+buttons were automatically connected to the next bear trap in reading
+order (scanning to the right, then along the next row going down, and
+restarting at the top if the bottom is reached, until a beartrap is
+found), and likewise with red buttons and clone machines. Tile World
+follows the explicit wiring information present in the data file.
+.PD 1
+.P
+(These differences were specifically elected to be made because they
+are aspects of the game that are rarely or never addressed by the
+original level set, and were felt by the community at the time to be
+more like artifacts of the original implementation than intentional
+features of the original game design.)
+.P
+These differences from the original ruleset are suppressed when Tile
+World is run in "pedantic mode". (See the documentation for -P under
+.B COMMAND-LINE OPTIONS
+above.) In pedantic mode, Tile World's Lynx
+ruleset imposes a maximum of 128 creatures and 255 keys per color,
+ignores wiring data in the data file, and refuses to play levels
+containing the new wall tiles.
 .br
 .SH CONFIGURATION FILES
 Configuration files are used to override some of the settings in a
@@ -436,11 +516,9 @@ chips.dat file that MS distributed with their version of "Chip's
 Challenge" contained a few minor differences from the original level
 set as appeared on the Lynx. A positive value for this entry instructs
 the program to undo those changes, so that the original Lynx level set
-is obtained. (The changes made by MS were: an extra level was added;
-three passwords were garbled; another password was replaced with the
-password to the prior level; and, on most but not all copies, a wall
-was removed from one level, presumably to alleviate its unexpected
-difficulty.)
+is obtained. (The changes made in the MS version were: an extra level
+was added; four passwords were garbled; and four or five levels' maps
+had minor alterations.)
 .br
 .SH RESOURCES
 Tile World loads various resources at runtime from its resource
@@ -661,7 +739,7 @@ the resource, level set, and data file directories.
 Specifies a directory for saving solution files.
 .br
 .SH LICENSE
-Tile World is copyright (C) 2001-2004 by Brian Raiter.
+Tile World is copyright (C) 2001-2006 by Brian Raiter.
 .P
 This program is free software; you can redistribute it and/or  
 modify it under the terms of the GNU General Public License as 
@@ -688,11 +766,11 @@ the rights to Atari) in 1989, and was among the first set of games
 made available for the Lynx.
 .P
 "Chip's Challenge" was subsequently ported to several other platforms:
-MS-DOS, Microsoft Windows, Amiga, and the Commodore 64. (A NES port
-was also planned, but never completed.) The most well-known port was
-the Windows version, done by Microsoft and sold as part of Windows
-Entertainment Pack 4 (and later as part of Best of Windows
-Entertainment Pack).
+MS-DOS, Microsoft Windows (16-bit), Amiga, ZX Spectrum, Atari ST, and
+the Commodore 64. (A NES port was also planned, but never completed.)
+The most well-known port was the Windows version, done by Microsoft
+and sold as part of Windows Entertainment Pack 4 (and later as part of
+Best of Windows Entertainment Pack).
 .P
 In the process of recreating the game for the 16-bit Windows platform,
 Microsoft introduced a surprising number of changes to the mechanics

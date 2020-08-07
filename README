@@ -199,7 +199,7 @@ Finally, Tile World's home page is at:
 
   License
 
-Tile World is copyright (C) 2001-2004 by Brian Raiter. This program is free
+Tile World is copyright (C) 2001-2006 by Brian Raiter. This program is free
 software; you can redistribute it and/or modify it under the terms of the
 GNU General Public License as published by the Free Software Foundation;
 either version 2 of the License, or (at your option) any later version.
@@ -227,6 +227,10 @@ files in the public domain.
 The tile images included in this distribution were created by Anders
 Kaseorg, with assistance from POV-Ray. Anders Kaseorg has explicitly placed
 these files in the public domain.
+
+The introductory set of levels included in this distribution were created
+by Brian Raiter. Brian Raiter has explictly placed these levels in the
+public domain.
 
 "Chip's Challenge" was designed by Chuck Sommerville, who is also the
 author of the original Lynx program.

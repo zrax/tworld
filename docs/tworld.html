@@ -21,15 +21,16 @@
 <li><a href="#5">Rulesets</a>
 <li><a href="#6">Adding New Level Sets</a>
 <li><a href="#7">Command-Line Options</a>
-<li><a href="#8">Configuration Files</a>
-<li><a href="#9">Resources</a>
-<li><a href="#10">Directories</a>
-<li><a href="#11">Environment Variables</a>
-<li><a href="#12">License</a>
-<li><a href="#13">History</a>
-<li><a href="#14">Appendix: Notes on Nomenclature</a>
-<li><a href="#15">Appendix: Layout of the Font Bitmap</a>
-<li><a href="#16">Appendix: Layout of the Tile Bitmap</a>
+<li><a href="#8">Lynx Ruleset Differences</a>
+<li><a href="#9">Configuration Files</a>
+<li><a href="#10">Resources</a>
+<li><a href="#11">Directories</a>
+<li><a href="#12">Environment Variables</a>
+<li><a href="#13">License</a>
+<li><a href="#14">History</a>
+<li><a href="#15">Appendix: Notes on Nomenclature</a>
+<li><a href="#16">Appendix: Layout of the Font Bitmap</a>
+<li><a href="#17">Appendix: Layout of the Tile Bitmap</a>
 </ul>
 
 <p>
@@ -208,8 +209,10 @@ can also be used for the same purpose. Other keys have the following
 functions:
 <p>
 <table>
-<tr><td><tt>Ctrl</tt>-<tt>H</tt>&nbsp;</td>
+<tr><td><tt>Bkspc</tt>&nbsp;</td>
 <td>pauses the game; press any key to resume play.</td></tr>
+<tr><td><tt>Ctrl</tt>-<tt>H</tt>&nbsp;</td>
+<td>same as <tt>Bkspc</tt>.</td></tr>
 <tr><td><tt>Ctrl</tt>-<tt>N</tt>&nbsp;</td>
 <td>stops the current game and moves forward to the next level.</td></tr>
 <tr><td><tt>Ctrl</tt>-<tt>P</tt>&nbsp;</td>
@@ -247,8 +250,16 @@ commands are available:
 <tr><td><tt>G</tt>&nbsp;</td>
 <td>displays a prompt and accepts a password, then jumps to the level with
 that password.</td></tr>
-<tr><td><tt>Ctrl</tt>-<tt>I</tt>&nbsp;</td>
+<tr><td><tt>Tab</tt>&nbsp;</td>
 <td>plays back the best solution for that level.</td></tr>
+<tr><td><tt>Shift</tt>-<tt>Tab</tt>&nbsp;</td>
+<td>verifies the best solution for that level. If the solution is no
+longer valid (e.g. because the level has been altered), the solution
+will automatically be deprecated.</td></tr>
+<tr><td><tt>Ctrl</tt>-<tt>I</tt>&nbsp;</td>
+<td>same as <tt>Tab</tt>.</td></tr>
+<tr><td><tt>Shift</tt>-<tt>Ctrl</tt>-<tt>I</tt>&nbsp;</td>
+<td>same as <tt>Shift</tt>-<tt>Tab</tt>.</td></tr>
 <tr><td><tt>O</tt>&nbsp;</td>
 <td>toggles between even-step and odd-step offset.</td></tr>
 <tr><td><tt>Shift</tt>-<tt>O</tt>&nbsp;</td>
@@ -257,6 +268,9 @@ that password.</td></tr>
 <td>deprecates the best solution for that level. If the level is then
 succesfully completed again, the saved solution will be replaced with
 the new one, whether or not it had a better time.</td></tr>
+<tr><td><tt>Shift</tt>-<tt>Ctrl</tt>-<tt>X</tt>&nbsp;</td>
+<td>deletes the saved solution for that level. If confirmed, the
+solution will be immediately removed from the solution file.</td></tr>
 <tr><td><tt>S</tt>&nbsp;</td>
 <td>displays the list of known levels and their current scores. The score
 list also permits changing the current level.</td></tr>
@@ -281,7 +295,7 @@ Tile World contains emulators for two different versions of "Chip's
 Challenge". They are referred to as the Lynx ruleset and the MS
 ruleset. The Lynx ruleset recreates the original implementation of the
 game, and the MS ruleset recreates the version that was implemented
-for Microsoft Windows (cf <a href="#13">History</a>).
+for Microsoft Windows (cf <a href="#14">History</a>).
 <p>
 The most notable difference between the two rulesets is that in the MS
 ruleset, movement between tiles is instantaneous, whereas under the
@@ -308,10 +322,10 @@ case the author, for whatever reason, stores their creations in more
 than one file.)
 <p>
 When a new data file is obtained, it may simply be copied into the
-level set directory (cf <a href="#10">Directories</a>), and Tile World will then make
+level set directory (cf <a href="#11">Directories</a>), and Tile World will then make
 it available for playing.
 <p>
-An alternate method is to use a configuration file (see <a href="#8">Configuration Files</a> below).
+An alternate method is to use a configuration file (see <a href="#9">Configuration Files</a> below).
 <p>
 <a name="7"></a>
 <h3>
@@ -321,8 +335,7 @@ Command-Line Options
 <tt>tworld</tt> is normally invoked without arguments. The program begins by
 displaying a list of the available level sets. After a level set is
 chosen, the program jumps to the first unsolved level to begin
-play. However, the name of a level set can be specified directly on
-the command line, as well as the number of a level to start with.
+play.
 <p>
 The available command-line options are enumerated in the following
 table. (Windows users: The options that cause the program to display
@@ -350,18 +363,22 @@ exit.</td></tr>
 <td>Look for level sets in <i>DIR</i> instead of the default directory.</td></tr>
 <tr><td><tt>-l</tt>&nbsp;</td>
 <td>Write a list of available level sets to standard output and exit.</td></tr>
-<tr><td><tt>-p</tt>&nbsp;</td>
-<td>Turn off all password-checking. This option allows the normal sequence
-of levels to be bypassed.</td></tr>
 <tr><td><tt>-n</tt>&nbsp;<i>N</i>&nbsp;</td>
 <td>Set the initial volume level to <i>N</i>, 0 being silence and 10 being
 full volume. The default level is 10.</td></tr>
+<tr><td><tt>-P</tt>&nbsp;</td>
+<td>Turn on pedantic mode, forcing the Lynx ruleset to emulate the
+original game as closely as possible. See <a href="#8">Lynx Ruleset Differences</a>
+below.</td></tr>
+<tr><td><tt>-p</tt>&nbsp;</td>
+<td>Turn off all password-checking. This option allows the normal sequence
+of levels to be bypassed.</td></tr>
 <tr><td><tt>-q</tt>&nbsp;</td>
 <td>Run quietly. All sounds, including the ringing of the terminal bell,
 are suppressed.</td></tr>
 <tr><td><tt>-r</tt>&nbsp;</td>
-<td>Run in read-only mode. No changes will be made to the solution
-files.</td></tr>
+<td>Run in read-only mode. This guarantees that no changes will be made
+to the solution files.</td></tr>
 <tr><td><tt>-R</tt>&nbsp;<i>DIR</i>&nbsp;</td>
 <td>Read resource data from <i>DIR</i> instead of the default directory.</td></tr>
 <tr><td><tt>-S</tt>&nbsp;<i>DIR</i>&nbsp;</td>
@@ -382,7 +399,59 @@ output and exit.</td></tr>
 <td>Display the program's version number on standard output and exit.</td></tr>
 </table>
 <p>
+Besides the above options, <tt>tworld</tt> can accept up to three
+command-line arguments: the name of a level set, the number of a level
+to start on, and the name of an alternate solution file. If the name
+of an installed level set is specified, then Tile World will start up
+in that set, skipping the initial level set selection.
+<p>
+If the specified level set is not a simple name but is a pathname
+(relative or absolute), then Tile World will use that level set only,
+without requiring that it first be installed. No solutions will be
+saved unless an explicit solution file is also supplied on the
+command-line.
+<p>
 <a name="8"></a>
+<h3>
+Lynx Ruleset Differences
+</h3>
+<p>
+The Lynx ruleset emulation intentionally diverges from the original in
+four aspects. They are as follows:
+<p>
+<ul>
+<li>On the Atari Lynx, no more than 128 creatures could exist at one
+time. Attempting to create a 129th creature with a clone machine
+would cause it to "run out". Tile World imposes no such limit.
+<li>In a similar vein, Chip could not carry more than 255 keys of one
+color. Picking up a 256th key would cause the key counter to "wrap
+around" to zero. Tile World permits any number of keys to be carried.
+<li>On the Atari Lynx, there were no Wall North or Wall West tiles.
+These two tiles were introduced by the MS version, even though they do
+not appear in the original level set. Tile World nonetheless permits
+these tiles to be used in Lynx levels.
+<li>The Atari Lynx did not permit arbitrary wiring of buttons. Brown
+buttons were automatically connected to the next bear trap in reading
+order (scanning to the right, then along the next row going down, and
+restarting at the top if the bottom is reached, until a beartrap is
+found), and likewise with red buttons and clone machines. Tile World
+follows the explicit wiring information present in the data file.
+</ul>
+<p>
+(These differences were specifically elected to be made because they
+are aspects of the game that are rarely or never addressed by the
+original level set, and were felt by the community at the time to be
+more like artifacts of the original implementation than intentional
+features of the original game design.)
+<p>
+These differences from the original ruleset are suppressed when Tile
+World is run in "pedantic mode". (See the documentation for <tt>-P</tt> under
+<a href="#7">Command-Line Options</a> above.) In pedantic mode, Tile World's Lynx
+ruleset imposes a maximum of 128 creatures and 255 keys per color,
+ignores wiring data in the data file, and refuses to play levels
+containing the new wall tiles.
+<p>
+<a name="9"></a>
 <h3>
 Configuration Files
 </h3>
@@ -392,7 +461,7 @@ data file, or to set values not provided for by the data file format.
 Configuration files are by convention named with a <tt>.dac</tt>
 extension. A configuration file is stored in the level set directory
 in the place of the data file, which then goes into the data directory
-(cf <a href="#10">Directories</a>).
+(cf <a href="#11">Directories</a>).
 <p>
 The configuration file is a simple text file. The first line of a
 configuration file <i>must</i> have the following form:
@@ -432,19 +501,17 @@ not generally useful, and is described here only for completeness. The
 Challenge" contained a few minor differences from the original level
 set as appeared on the Lynx. A positive value for this entry instructs
 the program to undo those changes, so that the original Lynx level set
-is obtained. (The changes made by MS were: an extra level was added;
-three passwords were garbled; another password was replaced with the
-password to the prior level; and, on most but not all copies, a wall
-was removed from one level, presumably to alleviate its unexpected
-difficulty.)
+is obtained. (The changes made in the MS version were: an extra level
+was added; four passwords were garbled; and four or five levels' maps
+had minor alterations.)
 <p>
-<a name="9"></a>
+<a name="10"></a>
 <h3>
 Resources
 </h3>
 <p>
 Tile World loads various resources at runtime from its resource
-directory (cf <a href="#10">Directories</a>). These resources include the program's
+directory (cf <a href="#11">Directories</a>). These resources include the program's
 font, graphic images, and sound effects. The actual file names are
 determined by the contents of a file named <tt>rc</tt> (short for "resource
 configuration", not "runtime commands") in the same directory.
@@ -475,14 +542,14 @@ A line of the form
 <tt>TileImages = </tt><i>FILENAME</i>
 <p>
 identifies the file that provides the images used to draw the game.
-These images are stored in a Windows bitmap. (See <a href="#16">Appendix: Layout of the Tile Bitmap</a> for more information about this resource.)
+These images are stored in a Windows bitmap. (See <a href="#17">Appendix: Layout of the Tile Bitmap</a> for more information about this resource.)
 <p>
 A line of the form
 <p>
 <tt>Font = </tt><i>FILENAME</i>
 <p>
 identifies the file that provides the program's font. The font is
-stored as a Windows bitmap. (See <a href="#15">Appendix: Layout of the Font Bitmap</a>
+stored as a Windows bitmap. (See <a href="#16">Appendix: Layout of the Font Bitmap</a>
 for more information about this resource.)
 <p>
 Four resources define the colors used in rendering text:
@@ -548,7 +615,7 @@ program. This makes it easy for someone with a copy of Microsoft's
 "Chip's Challenge" to use the sound effects that were provided with
 that version of the game.)
 <p>
-<a name="10"></a>
+<a name="11"></a>
 <h3>
 Directories
 </h3>
@@ -577,7 +644,7 @@ program. (default for Linux: <tt>/usr/local/share/tworld/res</tt>)</td></tr>
 Linux: <tt>~/.tworld</tt>)</td></tr>
 </table>
 <p>
-<a name="11"></a>
+<a name="12"></a>
 <h3>
 Environment Variables
 </h3>
@@ -593,12 +660,12 @@ the resource, level set, and data file directories.</td></tr>
 <td>Specifies a directory for saving solution files.</td></tr>
 </table>
 <p>
-<a name="12"></a>
+<a name="13"></a>
 <h3>
 License
 </h3>
 <p>
-Tile World is copyright (C) 2001-2004 by Brian Raiter.
+Tile World is copyright (C) 2001-2006 by Brian Raiter.
 <p>
 This program is free software; you can redistribute it and/or  
 modify it under the terms of the GNU General Public License as 
@@ -612,7 +679,7 @@ General Public License for more details.
 <p>
 Please send bug reports to breadbox@muppetlabs.com.
 <p>
-<a name="13"></a>
+<a name="14"></a>
 <h3>
 History
 </h3>
@@ -625,11 +692,11 @@ the rights to Atari) in 1989, and was among the first set of games
 made available for the Lynx.
 <p>
 "Chip's Challenge" was subsequently ported to several other platforms:
-MS-DOS, Microsoft Windows, Amiga, and the Commodore 64. (A NES port
-was also planned, but never completed.) The most well-known port was
-the Windows version, done by Microsoft and sold as part of Windows
-Entertainment Pack 4 (and later as part of Best of Windows
-Entertainment Pack).
+MS-DOS, Microsoft Windows (16-bit), Amiga, ZX Spectrum, Atari ST, and
+the Commodore 64. (A NES port was also planned, but never completed.)
+The most well-known port was the Windows version, done by Microsoft
+and sold as part of Windows Entertainment Pack 4 (and later as part of
+Best of Windows Entertainment Pack).
 <p>
 In the process of recreating the game for the 16-bit Windows platform,
 Microsoft introduced a surprising number of changes to the mechanics
@@ -666,7 +733,7 @@ encouragement of Chuck Sommerville, this project was expanded to
 include the goals of recreating the original Lynx game as well, and
 also making the program work under MS Windows in addition to Linux.
 <p>
-<a name="14"></a>
+<a name="15"></a>
 <h3>
 Appendix: Notes on Nomenclature
 </h3>
@@ -693,7 +760,7 @@ Finally, the thief tile was called a spy in the MS version.
 None of this information is needed in order to play the game, but it
 helps to explain the titles of some of the user-created levels.
 <p>
-<a name="15"></a>
+<a name="16"></a>
 <h3>
 Appendix: Layout of the Font Bitmap
 </h3>
@@ -743,7 +810,7 @@ through 31 or for the characters 127 through 159.) The bitmap can
 contain fewer glyphs; in such a case, the characters that are absent
 will not be displayed by the program.
 <p>
-<a name="16"></a>
+<a name="17"></a>
 <h3>
 Appendix: Layout of the Tile Bitmap
 </h3>
