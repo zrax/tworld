@@ -1,4 +1,16 @@
 
+2002 Feb 04: version 0.10.4
+
+* Separated out the two kinds of splashes.
+* Fixed changing level by password (broken in 0.10.3; reported by Hallgeir
+  Flø).
+* Fixed a couple of bugs in handling invalid levels under Lynx (reported by
+  Chuck Sommerville).
+* Fixed several minor bugs (including several reported by Anders Kaseorg).
+* Began a final code cleanup pass. Improved the comments in most of the
+  source.
+* More documentation changes, including a new README.
+
 2002 Jan 28: version 0.10.3
 
 * Added "Melinda" feature.

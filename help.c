@@ -9,6 +9,7 @@
 #include	"state.h"
 #include	"oshw.h"
 #include	"ver.h"
+#include	"comptime.h"
 #include	"help.h"
 
 #define	array(a)	a, (sizeof a / sizeof *a)
@@ -40,19 +41,19 @@ tablespec const *yowzitch = &yowzitch_table;
 /* Version and license information.
  */
 static char *vourzhon_items[] = {
-    "1+*", "1-Tile World: version " VERSION,
-    "1+",  "1-Copyright (C) 2001,2002 by Brian Raiter",
-    "1+",  "1-compiled " __DATE__ " " __TIME__ " PST",
-    "1+*", "1!This program is free software; you can redistribute it and/or"
-	   " modify it under the terms of the GNU General Public License as"
-	   " published by the Free Software Foundation; either version 2 of"
-	   " the License, or (at your option) any later version.",
-    "1+*", "1!This program is distributed in the hope that it will be useful,"
-	   " but WITHOUT ANY WARRANTY; without even the implied warranty of"
-	   " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the"
-	   " GNU General Public License for more details.",
-    "1+*", "1!Bug reports are appreciated, and can be sent to"
-	   " breadbox@muppetlabs.com."
+    "1+\267", "1-Tile World: version " VERSION,
+    "1+",     "1-Copyright \251 2001,2002 by Brian Raiter",
+    "1+",     "1-compiled " COMPILE_TIME,
+    "1+\267", "1!This program is free software; you can redistribute it and/or"
+	      " modify it under the terms of the GNU General Public License as"
+	      " published by the Free Software Foundation; either version 2 of"
+	      " the License, or (at your option) any later version.",
+    "1+\267", "1!This program is distributed in the hope that it will be"
+	      " useful, but WITHOUT ANY WARRANTY; without even the implied"
+	      " warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR"
+	      " PURPOSE. See the GNU General Public License for more details.",
+    "1+\267", "1!Bug reports are appreciated, and can be sent to"
+	      " breadbox@muppetlabs.com."
 };
 static tablespec const vourzhon_table = { 6, 2, 1, -1, vourzhon_items };
 tablespec const *vourzhon = &vourzhon_table;
@@ -160,10 +161,9 @@ static tiletablerow const help_monsters[] = {
       "Finally, Teeth home in on you; like Blobs, they can be outrun." }
 };
 
-/*
- *
+/* Wrapper function for displaying illustrated help and then waiting
+ * for a key command.
  */
-
 static int helptilescreen(char const *title, tiletablerow const *table,
 			  int count, int completed)
 {
@@ -171,7 +171,7 @@ static int helptilescreen(char const *title, tiletablerow const *table,
     return anykey();
 }
 
-/* Display the online help screens for the game.
+/* Display the illustrated help sequence for the game.
  */
 int gameplayhelp(void)
 {
@@ -187,17 +187,19 @@ int gameplayhelp(void)
     return ret;
 }
 
+/* An input callback used while displaying the list of help topics.
+ */
 static int scrollinputcallback(int *move)
 {
     switch (input(TRUE)) {
-      case CmdPrev10:		*move = SCROLL_UP;		break;
+      case CmdPrev10:		*move = SCROLL_ALLTHEWAY_UP;	break;
       case CmdNorth:		*move = SCROLL_UP;		break;
       case CmdPrev:		*move = SCROLL_UP;		break;
       case CmdPrevLevel:	*move = SCROLL_UP;		break;
       case CmdSouth:		*move = SCROLL_DN;		break;
       case CmdNext:		*move = SCROLL_DN;		break;
       case CmdNextLevel:	*move = SCROLL_DN;		break;
-      case CmdNext10:		*move = SCROLL_DN;		break;
+      case CmdNext10:		*move = SCROLL_ALLTHEWAY_DN;	break;
       case CmdProceed:		*move = TRUE;			return FALSE;
       case CmdQuitLevel:	*move = FALSE;			return FALSE;
       case CmdQuit:						exit(0);
@@ -205,6 +207,9 @@ static int scrollinputcallback(int *move)
     return TRUE;
 }
 
+/* Display the list of help topics and allow the user to select which
+ * ones to view.
+ */
 void onlinehelp(int topic)
 {
     static char *items[] = {
@@ -217,11 +222,9 @@ void onlinehelp(int topic)
     };
     static tablespec const table = { 6, 2, 4, 1, items };
 
-    for (;;) {
-	if (!displaylist("HELP", &table, &topic, scrollinputcallback)) {
-	    cleardisplay();
-	    return;
-	}
+    while (displaylist("HELP", &table, &topic, scrollinputcallback)) {
+	if (!topic)
+	    break;
 	switch (topic) {
 	  case Help_KeysDuringGame:
 	    displaytable("KEYS - DURING THE GAME",
@@ -244,9 +247,8 @@ void onlinehelp(int topic)
 	    displaytable("ABOUT TILE WORLD", &vourzhon_table, -1);
 	    anykey();
 	    break;
-	  default:
-	    cleardisplay();
-	    return;
 	}
     }
+
+    cleardisplay();
 }

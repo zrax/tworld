@@ -429,10 +429,9 @@ Resources
 <p>
 Tile World loads various resources at runtime from its resource
 directory (cf <a href="#10">Directories</a>). These resources include the program's
-font, graphic images, and sound effects. The actual files that it
-loads is determined by the contents of a file named <tt>rc</tt> (short for
-"resource configuration", not "runtime commands") in the same
-directory.
+font, graphic images, and sound effects. The actual file names are
+determined by the contents of a file named <tt>rc</tt> (short for "resource
+configuration", not "runtime commands") in the same directory.
 <p>
 The <tt>rc</tt> file is a plain text file, and contains lines of the
 form
@@ -452,8 +451,8 @@ in effect (where <i>ruleset</i> is either <tt>MS</tt> or <tt>Lynx</tt>). Resourc
 are defined before any such line apply to both rulesets, and are also
 used as fallbacks if a ruleset-specific resource could not be
 loaded. (The font and the text-color resources also need to have
-ruleset-independent values, as these are used when the program is
-displaying the initial file list.)
+ruleset-independent values, as these are needed when displaying the
+initial file list, before a ruleset has been chosen.)
 <p>
 A line of the form
 <p>
@@ -531,8 +530,7 @@ Sounds used only under the Lynx ruleset
 the names in the <tt>entpack.ini</tt> file used by the Microsoft
 program. This makes it easy for someone with a copy of Microsoft's
 "Chip's Challenge" to use the sound effects that were provided with
-that version of the game. In a similar vein, the bitmap stored in the
-Microsoft executable can be used as the <tt>TileImages</tt> resource.)
+that version of the game.)
 <p>
 <a name="10"></a>
 <h3>

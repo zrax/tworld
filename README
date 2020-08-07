@@ -5,21 +5,141 @@ Tile World is an emulation of the game "Chip's Challenge" for the Atari
 Lynx, created by Chuck Sommerville, and later ported to MS Windows by
 Microsoft (among other ports).
 
-IMPORTANT NOTE: Tile World is an emulation of the game engines only. It
+  Important Note
+
+Tile World is an emulation of the "Chip's Challenge" game engines only. It
 does not come with the chips.dat file that contains the original level set.
-This file is copyrighted and cannot be freely distributed. The chips.dat
-file was originally distributed with the MS version of "Chip's Challenge".
-If you have a copy of this version of the game, you can use that file to
-play the game in Tile World. If you do not have a copy of this file,
-however, you can still play Tile World with the many freely available level
-files created by fans of the original game.
+This file is copyrighted and cannot be freely distributed.
 
-This is a pre-release version of Tile World, meaning that I currently
-believe the program to be complete. Documentation and some final testing
-are the main tasks that need to be completed before making a 1.0 release.
+The chips.dat file was originally distributed with the MS version of
+"Chip's Challenge". If you have a copy of this version of the game, you can
+use that file to play the original games in Tile World.
 
-For directions on getting the program set up and running, see the INSTALL
-file.
+If you do not have a copy of this file, however, you can still play Tile
+World with the many freely available level files created by fans of the
+original game.
+
+  Installing Tile World under Windows
+
+There's no automatic installer (yet), so you will need to do this manually.
+
+First of all, you'll want to store the files contained in this archive into
+its own separate directory. So, if you haven't already done so, create a
+new directory -- something like c:\tworld -- and extract the files there.
+
+If you have a copy of the chips.dat data file, copy it to the data
+subdirectory. This will allow you to play the original levels under Tile
+World (for the MS ruleset and the Lynx ruleset both).
+
+If you have other data files that you would like to try out in Tile World,
+copy those to the sets directory.
+
+The MSDOS commands to do the above would look something like:
+
+  cd c:\wherever\my\copy\of\chips\challenge\is\at
+  copy chips.dat c:\tworld\data
+  cd c:\my\collection\of\dat\files
+  copy *.dat c:\tworld\sets
+
+That's all that needs to be done to set it up. Run the program as
+c:\tworld\tworld, or create a shortcut for it.
+
+  Installing Tile World under Linux
+
+Before proceeding, ensure that you have SDL installed on your machine. (If
+you don't have SDL, you can get it by visiting
+http://www.libsdl.org/download.html. If you download a precompiled version
+-- i.e., an .rpm or .deb file -- note that you will need the development
+runtime, as opposed to the binary runtime.)
+
+Installing Tile World involves the usual three-part incantation:
+
+  ./configure
+
+By default, the program is set up so that it will keep its shared files
+under /usr/local/share/tworld. If you would prefer the tworld directory to
+be somewhere besides /usr/local/share, use the --datadir option to change
+it when you run ./configure. Alternately, you can use the
+--with-sharedir=DIR option to explicitly specify a completely different
+path. (This value can also be changed at runtime, either via the TWORLDDIR
+environment variable or via the command line.)
+
+  make
+
+There shouldn't be any serious warnings from the compiler. Use "make
+mklynxcc" if you want to also build a copy of mklynxcc (see below).
+
+  make install
+
+Running "make install" as root will do the following:
+
+* Copy the tworld binary to /usr/local/games.
+* Copy the tworld.6 manpage to /usr/local/man/man6.
+* Create /usr/local/share/tworld if it does not exist. (Or whatever
+  directory you specified to ./configure.)
+* Copy the external resources (i.e., the bitmaps and wave files) to
+  /usr/local/share/tworld/res.
+* Create the directories /usr/local/share/tworld/data and
+  /usr/local/share/tworld/sets.
+
+The sets directory is where you will store the .dat files that you want to
+use. However, if you want to make use of a configuration file with a
+particular data file, then you will need to store the data file in the data
+directory, and the configuration file goes into the sets directory instead.
+See the documentation for more information.
+
+  The Complete Documentation
+
+The full documentation for Tile World is included with the distribution, in
+the file tworld.html. There you will find information on how to play the
+game, adding new level sets, customizing Tile World, and more.
+
+  Creating new level sets for the Lynx ruleset
+
+At the time of this writing, there do not exist any user-created level sets
+for the Lynx ruleset. The reason for this is very simple; there has not
+been any way to play such levels before. Hopefully, now that Tile World
+exists, that will change in the near future.
+
+If you yourself would like to create new level sets, then get a copy of
+ChipEdit, if you haven't already. ChipEdit can be obtained from
+http://www.stage62.com/chipedit/chipedit.htm. This Windows program will
+permit you to create new level sets of your own design. Naturally, ChipEdit
+will default to creating levels for the MS ruleset. To make levels for the
+Lynx ruleset, you have a few options:
+
+* ChipEdit has a special feature which allows you to control the signature
+  of the data file. This is done by adding a SIGNATURE entry to the
+  chipedit.ini file. The default signature value is 0x0002AAAC, which
+  indicates a data file that uses the MS ruleset. If you set the SIGNATURE
+  to be 0x0102AAAC, then ChipEdit will create data files marked to use the
+  Lynx ruleset instead.
+* A very simple command-line utility is included with Tile World, called
+  mklynxcc. This program will change a normal .dat file to one that will
+  use the Lynx ruleset instead of the MS ruleset. Running mklynxcc foo.dat
+  will change foo.dat's ruleset from MS to Lynx.
+* Finally, you can use a configuration file to override the builtin
+  ruleset. This method requires creating an extra file, but does allows you
+  to avoid making changes to the .dat file. See the complete documentation
+  for information on how to set up a configuration file.
+
+  Resources on the Internet
+
+There is quite a bit of information about "Chip's Challenge" available on
+the internet. Much of it is focused on maximizing your score on the
+"original" level set for the MS game, but you will also find lots of
+general help and useful information as well.
+
+Most if not all user-created level sets can be found at the chips_challenge
+Yahoo group:
+http://groups.yahoo.com/group/chips_challenge/files/
+
+Richard Field maintains a web page that supplies links to almost everything
+on the net related to "Chip's Challenge":
+http://www.agt.net/public/nfield/ChipChallenge/chip.htm
+
+Finally, Tile World's home page is at:
+http://www.muppetlabs.com/~breadbox/software/tworld/
 
   License
 
@@ -32,44 +152,50 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License,
 included in this distribution in the file COPYING, for more details.
 
-  Some Notes on the External Resource Files
-
-Tile World loads most of its resource data at runtime from external files.
-(The one exception is the program icon, which is hard-coded.) These files
-are stored in the res directory. You can specify a different directory at
-runtime using the -R command-line option.
-
-The rc file in this directory lists the actual file names for each
-resource. Different files can be used for any or all resources depending on
-whether the Lynx or the MS ruleset is in effect. The first section of the
-rc file specifies resources used with either. Then follows two sections,
-prefixed with a line containing either [MS] or [Lynx], containing files
-specific to the given ruleset.
-
-The TileImages resource names the bitmap file containing the complete set
-of tiles. The tiles in this bitmap are organized in the same fashion as the
-bitmap resource embedded in the Windows executable chips.exe. If you have
-this program and a resource editor, you can obtain this bitmap and use it
-as the TileImages resource to make the game appear more like the MS
-version. (Note that this bitmap contains three unused tiles. These
-positions are used by Tile World to provide tiles that only appear in the
-Lynx ruleset. So, if you wish to use this bitmap for playing under both
-rulesets, it is strongly advised that you supply non-blank images for
-these.)
-
-Most of the resources are sound files. The Tile World resource names for
-the sounds in the MS ruleset have been chosen to match the keys that are
-used in the entpack.ini file. This permits you to take the sound files that
-are included with the MS version of the game, copy them to Tile World's
-resource directory, and then cut-and-paste the lines identifying the sound
-files from MS's entpack.ini to Tile World's rc file, if you so choose.
-
   Bugs
 
-Bug reports are always appreciated, and should be sent to me at the address
-below. Check the current BUGS file before doing so to make sure the bug has
-not already been documented.
+Bug reports are always appreciated, and should be sent to the author at
+<breadbox@muppetlabs.com>. The list of known bugs is at
+http://www.muppetlabs.com/~breadbox/software/tworld/BUGS.html. Please check
+here before sending a bug report, to to make sure the bug has not already
+been documented.
+
+  Credits
+
+Tile World was written by Brian Raiter.
+
+The sound effects included in this distribution were created by Brian
+Raiter, with assistance from SoX. They are in the public domain.
+
+The tile images included in this distribution were created by Brian Raiter,
+with assistance from The GIMP and pixmap. They are in the public domain.
+
+The tile images that are not included in this distribution were created by
+Anders Kaesorg, with assistance from POV. Anders Kaseorg retains all rights
+to these images, unless he has explicitly put them in the public domain.
+
+"Chip's Challenge" was designed by Chuck Sommerville, who is also the
+author of the original Lynx program.
+
+"Chip's Challenge" is a registered trademark of Bridgestone Multimedia.
+
+Creating this program would have been flatly impossible without the help of
+several fans of "Chip's Challenge". The author would particularly like to
+acknowledge Anders Kaesorg for sharing the fruits of his investigations
+into the game logic of the MS version and for being an effective bug
+hunter, and Chuck Sommerville for his pointers regarding the game logic of
+the Lynx version and his unfailing support of this project.
+
+Many other regulars of the annexcafe.chips.challenge newsgroup assisted
+with bug reports, suggestions, and all-around encouragement. Their help is
+gratefully acknowledged.
+
+The anonymous author of the document describing the .dat file format, Don
+Gregory, the "Charter Chipsters", and the contributors to the CC AVI
+library all deserve mention: this program would never have been written
+without the information they made freely available.
+
+Last but not least, a tip of the hat to John K. Elion for writing ChipEdit.
 
 Brian Raiter
-<breadbox@muppetlabs.com>
-January 2002
+February 2002

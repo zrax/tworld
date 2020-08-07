@@ -24,7 +24,7 @@
  */
 #define	bell()	(silence ? (void)0 : ding())
 
-/* The data needed to identify what is being played.
+/* The data needed to identify what level is being played.
  */
 typedef	struct gamespec {
     gameseries	series;		/* the complete set of levels */
@@ -36,7 +36,7 @@ typedef	struct gamespec {
     int		melindacount;	/* count for Melinda's free pass */
 } gamespec;
 
-/* Structure used to pass data back from initoptionswithcmdline().
+/* Structure used to hold data collected by initoptionswithcmdline().
  */
 typedef	struct startupdata {
     char       *filename;	/* which data file to use */
@@ -48,12 +48,12 @@ typedef	struct startupdata {
     int		listtimes;	/* TRUE if the times should be listed */
 } startupdata;
 
-/* Structure used to hold the information regarding available series.
+/* Structure used to hold the complete list of available series.
  */
 typedef	struct seriesdata {
-    gameseries *list;
-    int		count;
-    tablespec	table;
+    gameseries *list;		/* the array of available series */
+    int		count;		/* size of arary */
+    tablespec	table;		/* table for displaying the array */
 } seriesdata;
 
 /* TRUE suppresses sound and the console bell.
@@ -68,12 +68,16 @@ static int	usepasswds = TRUE;
  */
 static int	showhistogram = FALSE;
 
-/* Slowdown factor.
+/* Slowdown factor, used for debugging.
  */
 static int	mudsucking = 1;
 
+/* The top of the stack of subtitles.
+ */
+static void   **subtitlestack = NULL;
+
 /*
- * The program's text-mode output functions.
+ * Text-mode output functions.
  */
 
 /* Find a position to break a string inbetween words. The integer at
@@ -123,7 +127,7 @@ static char *findstrbreak(char const **str, int maxlen, int *breakpos)
     return (char*)start;
 }
 
-/* Render a table to standard output.
+/* Render a table to the given file.
  */
 void printtable(FILE *out, tablespec const *table)
 {
@@ -207,6 +211,8 @@ void printtable(FILE *out, tablespec const *table)
     free(colsizes);
 }
 
+/* Display directory settings.
+ */
 static void printdirectories(void)
 {
     printf("Resource files read from:        %s\n", resdir);
@@ -219,6 +225,8 @@ static void printdirectories(void)
  * Callback functions for oshw.
  */
 
+/* An input callback that only accepts the characters Y and N.
+ */
 static int yninputcallback(void)
 {
     int	ch;
@@ -240,8 +248,7 @@ static int yninputcallback(void)
     return 0;
 }
 
-/* A callback functions for handling the keyboard while collecting
- * input.
+/* An input callback that accepts only alphabetic characters.
  */
 static int keyinputcallback(void)
 {
@@ -261,8 +268,7 @@ static int keyinputcallback(void)
     return 0;
 }
 
-/* A callback function for handling the keyboard while displaying a
- * scrolling list.
+/* An input callback used while displaying a scrolling list.
  */
 static int scrollinputcallback(int *move)
 {
@@ -286,8 +292,16 @@ static int scrollinputcallback(int *move)
 }
 
 /*
- * Basic actions.
+ * Basic game activities.
  */
+
+/* Return TRUE if the given level is a final level.
+ */
+static int islastinseries(gamespec *gs, int index)
+{
+    return index == gs->series.total - 1
+	|| gs->series.games[index].number == gs->series.final;
+}
 
 /* Mark the current level's solution as replaceable.
  */
@@ -303,15 +317,17 @@ static void replaceablesolution(gamespec *gs, int change)
 
 /* Mark the current level's password as known to the user.
  */
-static void passwordseen(gamespec *gs)
+static void passwordseen(gamespec *gs, int number)
 {
-    if (!(gs->series.games[gs->currentgame].sgflags & SGF_HASPASSWD)) {
-	gs->series.games[gs->currentgame].sgflags |= SGF_HASPASSWD;
+    if (!(gs->series.games[number].sgflags & SGF_HASPASSWD)) {
+	gs->series.games[number].sgflags |= SGF_HASPASSWD;
 	savesolutions(&gs->series);
     }
 }
 
-/*
+/* Change the current level, ensuring that the user is not granted
+ * access to a forbidden level. FALSE is returned if the specified
+ * level is not available to the user.
  */
 static int setcurrentgame(gamespec *gs, int n)
 {
@@ -322,8 +338,7 @@ static int setcurrentgame(gamespec *gs, int n)
 
     if (gs->usepasswds)
 	if (n > 0 && !(gs->series.games[n].sgflags & SGF_HASPASSWD)
-		  && !hassolution(gs->series.games + n - 1)
-		  && !(n == gs->currentgame + 1 && gs->melindacount >= 10))
+		  && !hassolution(gs->series.games + n - 1))
 	    return FALSE;
 
     gs->currentgame = n;
@@ -331,9 +346,9 @@ static int setcurrentgame(gamespec *gs, int n)
     return TRUE;
 }
 
-/* Change the current game, ensuring that the user is not granted
- * access to a forbidden level. FALSE is returned if the current game
- * was not changed.
+/* Change the current level by a delta value. If the user cannot go to
+ * that level, the "nearest" level in that direction is chosen
+ * instead. FALSE is returned if the current level remained unchanged.
  */
 static int changecurrentgame(gamespec *gs, int offset)
 {
@@ -353,8 +368,7 @@ static int changecurrentgame(gamespec *gs, int offset)
 	sign = offset < 0 ? -1 : +1;
 	for ( ; n >= 0 && n < gs->series.total ; n += sign) {
 	    if (!n || (gs->series.games[n].sgflags & SGF_HASPASSWD)
-		   || hassolution(gs->series.games + n - 1)
-		   || (n == gs->currentgame + 1 && gs->melindacount >= 10)) {
+		   || hassolution(gs->series.games + n - 1)) {
 		m = n;
 		break;
 	    }
@@ -366,47 +380,93 @@ static int changecurrentgame(gamespec *gs, int offset)
 		if (n < 0 || n >= gs->series.total)
 		    continue;
 		if (!n || (gs->series.games[n].sgflags & SGF_HASPASSWD)
-		       || hassolution(gs->series.games + n - 1)
-		       || (n == gs->currentgame + 1 && gs->melindacount >= 10))
+		       || hassolution(gs->series.games + n - 1))
 		    break;
 	    }
 	}
     }
 
-    if (n == gs->currentgame) {
-	bell();
+    if (n == gs->currentgame)
 	return FALSE;
-    }
+
     gs->currentgame = n;
     gs->melindacount = 0;
     return TRUE;
 }
 
-/* Return TRUE if Melinda is watching Chip's progress on this level.
+/* Return TRUE if Melinda is watching Chip's progress on this level --
+ * i.e., if it is possible to earn a pass to the next level.
  */
 static int melindawatching(gamespec *gs)
 {
-    int	n;
-
     if (!gs->usepasswds)
 	return FALSE;
-    n = gs->currentgame;
-    if (n + 1 == gs->series.total)
+    if (islastinseries(gs, gs->currentgame))
 	return FALSE;
-    if (gs->series.games[n].number == gs->series.final)
+    if (gs->series.games[gs->currentgame + 1].sgflags & SGF_HASPASSWD)
 	return FALSE;
-    if (gs->series.games[n + 1].sgflags & SGF_HASPASSWD)
-	return FALSE;
-    if (hassolution(gs->series.games + n))
+    if (hassolution(gs->series.games + gs->currentgame))
 	return FALSE;
     return TRUE;
+}
+
+/*
+ * The subtitle stack
+ */
+
+static void pushsubtitle(char const *subtitle)
+{
+    void      **stk;
+    int		n;
+
+    if (!subtitle)
+	subtitle = "";
+    n = strlen(subtitle) + 1;
+    stk = NULL;
+    xalloc(stk, sizeof(void**) + n);
+    *stk = subtitlestack;
+    subtitlestack = stk;
+    memcpy(stk + 1, subtitle, n);
+    setsubtitle(subtitle);
+}
+
+static void popsubtitle(void)
+{
+    void      **stk;
+
+    if (subtitlestack) {
+	stk = *subtitlestack;
+	free(subtitlestack);
+	subtitlestack = stk;
+    }
+    setsubtitle(subtitlestack ? (char*)(subtitlestack + 1) : NULL);
+}
+
+static void changesubtitle(char const *subtitle)
+{
+    int		n;
+
+    if (!subtitle)
+	subtitle = "";
+    n = strlen(subtitle) + 1;
+    xalloc(subtitlestack, sizeof(void**) + n);
+    memcpy(subtitlestack + 1, subtitle, n);
+    setsubtitle(subtitle);
 }
 
 /*
  *
  */
 
-/* Display the user's current score.
+static void dohelp(int topic)
+{
+    pushsubtitle("Help");
+    onlinehelp(topic);
+    popsubtitle();
+}
+
+/* Display the scrolling list of the user's current scores, and allow
+ * the user to select a current level.
  */
 static int showscores(gamespec *gs)
 {
@@ -419,12 +479,12 @@ static int showscores(gamespec *gs)
 	bell();
 	return FALSE;
     }
-    setsubtitle(NULL);
     for (n = 0 ; n < count ; ++n)
 	if (levellist[n] == gs->currentgame)
 	    break;
+    pushsubtitle(gs->series.name);
     for (;;) {
-	f = displaylist(gs->series.name, &table, &n, scrollinputcallback);
+	f = displaylist(gs->series.filebase, &table, &n, scrollinputcallback);
 	if (f == CmdProceed) {
 	    n = levellist[n];
 	    break;
@@ -432,8 +492,9 @@ static int showscores(gamespec *gs)
 	    n = -1;
 	    break;
 	} else if (f == CmdHelp)
-	    onlinehelp(Help_None);
+	    dohelp(Help_None);
     }
+    popsubtitle();
     freescorelist(levellist, &table);
     if (n < 0)
 	return FALSE;
@@ -458,55 +519,23 @@ static int selectlevelbypassword(gamespec *gs)
 	bell();
 	return FALSE;
     }
+    passwordseen(gs, n);
     return setcurrentgame(gs, n);
 }
 
 /*
- * The top-level user interface functions.
+ * The game-playing functions.
  */
 
 #define	leveldelta(n)	if (!changecurrentgame(gs, (n))) { bell(); continue; }
 
-/*
- */
-static int doenddisplay(gamespec *gs)
-{
-    int	cmd;
-
-    initgamestate(enddisplaylevel(), gs->series.ruleset);
-    setsubtitle(NULL);
-    drawscreen();
-    displayendmessage(0, 0, 0, 0);
-    endgamestate();
-    for (;;) {
-	cmd = input(TRUE);
-	switch (cmd) {
-	  case CmdSameLevel:
-	  case CmdSame:
-	    return TRUE;
-	  case CmdPrevLevel:
-	  case CmdPrev:
-	  case CmdNextLevel:
-	  case CmdNext:
-	    setcurrentgame(gs, 0);
-	    return TRUE;
-	  case CmdQuit:
-	    exit(0);
-	  default:
-	    return FALSE;
-	}
-    }
-}
-
-/* Get a keystroke from the user at the start of the current level.
+/* Get a key command from the user at the start of the current level.
  */
 static int startinput(gamespec *gs)
 {
     int	cmd;
 
     drawscreen();
-    passwordseen(gs);
-
     for (;;) {
 	cmd = input(TRUE);
 	if (cmd >= CmdMoveFirst && cmd <= CmdMoveLast)
@@ -523,7 +552,7 @@ static int startinput(gamespec *gs)
 	  case CmdKillSolution:	replaceablesolution(gs, -1);	break;
 	  case CmdVolumeUp:	changevolume(+2, TRUE);		break;
 	  case CmdVolumeDown:	changevolume(-2, TRUE);		break;
-	  case CmdHelp:		onlinehelp(Help_KeysBetweenGames); break;
+	  case CmdHelp:		dohelp(Help_KeysBetweenGames); break;
 	  case CmdQuit:						exit(0);
 	  case CmdPlayback:
 	    if (prepareplayback()) {
@@ -543,13 +572,11 @@ static int startinput(gamespec *gs)
 	  default:
 	    continue;
 	}
-
 	drawscreen();
     }
-
 }
 
-/* Get a keystroke from the user at the completion of the current
+/* Get a key command from the user at the completion of the current
  * level.
  */
 static int endinput(gamespec *gs)
@@ -565,8 +592,10 @@ static int endinput(gamespec *gs)
 		setgameplaymode(BeginInput);
 		n = displayinputprompt("Skip level?", yn, 1, yninputcallback);
 		setgameplaymode(EndInput);
-		if (n && *yn == 'Y')
+		if (n && *yn == 'Y') {
+		    passwordseen(gs, gs->currentgame + 1);
 		    changecurrentgame(gs, +1);
+		}
 		gs->melindacount = 0;
 		return TRUE;
 	    }
@@ -592,15 +621,12 @@ static int endinput(gamespec *gs)
 	  case CmdPlayback:	gs->playback = !gs->playback;	return TRUE;
 	  case CmdSeeScores:	showscores(gs);			return TRUE;
 	  case CmdKillSolution:	replaceablesolution(gs, -1);	return TRUE;
-	  case CmdHelp:		onlinehelp(Help_KeysBetweenGames); return TRUE;
+	  case CmdHelp:		dohelp(Help_KeysBetweenGames); return TRUE;
 	  case CmdQuitLevel:					return FALSE;
 	  case CmdQuit:						exit(0);
 	  case CmdProceed:
 	    if (gs->status > 0) {
-		n = gs->currentgame;
-		if (gs->series.games[n].number == gs->series.final)
-		    gs->enddisplay = TRUE;
-		else if (n + 1 == gs->series.total)
+		if (islastinseries(gs, gs->currentgame))
 		    gs->enddisplay = TRUE;
 		else
 		    changecurrentgame(gs, +1);
@@ -610,8 +636,43 @@ static int endinput(gamespec *gs)
     }
 }
 
-/* Play the current level. Return when the user completes the level or
- * requests something else.
+/* Get a key command from the user at the completion of the current
+ * series.
+ */
+static int finalinput(gamespec *gs)
+{
+    int	cmd;
+
+    for (;;) {
+	cmd = input(TRUE);
+	switch (cmd) {
+	  case CmdSameLevel:
+	  case CmdSame:
+	    return TRUE;
+	  case CmdPrevLevel:
+	  case CmdPrev:
+	  case CmdNextLevel:
+	  case CmdNext:
+	    setcurrentgame(gs, 0);
+	    return TRUE;
+	  case CmdQuit:
+	    exit(0);
+	  default:
+	    return FALSE;
+	}
+    }
+}
+
+/* Play the current level, using firstcmd as the initial key command,
+ * and returning when the level's play ends. The return value is FALSE
+ * if play ended because the user restarted or changed the current
+ * level (indicating that the program should not prompt the user
+ * before continuing). If the return value is TRUE, the gamespec
+ * structure's status field will contain the return value of the last
+ * call to doturn() -- i.e., positive if the level was completed
+ * successfully, negative if the level ended unsuccessfully. Likewise,
+ * the gamespec structure will be updated if the user ended play by
+ * changing the current level.
  */
 static int playgame(gamespec *gs, int firstcmd)
 {
@@ -660,7 +721,7 @@ static int playgame(gamespec *gs, int firstcmd)
 		break;
 	      case CmdHelp:
 		setgameplaymode(SuspendPlay);
-		onlinehelp(Help_KeysDuringGame);
+		dohelp(Help_KeysDuringGame);
 		setgameplaymode(ResumePlay);
 		cmd = CmdNone;
 		break;
@@ -693,7 +754,9 @@ static int playgame(gamespec *gs, int firstcmd)
     return FALSE;
 }
 
-/* Play back the user's best solution for the current level.
+/* Play back the user's best solution for the current level. Other than
+ * the fact that this function runs from a prerecorded series of moves,
+ * it has the same behavior as playgame().
  */
 static int playbackgame(gamespec *gs)
 {
@@ -729,7 +792,7 @@ static int playbackgame(gamespec *gs)
 	    break;
 	  case CmdHelp:
 	    setgameplaymode(SuspendPlay);
-	    onlinehelp(Help_None);
+	    dohelp(Help_None);
 	    setgameplaymode(ResumePlay);
 	    break;
 	}
@@ -741,9 +804,7 @@ static int playbackgame(gamespec *gs)
     if (n > 0) {
 	if (checksolution())
 	    savesolutions(&gs->series);
-	if (gs->series.games[gs->currentgame].number == gs->series.final)
-	    n = 0;
-	else if (gs->currentgame + 1 >= gs->series.count)
+	if (islastinseries(gs, gs->currentgame))
 	    n = 0;
     }
     gs->status = n;
@@ -756,10 +817,69 @@ static int playbackgame(gamespec *gs)
     return FALSE;
 }
 
+/* Manage a single session of playing the current level, from start to
+ * finish. A return value of FALSE indicates that the user is done
+ * playing levels from the current series; otherwise, the gamespec
+ * structure is updated as necessary upon return.
+ */
+static int runcurrentlevel(gamespec *gs)
+{
+    int ret = TRUE;
+    int	cmd;
+    int	valid, f;
+
+    if (gs->enddisplay) {
+	gs->enddisplay = FALSE;
+	initgamestate(enddisplaylevel(), gs->series.ruleset);
+	changesubtitle(NULL);
+	drawscreen();
+	displayendmessage(0, 0, 0, 0);
+	endgamestate();
+	return finalinput(gs);
+    }
+
+    valid = initgamestate(gs->series.games + gs->currentgame,
+			  gs->series.ruleset);
+    changesubtitle(gs->series.games[gs->currentgame].name);
+    passwordseen(gs, gs->currentgame);
+    if (!valid && !islastinseries(gs, gs->currentgame))
+	passwordseen(gs, gs->currentgame + 1);
+
+    cmd = startinput(gs);
+    if (cmd == CmdQuitLevel) {
+	ret = FALSE;
+    } else {
+	if (cmd != CmdNone) {
+	    if (valid) {
+		f = gs->playback ? playbackgame(gs) : playgame(gs, cmd);
+		if (f)
+		    ret = endinput(gs);
+	    } else
+		bell();
+	}
+    }
+
+    endgamestate();
+    return ret;
+}
+
 /*
- *
+ * Game selection functions
  */
 
+/* Display the full selection of available series to the user as a
+ * scrolling list, and permit one to be selected. When one is chosen,
+ * pick one of levels to be the current level. All fields of the
+ * gamespec structure are initiailzed. If autosel is TRUE, then the
+ * function will skip the display if there is only one series
+ * available. If defaultseries is not NULL, and matches the name of
+ * one of the series in the array, then the scrolling list will be
+ * initialized with that series selected. If defaultlevel is not zero,
+ * and a level in the selected series that the user is permitted to
+ * access matches it, then that level will be thhe initial current
+ * level. The return value is zero if nothing was selected, negative
+ * if an error occurred, or positive otherwise.
+ */
 static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 				char const *defaultseries, int defaultlevel)
 {
@@ -767,7 +887,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 
     if (series->count < 1) {
 	errmsg(NULL, "no level sets found");
-	return FALSE;
+	return -1;
     }
 
     okay = TRUE;
@@ -796,17 +916,17 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
     }
     freeserieslist(series->list, series->count, &series->table);
     if (!okay)
-	return FALSE;
+	return 0;
 
     if (!readseriesfile(&gs->series)) {
-	errmsg(NULL, "cannot read data file");
+	errmsg(gs->series.mapfilename, "cannot read data file");
 	freeseriesdata(&gs->series);
-	return FALSE;
+	return -1;
     }
     if (gs->series.total < 1) {
-	errmsg(NULL, "no levels found in data file");
+	errmsg(gs->series.mapfilename, "no levels found in data file");
 	freeseriesdata(&gs->series);
-	return FALSE;
+	return -1;
     }
 
     gs->enddisplay = FALSE;
@@ -833,9 +953,14 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	}
     }
 
-    return TRUE;
+    return +1;
 }
 
+/* Get the list of available series and permit the user to select one
+ * to play. If lastseries is not NULL, use that series as the default.
+ * The return value is zero if nothing was selected, negative if an
+ * error occurred, or positive otherwise.
+ */
 static int choosegame(gamespec *gs, char const *lastseries)
 {
     seriesdata	s;
@@ -849,7 +974,13 @@ static int choosegame(gamespec *gs, char const *lastseries)
  * Initialization functions.
  */
 
-/* Assign values to the different directories that the program uses.
+/* Set the four directories that the program uses (the series
+ * directory, the series data directory, the resource directory, and
+ * the save directory).  Any or all of the arguments can be NULL,
+ * indicating that the default value should be used. The environment
+ * variables TWORLDDIR, TWORLDSAVEDIR, and HOME can define the default
+ * values. If any or all of these are unset, the program will use the
+ * default values it was compiled with.
  */
 static void initdirs(char const *series, char const *seriesdat,
 		     char const *res, char const *save)
@@ -858,7 +989,7 @@ static void initdirs(char const *series, char const *seriesdat,
     char const	       *root = NULL;
     char const	       *dir;
 
-    maxpath = getpathbufferlen() - 1;
+    maxpath = getpathbufferlen();
     if (series && strlen(series) >= maxpath) {
 	errmsg(NULL, "Data (-D) directory name is too long;"
 		     " using default value instead");
@@ -970,7 +1101,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	    if (sscanf(opts.val, "%d", &n) == 1)
 		start->levelnum = n;
 	    else
-		strncpy(start->filename, opts.val, getpathbufferlen() - 1);
+		strncpy(start->filename, opts.val, getpathbufferlen());
 	    break;
 	  case 'D':	optseriesdatdir = opts.val;			break;
 	  case 'L':	optseriesdir = opts.val;			break;
@@ -1004,7 +1135,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     if (start->listscores || start->listtimes || start->levelnum)
 	if (!*start->filename)
 	    strcpy(start->filename, "chips.dat");
-    start->filename[getpathbufferlen() - 1] = '\0';
+    start->filename[getpathbufferlen()] = '\0';
 
     initdirs(optseriesdir, optseriesdatdir, optresdir, optsavedir);
     if (listdirs) {
@@ -1015,7 +1146,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     return TRUE;
 }
 
-/* Initialize the other modules.
+/* Run the initialization routines of oshw and the resource module.
  */
 static int initializesystem(void)
 {
@@ -1024,14 +1155,14 @@ static int initializesystem(void)
 	return FALSE;
     if (!initresources())
 	return FALSE;
-    setsubtitle(NULL);
     setkeyboardrepeat(TRUE);
     return TRUE;
 }
 
+/* Time for everyone to clean up and go home.
+ */
 static void shutdownsystem(void)
 {
-    setsubtitle(NULL);
     shutdowngamestate();
     freeallresources();
     free(resdir);
@@ -1040,17 +1171,17 @@ static void shutdownsystem(void)
     free(savedir);
 }
 
-/* Initialize the program. The list of available data files is drawn
- * up; if only one is found, it is selected automatically. Otherwise
- * the list is presented to the user, and their selection determines
- * which one is used. printseriesandquit causes the list of data files
- * to be displayed on stdout before initializing graphic output.
- * printscoresandquit causes the scores for a single data file to be
- * displayed on stdout before initializing graphic output (which
- * requires that only one data file is considered for selection).
- * Once a data file is selected, the first level for which the user
- * has no saved solution is found and selected, or the first level if
- * the user has solved every level.
+/* Determine what to play. A list of available series is drawn up; if
+ * only one is found, it is selected automatically. Otherwise, if the
+ * listseries option is TRUE, the available series are displayed on
+ * stdout and the program exits. Otherwise, if listscores or listtimes
+ * is TRUE, the scores or times for a single series is display on
+ * stdout and the program exits. (These options need to be checked for
+ * before initializing the graphics subsystem.) Otherwise, the
+ * selectseriesandlevel() function handles the rest of the work. Note
+ * that this function is only called during the initial startup; if
+ * the user returns to the series list later on, the choosegame()
+ * function is called instead.
  */
 static void choosegameatstartup(gamespec *gs, startupdata const *start)
 {
@@ -1111,44 +1242,6 @@ static void choosegameatstartup(gamespec *gs, startupdata const *start)
  * main().
  */
 
-static int runcurrentlevel(gamespec *gs)
-{
-    int ret = TRUE;
-    int	cmd;
-    int	valid, f;
-
-    if (gs->enddisplay) {
-	gs->enddisplay = FALSE;
-	return doenddisplay(gs);
-    }
-
-    valid = initgamestate(gs->series.games + gs->currentgame,
-			  gs->series.ruleset);
-    setsubtitle(gs->series.games[gs->currentgame].name);
-
-    cmd = startinput(gs);
-    if (cmd == CmdQuitLevel) {
-	ret = FALSE;
-    } else {
-	if (cmd != CmdNone) {
-	    if (!valid) {
-		bell();
-	    } else {
-		f = gs->playback ? playbackgame(gs)
-				 : playgame(gs, cmd);
-		if (f)
-		    ret = endinput(gs);
-	    }
-	}
-    }
-
-    endgamestate();
-    return ret;
-}
-
-/* Initialize the system and enter an infinite loop of displaying and
- * playing levels.
- */
 int main(int argc, char *argv[])
 {
     startupdata	start;
@@ -1161,16 +1254,15 @@ int main(int argc, char *argv[])
 
     choosegameatstartup(&spec, &start);
 
-    for (;;) {
+    do {
+	pushsubtitle(NULL);
 	while (runcurrentlevel(&spec)) ;
+	popsubtitle();
 	cleardisplay();
-	setsubtitle(NULL);
 	strcpy(lastseries, spec.series.filebase);
 	freeseriesdata(&spec.series);
 	f = choosegame(&spec, lastseries);
-	if (f <= 0)
-	    break;
-    }
+    } while (f > 0);
 
     shutdownsystem();
     return f == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

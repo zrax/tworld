@@ -43,17 +43,18 @@ static void _eventupdate(int wait)
     }
 }
 
-/* Window decoration.
+/* Alter the window decoration.
  */
 void setsubtitle(char const *subtitle)
 {
-    char	buf[256];
+    char	buf[270];
 
     if (subtitle && *subtitle) {
-	sprintf(buf, "Tile World - %.242s", subtitle);
+	sprintf(buf, "Tile World - %.255s", subtitle);
 	SDL_WM_SetCaption(buf, "Tile World");
-    } else
+    } else {
 	SDL_WM_SetCaption("Tile World", "Tile World");
+    }
 }
 
 /* Shut down SDL.
@@ -63,7 +64,8 @@ static void shutdown(void)
     SDL_Quit();
 }
 
-/* Initialize SDL.
+/* Initialize SDL, create the program's icon, and then initialize
+ * the other modules of the library.
  */
 int oshwinitialize(int silence, int showhistogram)
 {

@@ -423,10 +423,9 @@ Tile World loads various resources at runtime from its resource
 directory (cf
 .BR "DIRECTORIES" ).
 These resources include the program's
-font, graphic images, and sound effects. The actual files that it
-loads is determined by the contents of a file named rc (short for
-"resource configuration", not "runtime commands") in the same
-directory.
+font, graphic images, and sound effects. The actual file names are
+determined by the contents of a file named rc (short for "resource
+configuration", not "runtime commands") in the same directory.
 .P
 The rc file is a plain text file, and contains lines of the
 form
@@ -455,8 +454,8 @@ is either MS or Lynx). Resources that
 are defined before any such line apply to both rulesets, and are also
 used as fallbacks if a ruleset-specific resource could not be
 loaded. (The font and the text-color resources also need to have
-ruleset-independent values, as these are used when the program is
-displaying the initial file list.)
+ruleset-independent values, as these are needed when displaying the
+initial file list, before a ruleset has been chosen.)
 .P
 A line of the form
 .P
@@ -596,8 +595,7 @@ FireWalkingSound
 the names in the entpack.ini file used by the Microsoft
 program. This makes it easy for someone with a copy of Microsoft's
 "Chip's Challenge" to use the sound effects that were provided with
-that version of the game. In a similar vein, the bitmap stored in the
-Microsoft executable can be used as the TileImages resource.)
+that version of the game.)
 .br
 .SH DIRECTORIES
 Tile World uses four different directories for storing external files.
