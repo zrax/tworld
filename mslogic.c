@@ -610,20 +610,6 @@ static void addcreaturetomap(creature const *cr)
     updatecreature(cr);
 }
 
-#if 0
-static int controllerdir(int set, int dir)
-{
-    static int	controllerdir = NIL;
-
-    if (set)
-	controllerdir = dir;
-    return controllerdir;
-}
-
-#define	getcontrollerdir(cr)		(controllerdir(FALSE, 0))
-#define	setcontrollerdir(cr, dir)	(controllerdir(TRUE, (dir)))
-#endif
-
 /* Enervate an inert creature.
  */
 static creature *awakencreature(int pos)
@@ -662,7 +648,8 @@ static void turntanks(creature const *inmidmove)
     for (n = 0 ; n < creaturecount ; ++n) {
 	if (creatures[n]->hidden || creatures[n]->id != Tank)
 	    continue;
-	if (cellat(creatures[n]->pos)->bot.id == CloneMachine)
+	if (cellat(creatures[n]->pos)->bot.id == CloneMachine
+				&& !(creatures[n]->state & CS_CLONING))
 	    continue;
 	creatures[n]->dir = back(creatures[n]->dir);
 	if (!(creatures[n]->state & CS_TURNING))
@@ -1084,8 +1071,11 @@ static void choosecreaturemove(creature *cr)
 	    return;
     }
 
-    if (cr->id == Tank)
-	cr->state |= CS_HASMOVED;
+    if (cr->id == Tank) {
+	if ((cr->state & CS_RELEASED)
+			|| (floor != Beartrap && floor != CloneMachine))
+	    cr->state |= CS_HASMOVED;
+    }
 
     cr->tdir = pdir;
 }
@@ -1326,12 +1316,12 @@ static void endmovement(creature *cr, int dir)
     mapcell    *cell;
     maptile    *tile;
     int		dead = FALSE;
+    int		wasslipping;
     int		oldpos, newpos;
     int		floor, i;
 
     oldpos = cr->pos;
     newpos = cr->pos + delta[dir];
-    /*cr->pos = newpos;*/
 
     cell = cellat(newpos);
     tile = &cell->top;
@@ -1535,6 +1525,8 @@ static void endmovement(creature *cr, int dir)
 	}
     }
 
+    wasslipping = cr->state & (CS_SLIP | CS_SLIDE);
+
     if (floor == Teleport)
 	startfloormovement(cr, floor);
     else if (isice(floor) && (cr->id != Chip || !possession(Boots_Ice)))
@@ -1543,6 +1535,9 @@ static void endmovement(creature *cr, int dir)
 	startfloormovement(cr, floor);
     else if (floor != Beartrap || cr->id != Block)
 	cr->state &= ~(CS_SLIP | CS_SLIDE);
+
+    if (!wasslipping && (cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip)
+	setcontrollerdir(cr, getslipdir(cr));
 }
 
 /* Move the given creature in the given direction.
