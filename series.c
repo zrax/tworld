@@ -255,6 +255,10 @@ static int undomschanges(gameseries *series)
     series->games[98].traps[11].to = 20 * CXGRID + 16;
     series->games[98].traps[12].to = 23 * CXGRID + 23;
     series->games[98].traps[13].to = 25 * CXGRID + 23;
+    series->games[110].traps[0].to = 11 * CXGRID + 22;
+    series->games[110].traps[1].to = 6 * CXGRID + 15;
+    free(series->games[144].map1);
+    free(series->games[144].map2);
     memmove(series->games + 144, series->games + 145,
 	    4 * sizeof *series->games);
     --series->total;
