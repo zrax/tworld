@@ -8,13 +8,16 @@ ___________________________________________________________________________
 Bugs in the MS game logic emulation
 
 * There are numerous situations in the MS game that cause a moused goal to
-  be cancelled for which TW will keep trying. A clearer understanding of
-  those situations is needed.
+  be cancelled for which TW will keep trying, or vice versa. A clearer
+  understanding of how the MS game handles moused goals is needed.
 * The MS game checks for input more than once per tick. Probably this was
   done to catch last-minute keyboard events, but it has the effect that by
   having more than one input event in the queue, Chip can, under certain
   circumstances, have the latter keystroke processed after he has moved but
-  before any other creatures move.
+  before any other creatures move. This is more noticeably an issue with
+  the mouse, which seems to be processed differently than keyboard events
+  in the MS game, but not in TW. Level 94 in EvanD1.dat, unsolvable in TW
+  but not in the MS game, is a dramatic example of this.
 * In TW, the keyboard is scanned twice per tick, once at the beginning and
   once in the middle. As a result, if Chip makes a move at the beginning of
   a tick, the game does not update the display twice in a row (once after
@@ -22,9 +25,8 @@ Bugs in the MS game logic emulation
   do not believe that this optimization has a real effect on the gameplay.
   It does, however, make it easier to examine the screen when pushing
   against a force floor.
-* There are a number of miscellaneous emulation bugs, mostly involving
-  "illegal" tile combinations. These are documented more thoroughly in the
-  msbugs.txt file on the website.
+* There are a number of miscellaneous emulation bugs. These are documented
+  more thoroughly in the msbugs.txt file on the website.
 ___________________________________________________________________________
 
 Bugs in the Lynx game logic emulation
@@ -49,3 +51,6 @@ Other bugs and misfeatures
   bytes long. In this case, it simply ignores the field 6 password. The MS
   game will remember both passwords and allow either one to be used
   (although if both are present it will only show the field 8 password).
+* Tile World does not properly imitate the original game in deciding when
+  to allow the player the option to skip past a level. The criteria for
+  this circumstance has not be properly elucidated, for either ruleset.

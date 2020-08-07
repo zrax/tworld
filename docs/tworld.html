@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
+<!DOCTYPE html>
 <html>
 <head>
 <title>Tile World</title>
@@ -14,18 +14,18 @@
 <p>
 <ul>
 <li><a href="#0">Synopsis</a>
-<li><a href="#1">Passwords</a>
-<li><a href="#2">Scoring</a>
-<li><a href="#3">Adding New Level Sets</a>
-<li><a href="#4">Resources</a>
-<li><a href="#5">Database of Unsolvable Levels</a>
-<li><a href="#6">Directories</a>
-<li><a href="#7">Environment Variables</a>
-<li><a href="#8">Overview of the Game</a>
-<li><a href="#9">Key Commands</a>
-<li><a href="#10">Rulesets</a>
-<li><a href="#11">Command-Line Options</a>
-<li><a href="#12">Configuration Files</a>
+<li><a href="#1">Overview of the Game</a>
+<li><a href="#2">Passwords</a>
+<li><a href="#3">Scoring</a>
+<li><a href="#4">Key Commands</a>
+<li><a href="#5">Rulesets</a>
+<li><a href="#6">Adding New Level Sets</a>
+<li><a href="#7">Command-Line Options</a>
+<li><a href="#8">Configuration Files</a>
+<li><a href="#9">Resources</a>
+<li><a href="#10">Database of Unsolvable Levels</a>
+<li><a href="#11">Directories</a>
+<li><a href="#12">Environment Variables</a>
 <li><a href="#13">License</a>
 <li><a href="#14">History</a>
 <li><a href="#15">Appendix: Notes on Nomenclature</a>
@@ -47,7 +47,7 @@ protective gear -- and, of course, chips.
 <p>
 <hr>
 <p>
-<a name="8"></a>
+<a name="1"></a>
 <h3>
 Overview of the Game
 </h3>
@@ -174,7 +174,7 @@ available to you. In any case, keep trying. Occasionally the game will
 give you the opportunity to skip a level that seems too hard.
 </ul>
 <p>
-<a name="1"></a>
+<a name="2"></a>
 <h3>
 Passwords
 </h3>
@@ -188,7 +188,7 @@ you somehow manage to learn the password of a level that you have yet
 to achieve, you can use the password to gain early access to that
 level.
 <p>
-<a name="2"></a>
+<a name="3"></a>
 <h3>
 Scoring
 </h3>
@@ -201,7 +201,7 @@ already-completed levels and playing them again.
 <p>
 <hr>
 <p>
-<a name="9"></a>
+<a name="4"></a>
 <h3>
 Key Commands
 </h3>
@@ -297,7 +297,7 @@ exit.)
 <p>
 <hr>
 <p>
-<a name="10"></a>
+<a name="5"></a>
 <h3>
 Rulesets
 </h3>
@@ -320,7 +320,7 @@ Each level set file includes a flag that indicates which ruleset it is
 to be played under. Some level sets can be played under both rulesets
 (most notably, the original set of levels), but this is the exception.
 <p>
-<a name="3"></a>
+<a name="6"></a>
 <h3>
 Adding New Level Sets
 </h3>
@@ -333,14 +333,14 @@ case the author, for whatever reason, stores their creations in more
 than one file.)
 <p>
 When a new data file is obtained, it may simply be copied into the
-level set directory (cf <a href="#6">Directories</a>), and Tile World will then make
+level set directory (cf <a href="#11">Directories</a>), and Tile World will then make
 it available for playing.
 <p>
-An alternate method is to use a configuration file (see <a href="#12">Configuration Files</a> below).
+An alternate method is to use a configuration file (see <a href="#8">Configuration Files</a> below).
 <p>
 <hr>
 <p>
-<a name="11"></a>
+<a name="7"></a>
 <h3>
 Command-Line Options
 </h3>
@@ -356,10 +356,12 @@ information on standard output actually go to a file named
 <tt>stdout.txt</tt> instead.)
 <p>
 <table>
-<tr><td><tt>-a</tt>&nbsp;</td>
-<td>Double the size of the audio buffer. This option can be repeated, so
-for example <tt>-aaa</tt> would increase the audio buffer size eightfold.</td></tr>
-<tr><td><tt>-b</tt>&nbsp;</td>
+<tr><td><tt>-a</tt>,&nbsp;<tt>--audio-buffer=</tt><i>N</i>&nbsp;</td>
+<td>Set the size of the audio buffer. <i>N</i> can be a value from 1 (the
+default) to 6. Each higher value doubles the amount of buffering. This
+option can reduce static or distortion in the sound playback, at the
+cost of increased latency.</td></tr>
+<tr><td><tt>-b</tt>,&nbsp;<tt>--batch-verify</tt>&nbsp;</td>
 <td>Do a batch-mode verification of the existing solutions and exit.
 Levels with invalid solutions are displayed on standard output. If
 used with <tt>-q</tt>, then nothing is displayed, and the program's exit code
@@ -367,58 +369,58 @@ is the number of invalid solutions. Can also be used with <tt>-s</tt> or <tt>-t<
 to have solutions verified before the other option is applied. Note
 that this options requires a level set file and/or a solution file be
 named on the command line.</td></tr>
-<tr><td><tt>-D</tt>&nbsp;<i>DIR</i>&nbsp;</td>
+<tr><td><tt>-D</tt>,&nbsp;<tt>--data-dir=</tt><i>DIR</i>&nbsp;</td>
 <td>Read level data files from <i>DIR</i> instead of the default directory.</td></tr>
-<tr><td><tt>-d</tt>&nbsp;</td>
+<tr><td><tt>-d</tt>,&nbsp;<tt>--list-dirs</tt>&nbsp;</td>
 <td>Display the default directories used by the program on standard
 output, and exit.</td></tr>
-<tr><td><tt>-F</tt>&nbsp;</td>
+<tr><td><tt>-F</tt>,&nbsp;<tt>--full-screen</tt>&nbsp;</td>
 <td>Run in full-screen mode.</td></tr>
-<tr><td><tt>-H</tt>&nbsp;</td>
+<tr><td><tt>-H</tt>,&nbsp;<tt>--histogram</tt>&nbsp;</td>
 <td>Upon exit, display a histogram of idle time on standard output. (This
 option is used for evaluating optimization efforts.)</td></tr>
-<tr><td><tt>-h</tt>&nbsp;</td>
+<tr><td><tt>--h</tt>,&nbsp;<tt>--help</tt>&nbsp;</td>
 <td>Display a summary of the command-line syntax on standard output and
 exit.</td></tr>
-<tr><td><tt>-L</tt>&nbsp;<i>DIR</i>&nbsp;</td>
-<td>Look for level sets in <i>DIR</i> instead of the default directory.</td></tr>
-<tr><td><tt>-l</tt>&nbsp;</td>
+<tr><td><tt>-L</tt>,&nbsp;<tt>--levelset-dir=</tt><i>DIR</i>&nbsp;</td>
+<td>Load level sets from <i>DIR</i> instead of the default directory.</td></tr>
+<tr><td><tt>-l</tt>,&nbsp;<tt>--list-levelsets</tt>&nbsp;</td>
 <td>Write a list of available level sets to standard output and exit.</td></tr>
-<tr><td><tt>-n</tt>&nbsp;<i>N</i>&nbsp;</td>
+<tr><td><tt>-n</tt>,&nbsp;<tt>--volume=</tt><i>N</i>&nbsp;</td>
 <td>Set the initial volume level to <i>N</i>, 0 being silence and 10 being
 full volume. The default level is 10.</td></tr>
-<tr><td><tt>-P</tt>&nbsp;</td>
+<tr><td><tt>-P</tt>,&nbsp;<tt>--pedantic</tt>&nbsp;</td>
 <td>Turn on pedantic mode, forcing the Lynx ruleset to emulate the
 original game as closely as possible. (See the Tile World website for
 more information on emulation of the Lynx ruleset.)</td></tr>
-<tr><td><tt>-p</tt>&nbsp;</td>
+<tr><td><tt>-p</tt>,&nbsp;<tt>--no-passwords</tt>&nbsp;</td>
 <td>Turn off all password-checking. This option allows the normal sequence
 of levels to be bypassed.</td></tr>
-<tr><td><tt>-q</tt>&nbsp;</td>
-<td>Run quietly. All sounds, including the ringing of the terminal bell,
+<tr><td><tt>-q</tt>,&nbsp;<tt>--quiet</tt>&nbsp;</td>
+<td>Run quietly. All sounds, including the ringing of the system bell,
 are suppressed.</td></tr>
-<tr><td><tt>-r</tt>&nbsp;</td>
+<tr><td><tt>-r</tt>,&nbsp;<tt>--read-only</tt>&nbsp;</td>
 <td>Run in read-only mode. This guarantees that no changes will be made
 to the solution files.</td></tr>
-<tr><td><tt>-R</tt>&nbsp;<i>DIR</i>&nbsp;</td>
+<tr><td><tt>-R</tt>,&nbsp;<tt>--resource-dir=</tt><i>DIR</i>&nbsp;</td>
 <td>Read resource data from <i>DIR</i> instead of the default directory.</td></tr>
-<tr><td><tt>-S</tt>&nbsp;<i>DIR</i>&nbsp;</td>
+<tr><td><tt>-S</tt>,&nbsp;<tt>--save-dir=</tt><i>DIR</i>&nbsp;</td>
 <td>Read and write solution files under <i>DIR</i> instead of the default
 directory.</td></tr>
-<tr><td><tt>-s</tt>&nbsp;</td>
+<tr><td><tt>-s</tt>,&nbsp;<tt>--list-scores</tt>&nbsp;</td>
 <td>Display the current scores for the selected level set on standard
 output and exit. A level set must be named on the command line. If
 used with <tt>-b</tt>, the solutions are verified beforehand, and invalid
 solutions are indicated.</td></tr>
-<tr><td><tt>-t</tt>&nbsp;</td>
+<tr><td><tt>-t</tt>,&nbsp;<tt>--list-times</tt>&nbsp;</td>
 <td>Display the best times for the selected level set on standard output
 and exit. A level set must be named on the command line. If used with
-<tt>-b</tt>, the solutions are verified beforehand, and invalid solutions are
-indicated.</td></tr>
-<tr><td><tt>-V</tt>&nbsp;</td>
+<tt>--batch-verify</tt>, the solutions are verified beforehand, and invalid
+solutions are indicated.</td></tr>
+<tr><td><tt>-V</tt>,&nbsp;<tt>--version</tt>&nbsp;</td>
 <td>Display the program's version and license information on standard
 output and exit.</td></tr>
-<tr><td><tt>-v</tt>&nbsp;</td>
+<tr><td><tt>-v</tt>,&nbsp;<tt>--version-number</tt>&nbsp;</td>
 <td>Display the program's version number on standard output and exit.</td></tr>
 </table>
 <p>
@@ -438,7 +440,7 @@ file.)
 <p>
 <hr>
 <p>
-<a name="12"></a>
+<a name="8"></a>
 <h3>
 Configuration Files
 </h3>
@@ -448,7 +450,7 @@ data file, or to set values not provided for by the data file format.
 Configuration files are by convention named with a <tt>.dac</tt> extension. A
 configuration file is stored in the level set directory in the place
 of the data file, which then goes into the data directory (cf
-<a href="#6">Directories</a>).
+<a href="#11">Directories</a>).
 <p>
 The configuration file is a simple text file. The first line of a
 configuration file <i>must</i> have the following form:
@@ -492,13 +494,13 @@ is obtained. (The changes made in the MS version were: an extra level
 was added; four passwords were garbled; and four or five levels' maps
 had minor alterations.)
 <p>
-<a name="4"></a>
+<a name="9"></a>
 <h3>
 Resources
 </h3>
 <p>
 Tile World loads various resources at runtime from its resource
-directory (cf <a href="#6">Directories</a>). These resources include the program's
+directory (cf <a href="#11">Directories</a>). These resources include the program's
 font, graphic images, and sound effects. The actual file names are
 determined by the contents of a file named <tt>rc</tt> (short for "resource
 configuration", not "runtime commands") in the same directory.
@@ -545,7 +547,7 @@ A line of the form
 <tt>UnsolvableList = </tt><i>FILENAME</i>
 <p>
 identifies the filename for the database of unsolvable levels. See
-<a href="#5">Database of Unsolvable Levels</a> below for more information about this
+<a href="#10">Database of Unsolvable Levels</a> below for more information about this
 file. Note that this resource must be defined independent of the
 ruleset, or else it will be ignored.
 <p>
@@ -612,7 +614,7 @@ This makes it easy for someone with a copy of Microsoft's "Chip's
 Challenge" to use the sound effects that were provided with that
 version of the game.)
 <p>
-<a name="5"></a>
+<a name="10"></a>
 <h3>
 Database of Unsolvable Levels
 </h3>
@@ -640,7 +642,7 @@ number, so that updated versions will no longer be identified as
 unsolvable. See the Tile World website for more information about the
 format of this file, and to check for updates to the database.
 <p>
-<a name="6"></a>
+<a name="11"></a>
 <h3>
 Directories
 </h3>
@@ -669,7 +671,7 @@ program. (default for Linux: <tt>/usr/local/share/tworld/res</tt>)</td></tr>
 Linux: <tt>~/.tworld</tt>)</td></tr>
 </table>
 <p>
-<a name="7"></a>
+<a name="12"></a>
 <h3>
 Environment Variables
 </h3>
@@ -692,7 +694,7 @@ the resource, level set, and data file directories.</td></tr>
 License
 </h3>
 <p>
-Tile World is copyright (C) 2001-2006 by Brian Raiter.
+Tile World is copyright (C) 2001-2015 by Brian Raiter.
 <p>
 This program is free software; you can redistribute it and/or  
 modify it under the terms of the GNU General Public License as 
@@ -724,9 +726,8 @@ made available for the Lynx.
 MS-DOS, Microsoft Windows (16-bit), Amiga, ZX Spectrum, Atari ST, and
 the Commodore 64. (A NES port was also planned, but never completed.)
 <p>
-The Windows port was different from most (perhaps all?) of the others
-in that it was not done by the original team at Epyx. Instead it was
-done by Microsoft and sold as part of Windows Entertainment Pack 4
+The Windows port was not done by the original team at Epyx. Instead it
+was done by Microsoft and sold as part of Windows Entertainment Pack 4
 (and later as part of Best of Windows Entertainment Pack). In the
 process of recreating the game for the 16-bit Windows platform,
 Microsoft introduced a surprising number of changes to the mechanics
@@ -739,28 +740,33 @@ community of adherents to the game connected via a MSN chatroom (and
 later through the internet). A few members of this community managed
 to decipher the format of the MS game's data file, and John K. Elion
 subsequently created a freeware level editor, called ChipEdit. As a
-result there are now dozens of new level sets, created by fans of the
-game and all freely available.
+result there are now hundreds of new level sets, created by fans of
+the game and all freely available.
 <p>
 Atari discontinued support for the Lynx in 1994. When Epyx went under,
 the rights to their games were purchased by Bridgestone Multimedia.
 Responding to the success of "Chip's Challenge", Chuck Sommerville
-created a sequel ("Chip's Challenge 2"). The sequel included the
+created a sequel, called "Chip's Challenge 2". The sequel included the
 original game as a proper subset, and the company held the rights to
-both games. Bridgestone Multimedia, who has now become Alpha Omega
-Publications, unfortunately did not see fit to actually release
-"Chip's Challenge 2", and by now it is highly unlikely that it ever
-will be released. Since Chuck Sommerville no longer has rights to
-either game, and Microsoft no longer sells either of the Entertainment
-Packs, the original "Chip's Challenge" is no longer available except
-by purchasing a used copy of one of the aforementioned Entertainment
-Packs (or by downloading an illegal copy).
+both games. Bridgestone Multimedia was not interested in publishing
+the game, however, and so made no effort to release it.
+<p>
+Microsoft no longer sells any of the Entertainment Packs, so the older
+Windows version of "Chip's Challenge" is no longer (legally) available
+to newcomers except by finding used copies for sale.
 <p>
 In 2001, the author began writing "Tile World" with the intention of
 recreating a version of the MS game for the Linux platform. At the
 encouragement of Chuck Sommerville, this project was expanded to
 include the goals of recreating the original Lynx game as well, and
 also making the program work under MS Windows in addition to Linux.
+Version 1.0 was released in 2002. Version 1.3 was released in 2006.
+<p>
+In 2015 Chuck Sommerville finally managed to strike a deal with
+Bridgestone Multimedia and get Chips Challenge 2 published on Steam.
+Since this release also includes the original levels, with the name
+officially being "Chip's Challenge 1", there is now yet another
+variation of the original ruleset.
 <p>
 <hr>
 <p>
@@ -776,10 +782,11 @@ the MS version of the game were known as fire boots, flippers (for
 water), skates (for ice), and suction boots (for force floors). In the
 original Lynx version, however, they were not even boots -- the four
 tools were fire shields, water shields, cleats, and magnets,
-respectively.
+respectively. With the CC2 release, the objects have returned to being
+boots, but the suction boots are now called magno boots.
 <p>
 Several of the creatures have seen a variety of names. The list of
-creatures given in <a href="#8">Overview of the Game</a> corresponds to the MS
+creatures given in <a href="#1">Overview of the Game</a> corresponds to the MS
 version of the game. In the original Lynx version, the paramecia were
 centipedes instead. In still other versions of the game, gliders were
 referred to as ghosts or sharks, fireballs were flames, and teeth were

@@ -327,11 +327,15 @@ information on standard output actually go to a file named
 stdout.txt instead.)
 .P
 .TP
-.B -a
-Double the size of the audio buffer. This option can be repeated, so
-for example -aaa would increase the audio buffer size eightfold.
+.BI "-a,\ --audio-buffer=" N
+Set the size of the audio buffer.
+.I N
+can be a value from 1 (the
+default) to 6. Each higher value doubles the amount of buffering. This
+option can reduce static or distortion in the sound playback, at the
+cost of increased latency.
 .TP
-.B -b
+.B -b,\ --batch-verify
 Do a batch-mode verification of the existing solutions and exit.
 Levels with invalid solutions are displayed on standard output. If
 used with -q, then nothing is displayed, and the program's exit code
@@ -340,85 +344,85 @@ to have solutions verified before the other option is applied. Note
 that this options requires a level set file and/or a solution file be
 named on the command line.
 .TP
-.BI "-D\ " DIR
+.BI "-D,\ --data-dir=" DIR
 Read level data files from
 .I DIR
 instead of the default directory.
 .TP
-.B -d
+.B -d,\ --list-dirs
 Display the default directories used by the program on standard
 output, and exit.
 .TP
-.B -F
+.B -F,\ --full-screen
 Run in full-screen mode.
 .TP
-.B -H
+.B -H,\ --histogram
 Upon exit, display a histogram of idle time on standard output. (This
 option is used for evaluating optimization efforts.)
 .TP
-.B -h
+.B --h,\ --help
 Display a summary of the command-line syntax on standard output and
 exit.
 .TP
-.BI "-L\ " DIR
-Look for level sets in
+.BI "-L,\ --levelset-dir=" DIR
+Load level sets from
 .I DIR
 instead of the default directory.
 .TP
-.B -l
+.B -l,\ --list-levelsets
 Write a list of available level sets to standard output and exit.
 .TP
-.BI "-n\ " N
+.BI "-n,\ --volume=" N
 Set the initial volume level to
 .IR "N" ,
 0 being silence and 10 being
 full volume. The default level is 10.
 .TP
-.B -P
+.B -P,\ --pedantic
 Turn on pedantic mode, forcing the Lynx ruleset to emulate the
 original game as closely as possible. (See the Tile World website for
 more information on emulation of the Lynx ruleset.)
 .TP
-.B -p
+.B -p,\ --no-passwords
 Turn off all password-checking. This option allows the normal sequence
 of levels to be bypassed.
 .TP
-.B -q
-Run quietly. All sounds, including the ringing of the terminal bell,
+.B -q,\ --quiet
+Run quietly. All sounds, including the ringing of the system bell,
 are suppressed.
 .TP
-.B -r
+.B -r,\ --read-only
 Run in read-only mode. This guarantees that no changes will be made
 to the solution files.
 .TP
-.BI "-R\ " DIR
+.BI "-R,\ --resource-dir=" DIR
 Read resource data from
 .I DIR
 instead of the default directory.
 .TP
-.BI "-S\ " DIR
+.BI "-S,\ --save-dir=" DIR
 Read and write solution files under
 .I DIR
 instead of the default
 directory.
 .TP
-.B -s
+.B -s,\ --list-scores
 Display the current scores for the selected level set on standard
 output and exit. A level set must be named on the command line. If
 used with -b, the solutions are verified beforehand, and invalid
 solutions are indicated.
 .TP
-.B -t
+.B -t,\ --list-times
 Display the best times for the selected level set on standard output
 and exit. A level set must be named on the command line. If used with
--b, the solutions are verified beforehand, and invalid solutions are
-indicated.
+--batch-verify, the solutions are verified beforehand, and invalid
+solutions are indicated.
 .TP
-.B -V
+.B -V,\ --version
 Display the program's version and license information on standard
 output and exit.
 .TP
-.B -v
+.B -v,\ --version-number
 Display the program's version number on standard output and exit.
 .P
 Besides the above options, tworld can accept up to three
@@ -745,7 +749,7 @@ the resource, level set, and data file directories.
 Specifies a directory for saving solution files.
 .br
 .SH LICENSE
-Tile World is copyright (C) 2001-2006 by Brian Raiter.
+Tile World is copyright (C) 2001-2015 by Brian Raiter.
 .P
 This program is free software; you can redistribute it and/or  
 modify it under the terms of the GNU General Public License as 
@@ -775,9 +779,8 @@ made available for the Lynx.
 MS-DOS, Microsoft Windows (16-bit), Amiga, ZX Spectrum, Atari ST, and
 the Commodore 64. (A NES port was also planned, but never completed.)
 .P
-The Windows port was different from most (perhaps all?) of the others
-in that it was not done by the original team at Epyx. Instead it was
-done by Microsoft and sold as part of Windows Entertainment Pack 4
+The Windows port was not done by the original team at Epyx. Instead it
+was done by Microsoft and sold as part of Windows Entertainment Pack 4
 (and later as part of Best of Windows Entertainment Pack). In the
 process of recreating the game for the 16-bit Windows platform,
 Microsoft introduced a surprising number of changes to the mechanics
@@ -790,28 +793,33 @@ community of adherents to the game connected via a MSN chatroom (and
 later through the internet). A few members of this community managed
 to decipher the format of the MS game's data file, and John K. Elion
 subsequently created a freeware level editor, called ChipEdit. As a
-result there are now dozens of new level sets, created by fans of the
-game and all freely available.
+result there are now hundreds of new level sets, created by fans of
+the game and all freely available.
 .P
 Atari discontinued support for the Lynx in 1994. When Epyx went under,
 the rights to their games were purchased by Bridgestone Multimedia.
 Responding to the success of "Chip's Challenge", Chuck Sommerville
-created a sequel ("Chip's Challenge 2"). The sequel included the
+created a sequel, called "Chip's Challenge 2". The sequel included the
 original game as a proper subset, and the company held the rights to
-both games. Bridgestone Multimedia, who has now become Alpha Omega
-Publications, unfortunately did not see fit to actually release
-"Chip's Challenge 2", and by now it is highly unlikely that it ever
-will be released. Since Chuck Sommerville no longer has rights to
-either game, and Microsoft no longer sells either of the Entertainment
-Packs, the original "Chip's Challenge" is no longer available except
-by purchasing a used copy of one of the aforementioned Entertainment
-Packs (or by downloading an illegal copy).
+both games. Bridgestone Multimedia was not interested in publishing
+the game, however, and so made no effort to release it.
+.P
+Microsoft no longer sells any of the Entertainment Packs, so the older
+Windows version of "Chip's Challenge" is no longer (legally) available
+to newcomers except by finding used copies for sale.
 .P
 In 2001, the author began writing "Tile World" with the intention of
 recreating a version of the MS game for the Linux platform. At the
 encouragement of Chuck Sommerville, this project was expanded to
 include the goals of recreating the original Lynx game as well, and
 also making the program work under MS Windows in addition to Linux.
+Version 1.0 was released in 2002. Version 1.3 was released in 2006.
+.P
+In 2015 Chuck Sommerville finally managed to strike a deal with
+Bridgestone Multimedia and get Chips Challenge 2 published on Steam.
+Since this release also includes the original levels, with the name
+officially being "Chip's Challenge 1", there is now yet another
+variation of the original ruleset.
 .br
 .SH APPENDIX: NOTES ON NOMENCLATURE
 "Chip's Challenge" has seen several incarnations. Each had its own
@@ -821,7 +829,8 @@ the MS version of the game were known as fire boots, flippers (for
 water), skates (for ice), and suction boots (for force floors). In the
 original Lynx version, however, they were not even boots -- the four
 tools were fire shields, water shields, cleats, and magnets,
-respectively.
+respectively. With the CC2 release, the objects have returned to being
+boots, but the suction boots are now called magno boots.
 .P
 Several of the creatures have seen a variety of names. The list of
 creatures given in

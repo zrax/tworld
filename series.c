@@ -344,7 +344,7 @@ void freeseriesdata(gameseries *series)
     free(series->savefilename);
     series->savefilename = NULL;
     series->gsflags = 0;
-    series->solheaderflags = 0;
+    series->currentlevel = 0;
 
     for (n = 0, game = series->games ; n < series->count ; ++n, ++game) {
 	free(game->leveldata);
@@ -399,7 +399,7 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 	}
 	for (p = name ; (*p = tolower(*p)) != '\0' ; ++p) ;
 	if (!strcmp(name, "name")) {
-	    sprintf(series->name, "%.*s", sizeof series->name - 1,
+	    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
 					  skippathname(value));
 	} else if (!strcmp(name, "lastlevel")) {
 	    n = (int)strtol(value, &p, 10);
@@ -481,14 +481,15 @@ static int getseriesfile(char *filename, void *data)
     clearfileinfo(&series->savefile);
     series->savefilename = NULL;
     series->gsflags = 0;
-    series->solheaderflags = 0;
+    series->currentlevel = 0;
     series->allocated = 0;
     series->count = 0;
     series->final = 0;
     series->ruleset = Ruleset_None;
     series->games = NULL;
-    sprintf(series->filebase, "%.*s", sizeof series->filebase - 1, filename);
-    sprintf(series->name, "%.*s", sizeof series->name - 1,
+    sprintf(series->filebase, "%.*s", (int)(sizeof series->filebase - 1),
+				      filename);
+    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
 				  skippathname(filename));
 
     f = FALSE;
@@ -646,7 +647,7 @@ int createserieslist(char const *preferredfile, gameseries **pserieslist,
     *pcount = listsize;
     table->rows = listsize + 1;
     table->cols = 2;
-    table->sep = 2;
+    table->sep = 4;
     table->collapse = 0;
     table->items = ptrs;
     return TRUE;

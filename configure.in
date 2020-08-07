@@ -5,8 +5,8 @@ dnl
 AC_INIT(tworld.c)
 
 test -z "$CC" && CC="gcc"
-test -z "$CFLAGS" && CFLAGS=" -Wall -W -O2 -fomit-frame-pointer -DNDEBUG"
-test -z "$LDFLAGS" && LDFLAGS=" -Wall -W -s"
+test -z "$CFLAGS" && CFLAGS=" -Wall -Wextra -O2 -fomit-frame-pointer -DNDEBUG"
+test -z "$LDFLAGS" && LDFLAGS=" -Wall -Wextra -s"
 
 dnl
 dnl	--with-debug turns on debugging options
@@ -15,17 +15,17 @@ dnl
 AC_ARG_WITH(debug,
 	    [  --with-debug            Build with debugging info],
 	    [if test $withval = yes ; then
-	       CFLAGS=" -Wall -W -ggdb"
-	       LDFLAGS=" -Wall -W -ggdb"
+	       CFLAGS=" -Wall -Wextra -ggdb"
+	       LDFLAGS=" -Wall -Wextra -ggdb"
 	     fi])
 
 LOADLIBES=""
 OSHWCFLAGS=$CFLAGS
-sharedir='${datadir}/tworld'
+sharedir='${datarootdir}/tworld'
 otherobjs=""
 
 dnl
-dnl	--with-sharedir=DIR overrides default value of $datadir/tworld
+dnl	--with-sharedir=DIR overrides default value of $datarootdir/tworld
 dnl	for the shared data directory.
 dnl
 
@@ -71,7 +71,6 @@ AC_ARG_WITH(win32,
 	    [  --with-win32            Set defaults for a windows build],
 	    [if test $withval = yes ; then
 	       sharedir="."
-	       otherobjs=" tworldres.o"
 	     fi])
 
 dnl
@@ -84,6 +83,5 @@ AC_SUBST(OSHWCFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(LOADLIBES)
 AC_SUBST(sharedir)
-AC_SUBST(otherobjs)
 
 AC_OUTPUT(Makefile oshw/Makefile)
