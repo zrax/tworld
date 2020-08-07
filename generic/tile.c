@@ -419,6 +419,8 @@ static void drawclippedtile(TW_Rect const *rect, TW_Surface *src,
     }
 }
 
+extern int pedanticmode;
+
 /* Render the view of the visible area of the map to the display, with
  * the view position centered on the display as much as possible. The
  * gamestate's map and the list of creatures are consulted to
@@ -476,6 +478,11 @@ static void _displaymapview(gamestate const *state, TW_Rect displayloc)
     rmap += 2;
     bmap += 2;
     for (cr = state->creatures ; cr->id ; ++cr) {
+    	if (pedanticmode)
+	{
+	    if (cr->id == Ball && state->map[cr->pos].top.id == HintButton)
+	        continue;
+	}
 	if (cr->hidden)
 	    continue;
 	x = cr->pos % CXGRID;

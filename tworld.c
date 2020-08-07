@@ -1894,6 +1894,10 @@ static int choosegameatstartup(gamespec *gs, startupdata const *start)
 	return -1;
     }
 
+    /* extensions cannot be read until the system is initialized */
+    if (series.count == 1)
+    	readextensions(series.list);
+
     return selectseriesandlevel(gs, &series, TRUE, NULL, start->levelnum);
 }
 

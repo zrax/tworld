@@ -207,6 +207,7 @@ struct lxstate_ {
     creature	       *chiptocr;	/* is Chip colliding with a creature */
     creature	       *crend;		/* near the end of the creature list */
     short		chiptopos;	/*   just starting to move itself? */
+    short		putwall;	/* location to put a wall */
     unsigned char	prng1;		/* the values used to make the */
     unsigned char	prng2;		/*   pseudorandom number sequence */
     signed char		xviewoffset;	/* offset of map view center */
@@ -214,7 +215,7 @@ struct lxstate_ {
     unsigned char	endgametimer;	/* end-game countdown timer */
     unsigned char	togglestate;	/* extra state of the toggle walls */
     unsigned char	completed;	/* level completed successfully */
-    unsigned char	stuck;		/* Chip is stuck on a teleport */
+    unsigned char	stuck;		/* Chip is stuck */
     unsigned char	pushing;	/* Chip is pushing against something */
     unsigned char	couldntmove;	/* can't-move sound has been played */
     unsigned char	mapbreached;	/* Border of map has been breached */

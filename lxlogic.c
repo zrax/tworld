@@ -1,6 +1,6 @@
 /* lxlogic.c: The game logic for the Lynx ruleset.
  *
- * Copyright (C) 2001-2014 by Brian Raiter and Eric Schmidt, under the GNU
+ * Copyright (C) 2001-2015 by Brian Raiter and Eric Schmidt, under the GNU
  * General Public License. No warranty. See COPYING for details.
  */
 
@@ -128,6 +128,7 @@ static gamestate       *state;
 #define	mapbreached()		(getlxstate().mapbreached)
 #define	chiptopos()		(getlxstate().chiptopos)
 #define	chiptocr()		(getlxstate().chiptocr)
+#define	putwall()		(getlxstate().putwall)
 #define	prngvalue1()		(getlxstate().prng1)
 #define	prngvalue2()		(getlxstate().prng2)
 #define	xviewoffset()		(getlxstate().xviewoffset)
@@ -201,6 +202,8 @@ static unsigned char lynx_prng(void)
  */
 #define	FS_CLAIMED		0x40	/* spot is claimed by a creature */
 #define	FS_ANIMATED		0x20	/* spot is playing an animation */
+#define FS_BEARTRAP		0x01	/* there is or was a beartrap here */
+#define FS_TELEPORT		0x02	/* there is or was a teleport here */
 
 /* Accessor macros for the floor states.
  */
@@ -210,6 +213,10 @@ static unsigned char lynx_prng(void)
 #define	markanimated(pos)	(state->map[pos].top.state |= FS_ANIMATED)
 #define	clearanimated(pos)	(state->map[pos].top.state &= ~FS_ANIMATED)
 #define	ismarkedanimated(pos)	(state->map[pos].top.state & FS_ANIMATED)
+#define	markbeartrap(pos)	(state->map[pos].top.state |= FS_BEARTRAP)
+#define	ismarkedbeartrap(pos)	(state->map[pos].top.state & FS_BEARTRAP)
+#define	markteleport(pos)	(state->map[pos].top.state |= FS_TELEPORT)
+#define	ismarkedteleport(pos)	(state->map[pos].top.state & FS_TELEPORT)
 
 /* Translate a slide floor into the direction it points in. In the
  * case of a random slide floor, if advance is TRUE a new direction
@@ -274,6 +281,8 @@ static int trapfrombutton(int pos)
 		break;
 	    if (floorat(i) == Beartrap)
 		return i;
+	    if (ismarkedbeartrap(i))
+	       return -1;
 	}
     } else {
 	for (xy = traplist(), i = traplistsize() ; i ; ++xy, --i)
@@ -711,12 +720,32 @@ static int canpushblock(creature *block, int dir, int flags)
 static int canmakemove(creature const *cr, int dir, int flags)
 {
     creature   *other;
-    int		leavingmap = FALSE;
-    int		floorfrom, floorto;
+    int		floor;
     int		to, y, x;
 
     _assert(cr);
     _assert(dir != NIL);
+
+    floor = floorat(cr->pos);
+    switch (floor) {
+      case Wall_North:         if (dir & NORTH) return FALSE;            break;
+      case Wall_West:          if (dir & WEST) return FALSE;             break;
+      case Wall_South:         if (dir & SOUTH) return FALSE;            break;
+      case Wall_East:          if (dir & EAST) return FALSE;             break;
+      case Wall_Southeast:     if (dir & (SOUTH | EAST)) return FALSE;   break;
+      case IceWall_Northwest:  if (dir & (SOUTH | EAST)) return FALSE;   break;
+      case IceWall_Northeast:  if (dir & (SOUTH | WEST)) return FALSE;   break;
+      case IceWall_Southwest:  if (dir & (NORTH | EAST)) return FALSE;   break;
+      case IceWall_Southeast:  if (dir & (NORTH | WEST)) return FALSE;   break;
+      case Beartrap:
+      case CloneMachine:
+	if (!(flags & CMM_RELEASING))
+	    return FALSE;
+	break;
+    }
+    if (isslide(floor) && (cr->id != Chip || !possession(Boots_Slide))
+		       && getslidedir(floor, FALSE) == back(dir))
+	return FALSE;
 
     y = cr->pos / CXGRID;
     x = cr->pos % CXGRID;
@@ -724,39 +753,28 @@ static int canmakemove(creature const *cr, int dir, int flags)
     x += dir == WEST ? -1 : dir == EAST ? +1 : 0;
     to = y * CXGRID + x;
 
-    if (y < 0 || y >= CYGRID || x < 0 || x >= CXGRID) {
-	if (!pedanticmode)
-	    return FALSE;
-	leavingmap = TRUE;
-	to = cr->pos;
+    if (x < 0 || x >= CXGRID)
+	return FALSE;
+    if (y < 0 || y >= CYGRID) {
+	if (pedanticmode) {
+	    if (flags & CMM_STARTMOVEMENT) {
+		mapbreached() = TRUE;
+		warn("map breach in pedantic mode at (%d %d)", x, y);
+	    }
+	}
+	return FALSE;
     }
 
-    floorfrom = floorat(cr->pos);
-    floorto = floorat(to);
-
-    if ((floorfrom == Beartrap || floorfrom == CloneMachine)
-					&& !(flags & CMM_RELEASING))
-	return FALSE;
-
-    if (isslide(floorfrom) && (cr->id != Chip || !possession(Boots_Slide)))
-	if (getslidedir(floorfrom, FALSE) == back(dir))
-	    return FALSE;
-
-    if (floorto == SwitchWall_Open || floorto == SwitchWall_Closed)
-	floorto ^= togglestate();
+    floor = floorat(to);
+    if (floor == SwitchWall_Open || floor == SwitchWall_Closed)
+	floor ^= togglestate();
 
     if (cr->id == Chip) {
-	if (!(movelaws[floorfrom].chip & DIR_OUT(dir)))
+	if (!(movelaws[floor].chip & dir))
 	    return FALSE;
-	if (leavingmap) {
-	    mapbreached() = TRUE;
+	if (floor == Socket && chipsneeded() > 0)
 	    return FALSE;
-	}
-	if (!(movelaws[floorto].chip & DIR_IN(dir)))
-	    return FALSE;
-	if (floorto == Socket && chipsneeded() > 0)
-	    return FALSE;
-	if (isdoor(floorto) && !possession(floorto))
+	if (isdoor(floor) && !possession(floor))
 	    return FALSE;
 	if (ismarkedanimated(to))
 	    return FALSE;
@@ -765,7 +783,7 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	    if (!canpushblock(other, dir, flags & ~CMM_RELEASING))
 		return FALSE;
 	}
-	if (floorto == HiddenWall_Temp || floorto == BlueWall_Real) {
+	if (floor == HiddenWall_Temp || floor == BlueWall_Real) {
 	    if (flags & CMM_STARTMOVEMENT)
 		floorat(to) = Wall;
 	    return FALSE;
@@ -773,13 +791,7 @@ static int canmakemove(creature const *cr, int dir, int flags)
     } else if (cr->id == Block) {
 	if (cr->moving > 0)
 	    return FALSE;
-	if (!(movelaws[floorfrom].block & DIR_OUT(dir)))
-	    return FALSE;
-	if (leavingmap) {
-	    mapbreached() = TRUE;
-	    return FALSE;
-	}
-	if (!(movelaws[floorto].block & DIR_IN(dir)))
+	if (!(movelaws[floor].block & dir))
 	    return FALSE;
 	if (islocationclaimed(to))
 	    return FALSE;
@@ -787,17 +799,11 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	    if (ismarkedanimated(to))
 		stopanimationat(to);
     } else {
-	if (!(movelaws[floorfrom].creature & DIR_OUT(dir)))
-	    return FALSE;
-	if (leavingmap) {
-	    mapbreached() = TRUE;
-	    return FALSE;
-	}
-	if (!(movelaws[floorto].creature & DIR_IN(dir)))
+	if (!(movelaws[floor].creature & dir))
 	    return FALSE;
 	if (islocationclaimed(to))
 	    return FALSE;
-	if (floorto == Fire && cr->id != Fireball)
+	if (floor == Fire && cr->id != Fireball)
 	    return FALSE;
 	if (flags & CMM_CLEARANIMATIONS)
 	    if (ismarkedanimated(to))
@@ -883,8 +889,6 @@ static void choosecreaturemove(creature *cr)
       case Teeth:
 	if ((currenttime() + stepping()) & 4)
 	    return;
-	if (getchip()->hidden)
-	    return;
 	y = chippos() / CXGRID - cr->pos / CXGRID;
 	x = chippos() % CXGRID - cr->pos % CXGRID;
 	n = y < 0 ? NORTH : y > 0 ? SOUTH : NIL;
@@ -936,10 +940,11 @@ static void choosechipmove(creature *cr, int discard)
 
     dir = currentinput();
     currentinput() = NIL;
+
     if (!directionalcmd(dir))
 	dir = NIL;
 
-    if (dir == NIL || discard) {
+    if (dir == NIL || discard || chipstuck()) {
 	cr->tdir = NIL;
 	return;
     }
@@ -992,6 +997,8 @@ static int getforcedmove(creature *cr)
 
     if (isice(floor)) {
 	if (cr->id == Chip && possession(Boots_Ice))
+	    return FALSE;
+	if (cr->id == Chip && chipstuck())
 	    return FALSE;
 	if (cr->dir == NIL)
 	    return FALSE;
@@ -1082,6 +1089,11 @@ static int teleportcreature(creature *cr)
 		return FALSE;
 	    }
 	}
+	else if (ismarkedteleport(pos)) {
+	    floorat(pos) = Teleport;
+	    if (pos == chippos())
+	        getchip()->hidden = TRUE;
+	}
     }
 
     if (cr->id == Chip)
@@ -1140,7 +1152,7 @@ static void springtrap(int pos)
 	     pos % CXGRID, pos / CXGRID);
 	return;
     }
-    if (floorat(pos) != Beartrap) {
+    if (!ismarkedbeartrap(pos)) {
 	warn("Brown button not connected to a beartrap at (%d %d)",
 	     pos % CXGRID, pos / CXGRID);
 	return;
@@ -1181,7 +1193,6 @@ static int startmovement(creature *cr, int releasing)
     floorfrom = floorat(cr->pos);
 
     if (cr->id == Chip) {
-	_assert(!cr->hidden);
 	if (!possession(Boots_Slide)) {
 	    if (isslide(floorfrom) && cr->tdir == NIL)
 		cr->state |= CS_SLIDETOKEN;
@@ -1206,6 +1217,11 @@ static int startmovement(creature *cr, int releasing)
 	    applyicewallturn(cr);
 	}
 	return 0;
+    }
+
+    if (mapbreached() && chipisalive()) {
+	removechip(CHIP_COLLIDED, cr);
+	return -1;
     }
 
     if (floorfrom == CloneMachine || floorfrom == Beartrap)
@@ -1276,12 +1292,15 @@ static int continuemovement(creature *cr)
 /* Complete the movement of the given creature. Most side effects
  * produced by moving onto a tile occur at this point. FALSE is
  * returned if the creature is removed by the time the function
- * returns.
+ * returns. If stationary is TRUE, we are in pedantic mode and
+ * handling creatures starting on top of something.
  */
-static int endmovement(creature *cr)
+static int endmovement(creature *cr, int stationary)
 {
     int	floor;
     int	survived = TRUE;
+
+    _assert(!stationary || pedanticmode);
 
     if (isanimation(cr->id))
 	return TRUE;
@@ -1290,7 +1309,12 @@ static int endmovement(creature *cr)
 
     floor = floorat(cr->pos);
 
-    if (cr->id != Chip || !possession(Boots_Ice))
+    if (cr->id == Chip && putwall() != -1)
+        return TRUE;
+
+    if (cr->id == Chip && !possession(Boots_Ice))
+	applyicewallturn(cr);
+    if (cr->id != Chip && !stationary)
 	applyicewallturn(cr);
 
     if (cr->id == Chip) {
@@ -1302,6 +1326,7 @@ static int endmovement(creature *cr)
 	    }
 	    break;
 	  case Fire:
+	    if (stationary) break;
 	    if (!possession(Boots_Fire)) {
 		removechip(CHIP_BURNED, NULL);
 		survived = FALSE;
@@ -1330,9 +1355,8 @@ static int endmovement(creature *cr)
 	  case Key_Blue:
 	  case Key_Yellow:
 	  case Key_Green:
-	    if (pedanticmode)
-		if (possession(floor) == 255)
-		    possession(floor) = -1;
+	    if (possession(floor) == 255)
+		possession(floor) = -1;
 	    /* Intentional fall-through */
 	  case Boots_Ice:
 	  case Boots_Slide:
@@ -1350,13 +1374,14 @@ static int endmovement(creature *cr)
 	    addsoundeffect(SND_BOOTS_STOLEN);
 	    break;
 	  case ICChip:
+	    if (stationary) break;
 	    if (chipsneeded())
 		--chipsneeded();
 	    floorat(cr->pos) = Empty;
 	    addsoundeffect(SND_IC_COLLECTED);
 	    break;
 	  case Socket:
-	    _assert(chipsneeded() == 0);
+	    _assert(stationary || chipsneeded() == 0);
 	    floorat(cr->pos) = Empty;
 	    addsoundeffect(SND_SOCKET_OPENED);
 	    break;
@@ -1398,6 +1423,7 @@ static int endmovement(creature *cr)
 
     switch (floor) {
       case Bomb:
+	if (stationary) break;
 	floorat(cr->pos) = Empty;
 	if (cr->id == Chip) {
 	    removechip(CHIP_BOMBED, NULL);
@@ -1408,22 +1434,33 @@ static int endmovement(creature *cr)
 	survived = FALSE;
 	break;
       case Beartrap:
+      	if (stationary) break;
 	addsoundeffect(SND_TRAP_ENTERED);
 	break;
       case Button_Blue:
+	if (stationary) break;
 	turntanks();
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Green:
+	if (stationary) break;
 	togglestate() ^= SwitchWall_Open ^ SwitchWall_Closed;
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Red:
+	if (stationary) break;
 	if (activatecloner(clonerfrombutton(cr->pos)))
 	    addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Brown:
+	if (stationary) break;
 	addsoundeffect(SND_BUTTON_PUSHED);
+	break;
+      case Dirt:
+      case BlueWall_Fake:
+      case Socket:
+	_assert(stationary);
+	floorat(cr->pos) = Empty; /* No sound effect */
 	break;
     }
 
@@ -1450,9 +1487,16 @@ static int advancecreature(creature *cr, int releasing)
 	    _assert(cr->dir != NIL);
 	    tdir = cr->tdir;
 	    cr->tdir = cr->dir;
-	} else if (cr->tdir == NIL && getfdir(cr) == NIL)
+	} else if (cr->tdir == NIL && getfdir(cr) == NIL) {
+	    if (pedanticmode && !endmovement(cr, TRUE))
+	        return -1;
 	    return +1;
+	}
 	f = startmovement(cr, releasing);
+	if (f > 0)
+	    cr->hidden = FALSE;
+	if (pedanticmode && f == 0 && !endmovement(cr, TRUE))
+	    return -1;
 	if (f < 0)
 	    return f;
 	if (f == 0) {
@@ -1464,7 +1508,7 @@ static int advancecreature(creature *cr, int releasing)
     }
 
     if (!continuemovement(cr)) {
-	if (!endmovement(cr))
+	if (!endmovement(cr, FALSE))
 	    return -1;
     }
 
@@ -1589,7 +1633,7 @@ static void initialhousekeeping(void)
     }
 
     for (cr = creaturelist() ; cr->id ; ++cr) {
-	if (cr->hidden)
+	if (cr != getchip() && cr->hidden)
 	    continue;
 	if (cr->state & CS_REVERSE) {
 	    cr->state &= ~CS_REVERSE;
@@ -1688,7 +1732,6 @@ static void preparedisplay(void)
 	    chip->id = Pushing_Chip;
 	if (chip->moving) {
 	    resetfloorsounds(FALSE);
-	    floor = floorat(chip->pos);
 	    if (floor == Fire && possession(Boots_Fire))
 		addsoundeffect(SND_FIREWALKING);
 	    else if (floor == Water && possession(Boots_Water))
@@ -1707,6 +1750,8 @@ static void preparedisplay(void)
 		    addsoundeffect(SND_SLIDING);
 	    }
 	}
+	if (chipstuck() && isice(floor))
+	    addsoundeffect(SND_SKATING_FORWARD);
     }
 }
 
@@ -1764,6 +1809,10 @@ static int initgame(gamelogic *logic)
 	    cr->pos = pos;
 	    cr->id = creatureid(cell->top.id);
 	    cr->dir = creaturedirid(cell->top.id);
+	    if (pedanticmode) {
+	        if (cr->id == Block && isice(cell->bot.id))
+		    cr->dir = NIL;
+	    }
 	    cr->moving = 0;
 	    cr->hidden = FALSE;
 	    if (cr->id == Chip) {
@@ -1788,6 +1837,10 @@ static int initgame(gamelogic *logic)
 	if (pedanticmode)
 	    if (cell->top.id == Wall_North || cell->top.id == Wall_West)
 		markinvalid();
+	if (cell->top.id == Beartrap)
+	   markbeartrap(pos);
+	if (cell->top.id == Teleport)
+	   markteleport(pos);
     }
 
     if (n < 0) {
@@ -1847,11 +1900,12 @@ static int initgame(gamelogic *logic)
     togglestate() = 0;
     couldntmove() = FALSE;
     chippushing() = FALSE;
-    chipstuck() = FALSE;
+    chipstuck() = (pedanticmode ? isice(floorat(chippos())) : FALSE);
     mapbreached() = FALSE;
     completed() = FALSE;
     chiptopos() = -1;
     chiptocr() = NULL;
+    putwall() = -1;
     prngvalue1() = 0;
     prngvalue2() = 0;
     rndslidedir() = lastrndslidedir;
@@ -1860,6 +1914,7 @@ static int initgame(gamelogic *logic)
     yviewoffset() = 0;
 
     preparedisplay();
+    state->soundeffects = 0;    
     return !ismarkedinvalid();
 }
 
@@ -1871,14 +1926,12 @@ static int advancegame(gamelogic *logic)
 
     setstate(logic);
 
-    mapbreached() = FALSE;
-
     initialhousekeeping();
 
     for (cr = creaturelistend() ; cr >= creaturelist() ; --cr) {
 	setfdir(cr, NIL);
 	cr->tdir = NIL;
-	if (cr->hidden)
+	if (cr != getchip() && cr->hidden)
 	    continue;
 	if (isanimation(cr->id)) {
 	    --cr->frame;
@@ -1886,6 +1939,8 @@ static int advancegame(gamelogic *logic)
 		removeanimation(cr);
 	    continue;
 	}
+	if (cr == getchip() && inendgame())
+	    continue;
 	if (cr->moving <= 0)
 	    choosemove(cr);
     }
@@ -1897,12 +1952,18 @@ static int advancegame(gamelogic *logic)
 	checkmovingto();
 
     for (cr = creaturelistend() ; cr >= creaturelist() ; --cr) {
-	if (cr->hidden)
+    	if (cr == getchip() && completed())
+	    continue;
+	if (cr != getchip() && cr->hidden)
 	    continue;
 	if (advancecreature(cr, FALSE) < 0)
 	    continue;
 	cr->tdir = NIL;
 	setfdir(cr, NIL);
+	if (pedanticmode && floorat(cr->pos) == PopupWall) {
+	    if (cr != getchip())
+	        putwall() = chippos();
+	}
 	if (floorat(cr->pos) == Button_Brown && cr->moving <= 0)
 	    springtrap(trapfrombutton(cr->pos));
     }
@@ -1916,6 +1977,16 @@ static int advancegame(gamelogic *logic)
 	    teleportcreature(cr);
     }
 
+    if (putwall() != -1)
+    {
+	if (!getchip()->hidden) {
+	    if (floorat(chippos()) == Beartrap)
+	        springtrap(chippos());
+	    floorat(putwall()) = Wall;
+	}
+	putwall() = -1;
+    }
+
     finalhousekeeping();
 
     preparedisplay();
@@ -1926,12 +1997,6 @@ static int advancegame(gamelogic *logic)
 	    resetfloorsounds(TRUE);
 	    return completed() ? +1 : -1;
 	}
-    }
-
-    if (mapbreached())
-    {
-	warn("Attempt to leave map in pedantic Lynx mode");
-	mapbreached() = FALSE;
     }
 
     return 0;

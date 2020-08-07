@@ -131,6 +131,21 @@ static short *_possession(int obj)
  * Memory allocation functions for the various arenas.
  */
 
+/* The creature pool is a linked list of lumps, each lump holding this
+ * many creatures.
+ */
+#define	crpoollumpsize	256
+
+/* The data that makes up one lump of the creature pool.
+ */
+typedef struct crpoollump crpoollump;
+struct crpoollump {
+    int		count;			/* number of unused creatures */
+    crpoollump *prev;			/* the previously allocated lump */
+    crpoollump *next;			/* the next lump after this one */
+    creature	lump[crpoollumpsize];	/* the lump proper */
+};
+
 /* The data associated with a sliding object.
  */
 typedef	struct slipper {
@@ -140,9 +155,7 @@ typedef	struct slipper {
 
 /* The linked list of creature pools, forming the creature arena.
  */
-static creature	       *creaturepool = NULL;
-static void	       *creaturepoolend = NULL;
-static int const	creaturepoolchunk = 256;
+static crpoollump      *currentcrpoollump = NULL;
 
 /* The list of active creatures.
  */
@@ -166,29 +179,22 @@ static int		slipsallocated = 0;
  */
 static void resetcreaturepool(void)
 {
-    if (!creaturepoolend)
-	return;
-    while (creaturepoolend) {
-	creaturepool = creaturepoolend;
-	creaturepoolend = ((creature**)creaturepoolend)[0];
-    }
-    creaturepoolend = creaturepool;
-    creaturepool = (creature*)creaturepoolend - creaturepoolchunk + 1;
+    if (currentcrpoollump)
+	while (currentcrpoollump->prev)
+	    currentcrpoollump = currentcrpoollump->prev;
 }
 
 /* Destroy the creature arena.
  */
 static void freecreaturepool(void)
 {
-    if (!creaturepoolend)
-	return;
-    for (;;) {
-	creaturepoolend = ((creature**)creaturepoolend)[1];
-	free(creaturepool);
-	creaturepool = creaturepoolend;
-	if (!creaturepool)
-	    break;
-	creaturepoolend = creaturepool + creaturepoolchunk - 1;
+    crpoollump *next;
+
+    resetcreaturepool();
+    while (currentcrpoollump) {
+	next = currentcrpoollump->next;
+	free(currentcrpoollump);
+	currentcrpoollump = next;
     }
 }
 
@@ -196,26 +202,28 @@ static void freecreaturepool(void)
  */
 static creature *allocatecreature(void)
 {
+    crpoollump *next;
     creature   *cr;
 
-    if (creaturepool == creaturepoolend) {
-	if (creaturepoolend && ((creature**)creaturepoolend)[1]) {
-	    creaturepool = ((creature**)creaturepoolend)[1];
-	    creaturepoolend = creaturepool + creaturepoolchunk - 1;
+    if (!currentcrpoollump || currentcrpoollump->count == 0) {
+	if (currentcrpoollump && currentcrpoollump->next) {
+	    currentcrpoollump = currentcrpoollump->next;
+	    currentcrpoollump->count = crpoollumpsize;
 	} else {
-	    cr = creaturepoolend;
-	    creaturepool = malloc(creaturepoolchunk * sizeof *creaturepool);
-	    if (!creaturepool)
+	    next = malloc(sizeof *next);
+	    if (!next)
 		memerrexit();
-	    if (cr)
-		((creature**)cr)[1] = creaturepool;
-	    creaturepoolend = creaturepool + creaturepoolchunk - 1;
-	    ((creature**)creaturepoolend)[0] = cr;
-	    ((creature**)creaturepoolend)[1] = NULL;
+	    next->count = crpoollumpsize;
+	    next->prev = currentcrpoollump;
+	    next->next = NULL;
+	    if (currentcrpoollump)
+		currentcrpoollump->next = next;
+	    currentcrpoollump = next;
 	}
     }
 
-    cr = creaturepool++;
+    --currentcrpoollump->count;
+    cr = currentcrpoollump->lump + currentcrpoollump->count;
     cr->id = Nothing;
     cr->pos = -1;
     cr->dir = NIL;
@@ -566,9 +574,7 @@ static creature *lookupcreature(int pos, int includechip)
 }
 
 /* Return the block located at pos. If the block in question is not
- * currently "active", then it is automatically added to the block
- * list. (Why is a block on a beartrap automatically released? Or
- * rather, why is this done in this function? I don't know.)
+ * currently "active", it is automatically added to the block list.
  */
 static creature *lookupblock(int pos)
 {
@@ -591,15 +597,6 @@ static creature *lookupblock(int pos)
 	cr->dir = creaturedirid(id);
     else
 	_assert(!"lookupblock() called on blockless location");
-
-    if (cellat(pos)->bot.id == Beartrap) {
-	for (n = 0 ; n < traplistsize() ; ++n) {
-	    if (traplist()[n].to == cr->pos) {
-		cr->state |= CS_RELEASED;
-		break;
-	    }
-	}
-    }
 
     return addtoblocklist(cr);
 }
@@ -676,10 +673,7 @@ static void removecreature(creature *cr)
     cr->state &= ~(CS_SLIP | CS_SLIDE);
     if (cr->id == Chip) {
 	if (chipstatus() == CHIP_OKAY)
-        {
-            warn("lolwut");
 	    chipstatus() = CHIP_NOTOKAY;
-        }
     } else
 	cr->hidden = TRUE;
 }
@@ -864,15 +858,17 @@ static struct { unsigned char chip, block, creature; } const movelaws[] = {
  * function. CMM_TELEPORTPUSH indicates to the block-pushing logic
  * that Chip is teleporting. This prevents a stack of two blocks from
  * being treated as a single block, and allows Chip to push a slipping
- * block away from him. Finally, CMM_NODEFERBUTTONS causes buttons
- * pressed by pushed blocks to take effect immediately.
+ * block away from him. CMM_NOFIRECHECK causes bugs and walkers to not
+ * avoid fire. Finally, CMM_NODEFERBUTTONS causes buttons pressed by
+ * pushed blocks to take effect immediately.
  */
 #define	CMM_NOLEAVECHECK	0x0001
 #define	CMM_NOEXPOSEWALLS	0x0002
 #define	CMM_CLONECANTBLOCK	0x0004
 #define	CMM_NOPUSHING		0x0008
 #define	CMM_TELEPORTPUSH	0x0010
-#define	CMM_NODEFERBUTTONS	0x0020
+#define	CMM_NOFIRECHECK		0x0020
+#define	CMM_NODEFERBUTTONS	0x0040
 
 /* Move a block at the given position forward in the given direction.
  * FALSE is returned if the block cannot be pushed.
@@ -896,9 +892,6 @@ static int pushblock(int pos, int dir, int flags)
 	    if (!(flags & CMM_TELEPORTPUSH))
 		return FALSE;
     }
-
-    if (flags & CMM_NOPUSHING)
-	return FALSE;
 
     if (!(flags & CMM_TELEPORTPUSH) && cellat(pos)->bot.id == Block_Static)
 	cellat(pos)->bot.id = Empty;
@@ -939,23 +932,13 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	  case Wall_West: 	if (dir == WEST)  return FALSE;		break;
 	  case Wall_South: 	if (dir == SOUTH) return FALSE;		break;
 	  case Wall_East: 	if (dir == EAST)  return FALSE;		break;
-	  case Wall_Southeast:
-	    if (dir == SOUTH || dir == EAST)
-		return FALSE;
-	    break;
+	  case Wall_Southeast:	if (dir & (SOUTH | EAST)) return FALSE;	break;
 	  case Beartrap:
 	    if (!(cr->state & CS_RELEASED))
 		return FALSE;
 	    break;
 	}
     }
-
-    floor = floorat(to);
-    if (isanimation(floor))
-	warn("What the hell is going on here? animation %02X at (%d %d)",
-	     floor, to % CXGRID, to / CXGRID);
-    if (isanimation(floor))
-	return FALSE;
 
     if (cr->id == Chip) {
 	floor = floorat(to);
@@ -979,10 +962,10 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	    if (!pushblock(to, dir, flags))
 		return FALSE;
 	    else if (flags & CMM_NOPUSHING)
-		return TRUE;
+		return FALSE;
 	    if ((flags & CMM_TELEPORTPUSH) && floorat(to) == Block_Static
 					   && cellat(to)->bot.id == Empty)
-		    return TRUE;
+		return TRUE;
 	    return canmakemove(cr, dir, flags | CMM_NOPUSHING);
 	}
     } else if (cr->id == Block) {
@@ -1014,7 +997,8 @@ static int canmakemove(creature const *cr, int dir, int flags)
 	if (!(movelaws[floor].creature & dir))
 	    return FALSE;
 	if (floor == Fire && (cr->id == Bug || cr->id == Walker))
-	    return FALSE;
+	    if (!(flags & CMM_NOFIRECHECK))
+		return FALSE;
     }
 
     if (cellat(to)->bot.id == CloneMachine)
@@ -1325,6 +1309,7 @@ static int teleportcreature(creature *cr, int start)
 	cr->pos = dest;
 	f = canmakemove(cr, cr->dir, CMM_NOLEAVECHECK | CMM_NOEXPOSEWALLS
 						      | CMM_NODEFERBUTTONS
+						      | CMM_NOFIRECHECK
 						      | CMM_TELEPORTPUSH);
 	cr->pos = origpos;
 	if (f)
@@ -1511,7 +1496,7 @@ static void endmovement(creature *cr, int dir)
     int		dead = FALSE;
     int		wasslipping;
     int		oldpos, newpos;
-    int		floor, i;
+    int		id, floor, i;
 
     oldpos = cr->pos;
     newpos = cr->pos + delta[dir];
@@ -1519,6 +1504,7 @@ static void endmovement(creature *cr, int dir)
     cell = cellat(newpos);
     tile = &cell->top;
     floor = tile->id;
+
     if (cr->id == Chip) {
 	switch (floor) {
 	  case Empty:
@@ -1612,6 +1598,9 @@ static void endmovement(creature *cr, int dir)
 		newpos = teleportcreature(cr, newpos);
 	    break;
 	}
+	id = cellat(oldpos)->top.id;
+	if (iscreature(id) && creatureid(id) == Chip)
+	    cr->state |= CS_MUTANT;
     } else {
 	if (iscreature(cell->top.id)) {
 	    tile = &cell->bot;
@@ -1655,7 +1644,6 @@ static void endmovement(creature *cr, int dir)
 	    if (floorat(newpos) == Block_Static) {
 		if (lastslipdir() == NIL) {
 		    cr->dir = NORTH;
-		    lookupblock(newpos)->state |= CS_MUTANT;
 		    cellat(newpos)->top.id = crtile(Chip, NORTH);
 		    floor = Empty;
 		} else {
@@ -1800,7 +1788,9 @@ static int checkforending(void)
  * Automatic activities.
  */
 
-/* Execute all forced moves for creatures on the slip list.
+/* Execute all forced moves for creatures on the slip list. (Note the
+ * use of the savedcount variable, which is how slide delay is
+ * implemented.)
  */
 static void floormovements(void)
 {
@@ -1813,25 +1803,32 @@ static void floormovements(void)
 	cr = slips[n].cr;
 	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
 	    continue;
-	slipdir = getslipdir(cr);
+	slipdir = slips[n].dir;
 	if (slipdir == NIL)
 	    continue;
+	if (cr->id == Chip)
+	    lastslipdir() = slipdir;
 	if (advancecreature(cr, slipdir)) {
-	    if (cr->id == Chip) {
+	    if (cr->id == Chip)
 		cr->state &= ~CS_HASMOVED;
-		lastslipdir() = slipdir;
-	    }
 	} else {
 	    floor = cellat(cr->pos)->bot.id;
-	    if (isice(floor) || (floor == Teleport && cr->id == Chip)) {
-		slipdir = icewallturn(floor, back(slipdir));
-		if (advancecreature(cr, slipdir)) {
-		    if (cr->id == Chip)
-			cr->state &= ~CS_HASMOVED;
-		}
-	    } else if (isslide(floor)) {
+	    if (isslide(floor)) {
 		if (cr->id == Chip)
 		    cr->state &= ~CS_HASMOVED;
+	    } else if (isice(floor)) {
+		slipdir = icewallturn(floor, back(slipdir));
+		if (cr->id == Chip)
+		    lastslipdir() = slipdir;
+		if (advancecreature(cr, slipdir))
+		    if (cr->id == Chip)
+			cr->state &= ~CS_HASMOVED;
+	    } else if (cr->id == Chip) {
+		if (floor == Teleport || floor == Block_Static) {
+		    lastslipdir() = slipdir = back(slipdir);
+		    if (advancecreature(cr, slipdir))
+			cr->state &= ~CS_HASMOVED;
+		}
 	    }
 	    if (cr->state & (CS_SLIP | CS_SLIDE)) {
 		endfloormovement(cr);
@@ -1976,22 +1973,24 @@ static void initialhousekeeping(void)
     }
     verifymap();
 
-    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatICChip) {
+    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatStuff) {
 	switch (currentinput()) {
 	  case CmdCheatNorth:		--yviewoffset();		break;
 	  case CmdCheatWest:		--xviewoffset();		break;
 	  case CmdCheatSouth:		++yviewoffset();		break;
 	  case CmdCheatEast:		++xviewoffset();		break;
 	  case CmdCheatHome:		xviewoffset()=yviewoffset()=0;	break;
-	  case CmdCheatKeyRed:		++possession(Key_Red);		break;
-	  case CmdCheatKeyBlue:		++possession(Key_Blue);		break;
-	  case CmdCheatKeyYellow:	++possession(Key_Yellow);	break;
-	  case CmdCheatKeyGreen:	++possession(Key_Green);	break;
-	  case CmdCheatBootsIce:	++possession(Boots_Ice);	break;
-	  case CmdCheatBootsSlide:	++possession(Boots_Slide);	break;
-	  case CmdCheatBootsFire:	++possession(Boots_Fire);	break;
-	  case CmdCheatBootsWater:	++possession(Boots_Water);	break;
-	  case CmdCheatICChip:	if (chipsneeded()) --chipsneeded();	break;
+	  case CmdCheatStuff:
+	    possession(Key_Red) = 127;
+	    possession(Key_Blue) = 127;
+	    possession(Key_Yellow) = 127;
+	    possession(Key_Green) = 127;
+	    possession(Boots_Ice) = 127;
+	    possession(Boots_Slide) = 127;
+	    possession(Boots_Fire) = 127;
+	    possession(Boots_Water) = 127;
+	    chipsneeded() = chipsneeded() ? 0 : 1;
+	    break;
 	}
 	currentinput() = NIL;
 	setnosaving();
@@ -2124,9 +2123,11 @@ static int initgame(gamelogic *logic)
 			  = possession(Boots_Water) = 0;
 
     xy = traplist();
-    for (n = traplistsize(), xy = traplist() ; n ; --n, ++xy)
-	if (istrapbuttondown(xy->from) || xy->to == chippos())
+    for (n = traplistsize(), xy = traplist() ; n ; --n, ++xy) {
+	if (xy->to == chippos() || cellat(xy->to)->top.id == Block_Static
+				|| istrapbuttondown(xy->from))
 	    springtrap(xy->from);
+    }
 
     chipwait() = 0;
     completed() = FALSE;
@@ -2235,10 +2236,7 @@ static void shutdown(gamelogic *logic)
     slipcount = 0;
     slipsallocated = 0;
 
-    resetcreaturepool();
     freecreaturepool();
-    creaturepool = NULL;
-    creaturepoolend = NULL;
 }
 
 /* The exported function: Initialize and return the module's gamelogic
