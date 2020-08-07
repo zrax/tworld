@@ -64,7 +64,7 @@ extern int filewriteint32(fileinfo *file, unsigned long val32,
 extern void *filereadbuf(fileinfo *file, unsigned long size, char const *msg);
 
 /* Read one full line from fp and store the first len characters,
- * minus the trailing newline. len receives the length of the line
+ * including any trailing newline. len receives the length of the line
  * stored in buf upon return.
  */
 extern int filegetline(fileinfo *file, char *buf, int *len, char const *msg);
@@ -81,9 +81,10 @@ extern char *getpathbuffer(void);
  */
 extern int haspathname(char const *name);
 
-/* Append the path and/or file contained in path to dir.
+/* Append the path and/or file contained in path to dir, storing the
+ * result in dest. dest and dir can point to the same buffer.
  */
-extern int combinepath(char *dir, char const *path);
+extern int combinepath(char *dest, char const *dir, char const *path);
 
 /* Verify that the given directory exists, or create it if it doesn't.
  */

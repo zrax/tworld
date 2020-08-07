@@ -1,3 +1,15 @@
+2001 Nov 08: version 0.8.2
+
+* Found problem with teleports: creatures provide their own teleport
+  blockage! Fixed.
+* Careful investigation revealed more timing bugs with buttons, teleports,
+  and maybe beartraps as well. Rewrote the endmovement() function until
+  everything was being done in the right order.
+* Added an "rc" file which can be edited to change the filenames of the
+  external resources.
+* Discovered and fixed a discrepancy in the slide delay.
+* The usual sundry tweaks.
+
 2001 Oct 29: version 0.8.1
 
 * Fixed bug introduced in 0.7.2, correctly this time.
@@ -11,6 +23,8 @@
 * Fixed buried beartrap behavior in MS game logic.
 * Altered the solution file format (been wanting to do that for a long
   time).
+* Gave the program an icon (a temporary one, until I can get someone to
+  make me a real icon).
 
 2001 Oct 23: version 0.7.2
 

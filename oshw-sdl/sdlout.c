@@ -20,6 +20,11 @@
 #define	CXMARGIN	8
 #define	CYMARGIN	8
 
+/* Size of the end-message icons.
+ */
+#define	CXENDICON	16
+#define	CYENDICON	10
+
 /* The dimensions of the visible area of the map (in tiles).
  */
 #define	NXTILES		9
@@ -39,6 +44,10 @@
  */
 static SDL_Surface     *screen = NULL;
 
+/* Some prompting icons.
+ */
+static SDL_Surface     *endmsgicons = NULL;
+
 /* Special pixel values.
  */
 static Uint32		clr_black, clr_white, clr_gray, clr_red, clr_yellow;
@@ -56,6 +65,62 @@ static int		xhint, yhint, cxhint, cyhint;
 static int		xendmsg, yendmsg, cxendmsg, cyendmsg;
 static int		xlist, ylist, cxlist, cylist;
 static int		cxscreen, cyscreen;
+
+/* Create some simple icons used to prompt the user.
+ */
+
+static int createendmsgicons(void)
+{
+    static Uint8 iconpixels[] = {
+	0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,
+	0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,
+	0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+	0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+	0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0
+    };
+
+    if (!endmsgicons) {
+	endmsgicons = SDL_CreateRGBSurfaceFrom(iconpixels,
+					       CXENDICON, 3 * CYENDICON,
+					       8, CXENDICON, 0, 0, 0, 0);
+	if (!endmsgicons) {
+	    warn("couldn't create SDL surface: %s", SDL_GetError());
+	    return FALSE;
+	}
+	endmsgicons->format->palette->colors[0].r = 0;
+	endmsgicons->format->palette->colors[0].g = 0;
+	endmsgicons->format->palette->colors[0].b = 0;
+	endmsgicons->format->palette->colors[1].r = 192;
+	endmsgicons->format->palette->colors[1].g = 192;
+	endmsgicons->format->palette->colors[1].b = 192;
+    }
+    return TRUE;
+}
 
 /*
  *
@@ -102,8 +167,8 @@ static int layoutscreen(void)
     cxinventory = cx;
     cyinventory = 2 * cytile;
 
-    cxendmsg = 7 * ccfont.w;
-    cyendmsg = ccfont.h;
+    cxendmsg = CXENDICON;
+    cyendmsg = CYENDICON;
     xendmsg = xinfo + cxinfo - cxendmsg;
     yendmsg = ytitle + cytitle - cyendmsg;
 
@@ -458,7 +523,7 @@ int displaylist(char const *title, char const *header,
 	list.h -= ccfont.h;
     }
 
-    _sdlcreatescroll(&scroll, &list, clr_black, clr_yellow, itemcount, items);
+    _sdlcreatescroll(&scroll, &list, clr_yellow, itemcount, items);
     _sdlscrollsetindex(&scroll, *index);
 
     for (;;) {
@@ -476,6 +541,27 @@ int displaylist(char const *title, char const *header,
     if (n)
 	*index = _sdlscrollindex(&scroll);
     return n;
+}
+
+/* Display a message appropriate to the end of game play in one corner.
+ */
+int displayendmessage(int completed)
+{
+    SDL_Rect	src, dest;
+
+    if (!endmsgicons)
+	return FALSE;
+    src.x = 0;
+    src.y = (completed + 1) * CYENDICON;
+    src.w = CXENDICON;
+    src.h = CYENDICON;
+    dest.x = xendmsg;
+    dest.y = yendmsg;
+    dest.w = cxendmsg;
+    dest.h = cyendmsg;
+    SDL_BlitSurface(endmsgicons, &src, screen, &dest);
+    SDL_UpdateRect(screen, dest.x, dest.y, dest.w, dest.h);
+    return TRUE;
 }
 
 /* Display some online help text, either arranged in columns or with
@@ -550,23 +636,13 @@ int displayhelp(int type, char const *title, void const *text, int textcount,
 	}
     }
 
-    if (completed)
-	_sdlputtext(xendmsg, yendmsg, completed > 0 ? "  [end]" : " [next]");
+    displayendmessage(completed);
 
     if (SDL_MUSTLOCK(screen))
 	SDL_UnlockSurface(screen);
 
     SDL_UpdateRect(screen, 0, 0, 0, 0);
 
-    return TRUE;
-}
-
-/* Display a message appropriate to the end of game play in one corner.
- */
-int displayendmessage(int completed)
-{
-    _sdlputtext(xendmsg, yendmsg, completed > 0 ? " [next]" : "[again]");
-    SDL_UpdateRect(screen, xendmsg, yendmsg, cxendmsg, cyendmsg);
     return TRUE;
 }
 
@@ -606,8 +682,12 @@ int _sdloutputinitialize(void)
 						   | screen->format->Bmask);
     }
     ccfont.color = clr_white;
+    ccfont.bkgnd = clr_black;
     _sdlsettextfont(&ccfont);
     _sdlsettransparentcolor(clr_transparent);
+
+    if (!createendmsgicons())
+	return FALSE;
 
     return TRUE;
 }

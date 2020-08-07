@@ -7,18 +7,23 @@ ___________________________________________________________________________
 
 Bugs in the MS game logic emulation
 
-* The behavior of the paramecia around the teleports in Eric Schmidt's
-  level 29 ("PARAMECIA") does not match the real game. I don't yet know why
-  this is.
-* Some subtleties of timings on "simultaneous" events are incorrect. For
-  example, if Chip enters a teleport in such a way as to cause a block to
-  press a button, the button's effect is applied after selecting a
-  teleport. In the real game it is the other way round.
-* Chips move's are "quantized" so as to occur exactly on 1/20-second
-  intervals, rather than occuring the moment a key is pressed. I believe
-  that this difference does not actually affect game play, but it does
-  affect how the game appears when Chip makes two moves in a single
-  interval.
+* The behavior of the paramecia in Eric Schmidt's level 29 ("PARAMECIA")
+  still does not match the real game (although it's much closer than it was
+  before). I don't yet know what the root cause of the discrepancy is.
+* (It is debatable whether or not this one qualifies as a bug.) The
+  keyboard is scanned twice per tick, once at the beginning and once in the
+  middle. As a result, if Chip makes a move at the beginning of a tick, the
+  game does not update the display twice in a row (once after the creatures
+  move and once after Chip moves), but just does it once. In a few places
+  this does have a non-trivial effect on how the game appears, most notably
+  when Chip tries to move against a force floor.
+* Several of the weirder obscure bugs aren't reproduced faithfully. (For
+  example, the tank-hits-red-button-cloning-block-which-hits-blue-button
+  bug correctly produces an extra tank in the emulation, but the first tank
+  still gets turned around.) For the most part, I'm not particularly
+  motivated to improve the emulation of these, as they are pretty obscure.
+  However, their existence may point to areas where the emulator could be
+  mirroring the internal logic of the MS game better.
 ___________________________________________________________________________
 
 Bugs in the Lynx game logic emulation
@@ -43,6 +48,12 @@ Bugs in the Lynx game logic emulation
   perpendicular direction) are not supported. The keyboard-handling needs
   to be changed to deal with multiple keypresses in order to make this
   work.
+* The Lynx game only permitted 128 creatures (including Chip) to exist
+  simultaneously. Thus, a clone machine activated when the population was
+  at maximum would "run out". The emulator does not enforce any such
+  maximum. Of course, fixing this would put a limit on the kinds of new
+  levels that people could create under the Lynx ruleset -- so this one may
+  be better off as it is....
 ___________________________________________________________________________
 
 Other bugs and misfeatures

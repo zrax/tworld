@@ -18,6 +18,7 @@
 #include	"help.h"
 #include	"oshw.h"
 #include	"cmdline.h"
+#include	"ver.h"
 
 /* The data needed to identify what is being played.
  */
@@ -40,9 +41,10 @@ typedef	struct startupdata {
 /* Online help.
  */
 static char const *yowzitch = 
-	"Usage: tworld [-hvls] [-DS DIR] [NAME] [LEVEL]\n"
+	"Usage: tworld [-hvlsq] [-DS DIR] [NAME] [LEVEL]\n"
 	"   -D  Read shared data from DIR instead of the default\n"
 	"   -S  Save games in DIR instead of the default\n"
+	"   -q  Run quietly\n"
 	"   -l  Display the list of available data files and exit\n"
 	"   -s  Display your scores for the selected data file and exit\n"
 	"   -h  Display this help and exit\n"
@@ -54,7 +56,7 @@ static char const *yowzitch =
 /* Online version data.
  */
 static char const *vourzhon =
-	"TileWorld, version 0.8.0.\n\n"
+	"TileWorld, version " VERSION ".\n\n"
 	"Copyright (C) 2001 by Brian Raiter, under the terms of the GNU\n"
 	"General Public License; either version 2 of the License, or at\n"
 	"your option any later version.\n"
@@ -65,6 +67,10 @@ static char const *vourzhon =
 	"rough around the edges.)\n"
 	"   Please direct bug reports to breadbox@muppetlabs.com, or post\n"
 	"them on annexcafe.chips.challenge.\n";
+
+static int	silence = FALSE;
+
+#define	bell()	(silence ? (void)0 : ding())
 
 /*
  * The top-level user interface functions.
@@ -100,12 +106,12 @@ static void showscores(gamespec *gs)
     int		listsize, n;
 
     if (!createscorelist(&gs->series, &texts, &listsize, &header)) {
-	ding();
+	bell();
 	return;
     }
     n = gs->currentgame;
     setsubtitle(NULL);
-    if (displaylist("SCORES", header, (char const**)texts, listsize, &n,
+    if (displaylist(gs->series.name, header, (char const**)texts, listsize, &n,
 		    scrollinputcallback))
 	if (n < listsize - 1)
 	    gs->currentgame = n;
@@ -125,7 +131,7 @@ static void replaceablesolution(gamespec *gs)
  */
 static void endinput(gamespec *gs, int status)
 {
-    displayendmessage(status > 0);
+    displayendmessage(status);
 
     for (;;) {
 	switch (input(TRUE)) {
@@ -223,8 +229,12 @@ static void playgame(gamespec *gs)
 	}
     }
     setgameplaymode(EndPlay);
-    if (n > 0 && replacesolution())
-	savesolutions(&gs->series);
+    if (n > 0) {
+	if (replacesolution())
+	    savesolutions(&gs->series);
+	if (gs->currentgame + 1 >= gs->series.count)
+	    n = 0;
+    }
     endinput(gs, n);
     return;
 
@@ -251,7 +261,7 @@ static void noplaygame(gamespec *gs)
 	  case CmdHelp:		gameplayhelp();		return;
 	  case CmdQuitLevel:				exit(0);
 	  case CmdQuit:					exit(0);
-	  default:		ding();			break;
+	  default:		bell();			break;
 	}
     }
 }
@@ -292,6 +302,8 @@ static void playbackgame(gamespec *gs)
     }
     setgameplaymode(EndPlay);
     gs->playback = FALSE;
+    if (n > 0 && gs->currentgame + 1 >= gs->series.count)
+	n = 0;
     endinput(gs, n);
     return;
 
@@ -338,21 +350,18 @@ static void initdirs(char const *root, char const *save)
     strcpy(resdir, root);
 
     seriesdir = getpathbuffer();
-    strcpy(seriesdir, root);
-    combinepath(seriesdir, "data");
+    combinepath(seriesdir, root, "data");
 
     savedir = getpathbuffer();
     if (!save) {
 #ifdef SAVEDIR
 	save = SAVEDIR;
 #else
-	if ((dir = getenv("HOME")) && *dir && strlen(dir) < maxpath - 8) {
-	    strcpy(savedir, dir);
-	    combinepath(savedir, ".tworld");
-	} else {
-	    strcpy(savedir, root);
-	    combinepath(savedir, "save");
-	}
+	if ((dir = getenv("HOME")) && *dir && strlen(dir) < maxpath - 8)
+	    combinepath(savedir, dir, ".tworld");
+	else
+	    combinepath(savedir, root, "save");
+
 #endif
     } else {
 	strcpy(savedir, save);
@@ -375,7 +384,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     start->listseries = FALSE;
     start->listscores = FALSE;
 
-    initoptions(&opts, argc - 1, argv + 1, "D:S:hlsv");
+    initoptions(&opts, argc - 1, argv + 1, "D:S:hlqsv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -391,6 +400,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	    break;
 	  case 'D':	optrootdir = opts.val;				break;
 	  case 'S':	optsavedir = opts.val;				break;
+	  case 'q':	silence = TRUE;					break;
 	  case 'l':	start->listseries = TRUE;			break;
 	  case 's':	start->listscores = TRUE;			break;
 	  case 'h':	fputs(yowzitch, stdout); 	   exit(EXIT_SUCCESS);
@@ -530,16 +540,16 @@ int main(int argc, char *argv[])
     for (;;) {
 	if (spec.currentgame < 0) {
 	    spec.currentgame = 0;
-	    ding();
+	    bell();
 	}
 	if (spec.currentgame >= spec.series.total) {
 	    spec.currentgame = spec.series.total - 1;
-	    ding();
+	    bell();
 	}
 	if (spec.playback
 		&& !hassolution(spec.series.games + spec.currentgame)) {
 	    spec.playback = FALSE;
-	    ding();
+	    bell();
 	}
 
 	spec.invalid = !initgamestate(&spec.series, spec.currentgame,

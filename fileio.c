@@ -179,7 +179,7 @@ void *filereadbuf(fileinfo *file, unsigned long size, char const *msg)
 }
 
 /* Read one full line from fp and store the first len characters,
- * minus the trailing newline.
+ * including any trailing newline.
  */
 int filegetline(fileinfo *file, char *buf, int *len, char const *msg)
 {
@@ -327,23 +327,29 @@ int haspathname(char const *name)
 /* Append the path and/or file contained in path to dir. If path is
  * an absolute path, the original contents of dir are discarded.
  */
-int combinepath(char *dir, char const *path)
+int combinepath(char *dest, char const *dir, char const *path)
 {
     int	m, n;
 
     if (path[0] == DIRSEP_CHAR) {
-	strcpy(dir, path);
+	strcpy(dest, path);
 	return TRUE;
     }
     n = strlen(dir);
-    if (dir[n - 1] != DIRSEP_CHAR)
-	dir[n++] = DIRSEP_CHAR;
+    if (n >= PATH_MAX) {
+	errno = ENAMETOOLONG;
+	return FALSE;
+    }
+    if (dest != dir)
+	memcpy(dest, dir, n);
+    if (dest[n - 1] != DIRSEP_CHAR)
+	dest[n++] = DIRSEP_CHAR;
     m = strlen(path);
     if (m + n + 1 > PATH_MAX) {
 	errno = ENAMETOOLONG;
 	return FALSE;
     }
-    memcpy(dir + n, path, m + 1);
+    memcpy(dest + n, path, m + 1);
     return TRUE;
 }
 
