@@ -26,8 +26,13 @@ extern int getscoresforlevel(gameseries const *series, int level,
 extern int createscorelist(gameseries const *series, int usepasswds,
 			   int **plevellist, int *pcount, tablespec *table);
 
+extern int createtimelist(gameseries const *series, int usefractions,
+			  int **plevellist, int *pcount, tablespec *table);
+
 /* Free the memory allocated by createscorelist().
  */
 extern void freescorelist(int *plevellist, tablespec *table);
+
+#define freetimelist(list, table)	(freescorelist(list, table))
 
 #endif

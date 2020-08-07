@@ -270,7 +270,6 @@ static int loadsounds(void)
 	    ++count;
     }
     free(path);
-    selectsoundset(currentruleset);
     return count;
 }
 
@@ -294,4 +293,14 @@ int initresources(void)
     initresourcedefaults();
     resources = allresources[Ruleset_None];
     return readrcfile() && loadfont();
+}
+
+void freeallresources(void)
+{
+    int	n;
+
+    freefont();
+    freetileset();
+    for (n = 0 ; n < SND_COUNT ; ++n)
+	 freesfx(n);
 }

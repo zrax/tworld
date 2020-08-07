@@ -77,12 +77,9 @@ static keycmdmap const gamekeycmds[] = {
     { SDLK_RETURN,               -1, -1,  0,   CmdProceed,    FALSE },
     { SDLK_KP_ENTER,             -1, -1,  0,   CmdProceed,    FALSE },
     { ' ',                       -1, -1,  0,   CmdProceed,    FALSE },
-    { '.',                        0, -1,  0,   CmdProceed,    FALSE },
-    { SDLK_KP_PERIOD,             0, -1,  0,   CmdProceed,    FALSE },
     { 'd',                        0,  0,  0,   CmdDebugCmd1,  FALSE },
     { 'd',                       +1,  0,  0,   CmdDebugCmd2,  FALSE },
     { 'c',                        0, +1,  0,   CmdQuit,       FALSE },
-    { SDLK_BACKSLASH,             0, +1,  0,   CmdQuit,       FALSE },
     { SDLK_F4,                    0,  0, +1,   CmdQuit,       FALSE },
     { SDLK_UP,                   +1,  0,  0,   CmdCheatNorth,         TRUE },
     { SDLK_LEFT,                 +1,  0,  0,   CmdCheatWest,          TRUE },
@@ -142,7 +139,6 @@ static keycmdmap const inputkeycmds[] = {
     { 'y',                       -1,  0,  0,   'y',           FALSE },
     { 'z',                       -1,  0,  0,   'z',           FALSE },
     { 'c',                        0, +1,  0,   CmdQuit,       FALSE },
-    { SDLK_BACKSLASH,             0, +1,  0,   CmdQuit,       FALSE },
     { SDLK_F4,                    0,  0, +1,   CmdQuit,       FALSE },
     { 0, 0, 0, 0, 0, 0 }
 };
@@ -343,4 +339,51 @@ int _sdlinputinitialize(void)
 
     setkeyboardrepeat(TRUE);
     return TRUE;
+}
+
+/* Online help text for the keyboard.
+ */
+tablespec const *keyboardhelp(int which)
+{
+    static char *ingame_items[] = {
+	"1-arrows", "1-move Chip",
+	"1-2 4 6 8 (keypad)", "1-also move Chip",
+	"1-q", "1-quit the current game",
+	"1-Q", "1-exit the program",
+	"1-Ctrl-h (Bkspc)", "1-pause the game",
+	"1-Ctrl-r", "1-restart the current level",
+	"1-Ctrl-p", "1-jump to the previous level",
+	"1-Ctrl-n", "1-jump to the next level"
+    };
+    static tablespec const keyhelp_ingame = { 8, 2, 4, 1, ingame_items };
+
+    static char *twixtgame_items[] = {
+	"1-p", "1-jump to the previous level",
+	"1-n", "1-jump to the next level",
+	"1-g", "1-go to a level with a password",
+	"1-s", "1-see the current score",
+	"1-q", "1-return to the file list",
+	"1-Q", "1-exit the program",
+	"1-Ctrl-i (Tab)", "1-playback saved solution",
+	"1-Ctrl-x", "1-replace existing solution"
+    };
+    static tablespec const keyhelp_twixtgame = { 8, 2, 4, 1, twixtgame_items };
+
+    static char *scroll_items[] = {
+	"1-up down", "1-move selection",
+	"1-PgUp PgDn", "1-scroll selection",
+	"1-Enter Space", "1-select",
+	"1-q", "1-cancel",
+	"1-Q", "1-exit the program"
+    };
+    static tablespec const keyhelp_scroll = { 4, 2, 4, 1, scroll_items };
+
+    switch (which) {
+      case KEYHELP_INGAME:	return &keyhelp_ingame;
+      case KEYHELP_TWIXTGAMES:	return &keyhelp_twixtgame;
+      case KEYHELP_FILELIST:	return &keyhelp_scroll;
+      case KEYHELP_SCORELIST:	return &keyhelp_scroll;
+    }
+
+    return NULL;
 }

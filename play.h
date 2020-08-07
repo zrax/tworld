@@ -16,7 +16,11 @@ enum { BeginPlay, EndPlay, SuspendPlay, ResumePlay, BeginInput, EndInput };
 /* Initialize the current state to the starting position of the
  * given level.
  */
-extern int initgamestate(gamesetup *game, int ruleset, int replay);
+extern int initgamestate(gamesetup *game, int ruleset);
+
+/* Change the current state to run from the recorded solution.
+ */
+extern int prepareplayback(void);
 
 /* Move the program in and out of game-play mode. This affects
  * the running of the timer and the handling of the keyboard.
@@ -38,6 +42,10 @@ extern int drawscreen(void);
 /* Free any resources associates with the current game state.
  */
 extern int endgamestate(void);
+
+/* Free all persistent resources in the module.
+ */
+extern void shutdowngamestate(void);
 
 /* Return TRUE if a solution exists for the given level.
  */

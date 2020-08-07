@@ -8,6 +8,7 @@
 #define	_oshw_h_
 
 #include	<stdarg.h>
+#include	"gen.h"
 
 /* Initialize the OS/hardware interface. This function must be called
  * before any others in the oshw library.
@@ -70,6 +71,20 @@ extern int input(int wait);
  * quit keys.
  */
 extern int anykey(void);
+
+/* Returns a table suitable for displaying a help screen on the
+ * available keyboard commands for the given context.
+ */
+extern tablespec const *keyboardhelp(int which);
+
+/* Symbolic values for requesting a specific help table.
+ */
+enum {
+    KEYHELP_INGAME,
+    KEYHELP_TWIXTGAMES,
+    KEYHELP_FILELIST,
+    KEYHELP_SCORELIST
+};
 
 /*
  * Resource-loading functions.
@@ -153,6 +168,18 @@ enum {
     SCROLL_ALLTHEWAY_DN		= -9
 };
 
+/* Display an input prompt to the user. prompt supplies the prompt to
+ * display, and input is the buffer to store the user's input. maxlen
+ * puts a maximum length on the input. The supplied callback function
+ * is called repeatedly to obtain input. If the callback function
+ * returns a printing ASCII character, the function will automatically
+ * append it to the string in input. If '\b' is returned, the function
+ * will erase the last character in input, if any. If '\f' is returend
+ * the function will erase all of input. If '\n' or a negative value
+ * is returned, then displayinputprompt() returns to the caller.  All
+ * other return values are ignored. The return value will be TRUE if
+ * the callback's last return value was '\n', and FALSE otherwise.
+ */
 extern int displayinputprompt(char const *prompt, char *input, int maxlen,
 			      int (*inputcallback)(void));
 
@@ -168,11 +195,6 @@ extern int setaudiosystem(int active);
  * effect.
  */
 extern int loadsfxfromfile(int index, char const *filename);
-
-/* Select the onomatopoeia to be used for textual sound effects based
- * on the given ruleset.
- */
-extern void selectsoundset(int ruleset);
 
 /* Select the sounds effects to be played at this time.
  */
@@ -215,18 +237,14 @@ extern void usermessage(int action, char const *prefix,
 			char const *cfile, unsigned long lineno,
 			char const *fmt, va_list args);
 
-/* A structure used to define text with illustrations.
+/* Structures used to define text with illustrations.
  */
-typedef	struct objhelptext {
+typedef	struct tiletablerow {
     int		isfloor;	/* TRUE if the images are floor tiles */
     int		item1;		/* first illustration */
     int		item2;		/* second illustration */
     char const *desc;		/* text */
-} objhelptext;
-
-/* Values indicating the type of data passed to the following function.
- */
-enum { HELP_TABTEXT, HELP_OBJECTS };
+} tiletablerow;
 
 /* Displays a screenful of (hopefully) helpful information. title
  * provides the title of the display. text points to an array of
@@ -238,7 +256,10 @@ enum { HELP_TABTEXT, HELP_OBJECTS };
  * array contains objhelptext structures, and the text is displayed to
  * the right of the indicated tiles.
  */
-extern int displayhelp(int type, char const *title,
-		       void const *text, int textcount, int completed);
+extern int displaytiletable(char const *title, tiletablerow const *rows,
+			    int count, int completed);
+
+extern int displaytable(char const *title, tablespec const *table,
+			int completed);
 
 #endif

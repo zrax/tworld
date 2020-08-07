@@ -192,8 +192,8 @@ typedef	struct gameseries {
     int			ruleset;	/* the ruleset for the game file */
     int			usepasswds;	/* FALSE if passwords are ignored */
     gamesetup	       *games;		/* the list of levels */
-    fileinfo		cfgfile;	/* the file containing the levels */
     fileinfo		mapfile;	/* the file containing the levels */
+    char	       *mapfilename;	/* the name of said file */
     fileinfo		solutionfile;	/* the file of the user's solutions */
     int			solutionflags;	/* settings for the saved solutions */
     int			allmapsread;	/* TRUE if levels are at EOF */
