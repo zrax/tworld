@@ -32,6 +32,7 @@ typedef	struct gamespec {
     int		playback;	/* TRUE if in playback mode */
     int		usepasswds;	/* FALSE if passwords are to be ignored */
     int		status;		/* final status of last game played */
+    int		enddisplay;	/* TRUE if the last level has been completed */
 } gamespec;
 
 /* Structure used to pass data back from initoptionswithcmdline().
@@ -65,6 +66,10 @@ static int	usepasswds = TRUE;
 /* TRUE if the user requested an idle-time histogram.
  */
 static int	showhistogram = FALSE;
+
+/* Slowdown factor.
+ */
+static int	mudsucking = 1;
 
 /*
  * The program's text-mode output functions.
@@ -326,6 +331,37 @@ static int selectlevelbypassword(gamespec *gs)
 
 #define	leveldelta(n)	if (!changecurrentgame(gs, (n))) { bell(); continue; }
 
+/*
+ */
+static int doenddisplay(gamespec *gs)
+{
+    int	cmd;
+
+    initgamestate(enddisplaylevel(), gs->series.ruleset);
+    setsubtitle(NULL);
+    drawscreen();
+    displayendmessage(0, 0, 0, 0);
+    endgamestate();
+    for (;;) {
+	cmd = input(TRUE);
+	switch (cmd) {
+	  case CmdSameLevel:
+	  case CmdSame:
+	    return TRUE;
+	  case CmdPrevLevel:
+	  case CmdPrev:
+	  case CmdNextLevel:
+	  case CmdNext:
+	    changecurrentgame(gs, -gs->currentgame);
+	    return TRUE;
+	  case CmdQuit:
+	    exit(0);
+	  default:
+	    return FALSE;
+	}
+    }
+}
+
 /* Get a keystroke from the user at the start of the current level.
  */
 static int startinput(gamespec *gs)
@@ -408,8 +444,14 @@ static int endinput(gamespec *gs)
 	  case CmdQuitLevel:					return FALSE;
 	  case CmdQuit:						exit(0);
 	  case CmdProceed:
-	    if (gs->status > 0)
-		changecurrentgame(gs, +1);
+	    if (gs->status > 0) {
+		if (gs->currentgame + 1 == gs->series.total ||
+			gs->series.games[gs->currentgame].number == gs->series.final) {
+		    gs->enddisplay = TRUE;
+		} else {
+		    changecurrentgame(gs, +1);
+		}
+	    }
 	    return TRUE;
 	}
     }
@@ -487,8 +529,10 @@ static int playgame(gamespec *gs, int firstcmd)
     if (n > 0) {
 	if (replacesolution())
 	    savesolutions(&gs->series);
+/*
 	if (gs->currentgame + 1 >= gs->series.count)
 	    n = 0;
+*/
     }
     gs->status = n;
     return TRUE;
@@ -615,6 +659,7 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	return FALSE;
     }
 
+    gs->enddisplay = FALSE;
     gs->playback = FALSE;
     gs->usepasswds = usepasswds && gs->series.usepasswds;
     gs->currentgame = -1;
@@ -760,8 +805,9 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     start->listscores = FALSE;
     start->listtimes = FALSE;
     listdirs = FALSE;
+    mudsucking = 1;
 
-    initoptions(&opts, argc - 1, argv + 1, "D:L:HR:S:Vdhlpqstv");
+    initoptions(&opts, argc - 1, argv + 1, "D:dHhL:lm:pqR:S:stv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -786,6 +832,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	  case 'l':	start->listseries = TRUE;			break;
 	  case 's':	start->listscores = TRUE;			break;
 	  case 't':	start->listtimes = TRUE;			break;
+	  case 'm':	mudsucking = atoi(opts.val);			break;
 	  case 'h':	printtable(stdout, yowzitch); 	   exit(EXIT_SUCCESS);
 	  case 'v':	puts(VERSION);		 	   exit(EXIT_SUCCESS);
 	  case 'V':	printtable(stdout, vourzhon); 	   exit(EXIT_SUCCESS);
@@ -821,6 +868,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
  */
 static int initializesystem(void)
 {
+    setmudsuckingfactor(mudsucking);
     if (!oshwinitialize(silence, showhistogram))
 	return FALSE;
     if (!initresources())
@@ -917,6 +965,11 @@ static int runcurrentlevel(gamespec *gs)
     int ret = TRUE;
     int	cmd;
     int	valid, f;
+
+    if (gs->enddisplay) {
+	gs->enddisplay = FALSE;
+	return doenddisplay(gs);
+    }
 
     valid = initgamestate(gs->series.games + gs->currentgame,
 			  gs->series.ruleset);

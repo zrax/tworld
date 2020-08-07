@@ -11,6 +11,11 @@
 #include	"random.h"
 #include	"logic.h"
 
+/* A number well above the maximum number of creatures that could possibly
+ * exist simultaneously.
+ */
+#define	MAX_CREATURES	(2 * CXGRID * CYGRID)
+
 /* The walker's PRNG seed value. Don't change this; it needs to
  * remain forever constant.
  */
@@ -33,11 +38,16 @@ enum {
 #define	SF_GREENTOGGLE		0x0010	/* green button has been toggled */
 #define	SF_COULDNTMOVE		0x0020	/* can't-move sound has been played */
 #define	SF_CHIPPUSHING		0x0040	/* Chip is pushing against something */
+#define	SF_COMPLETED		0x0080	/* level completed successfully */
 
 /* Declarations of (indirectly recursive) functions.
  */
 static int canmakemove(creature const *cr, int dir, int flags);
 static int advancecreature(creature *cr, int releasing);
+
+/* Used to calculate movement offsets.
+ */
+static int const	delta[] = { 0, -CXGRID, -1, 0, +CXGRID, 0, 0, 0, +1 };
 
 /* A pointer to the game state, used so that it doesn't have to be
  * passed to every single function.
@@ -57,7 +67,11 @@ static prng		walkerprng;
  */
 static creature	       *creaturearray = NULL;
 
-#define	MAX_CREATURES	(CXGRID * CYGRID)
+/* Used to detect when Chip collides with a creature that is just in
+ * the process of moving out of its position.
+ */
+static int		pos_chipmovingto = -1;
+static creature	       *cr_chipmovingto = NULL;
 
 static int		xviewoffset, yviewoffset;
 
@@ -82,14 +96,16 @@ static int		xviewoffset, yviewoffset;
 #define	xviewpos()		(state->xviewpos)
 #define	yviewpos()		(state->yviewpos)
 
-#define	inendgame()		(state->statusflags & SF_ENDGAMETIMERBITS)
-#define	decrendgametimer()	(--state->statusflags & SF_ENDGAMETIMERBITS)
-#define	startendgametimer()	(state->statusflags |= SF_ENDGAMETIMERBITS)
-
 #define	iscompleted()		(state->statusflags & SF_COMPLETED)
 #define	setcompleted()		(state->statusflags |= SF_COMPLETED)
 #define	setnosaving()		(state->statusflags |= SF_NOSAVING)
 #define	showhint()		(state->statusflags |= SF_SHOWHINT)
+#define	markinvalid()		(state->statusflags |= SF_INVALID)
+#define	ismarkedinvalid()	(state->statusflags & SF_INVALID)
+
+#define	inendgame()		(state->statusflags & SF_ENDGAMETIMERBITS)
+#define	decrendgametimer()	(--state->statusflags & SF_ENDGAMETIMERBITS)
+#define	startendgametimer()	(state->statusflags |= SF_ENDGAMETIMERBITS)
 #define	hidehint()		(state->statusflags &= ~SF_SHOWHINT)
 #define	isgreentoggleset()	(state->statusflags & SF_GREENTOGGLE)
 #define	togglegreen()		(state->statusflags ^= SF_GREENTOGGLE)
@@ -363,6 +379,7 @@ static int stopanimation(int pos)
 static void removechip(int reason, creature *also)
 {
     creature  *chip = getchip();
+    int		pos, moving;
 
     switch (reason) {
       case RMC_DROWNED:
@@ -377,15 +394,20 @@ static void removechip(int reason, creature *also)
 	addanimation(chip->pos, NIL, 0, Entity_Explosion, 12);
 	break;
       case RMC_BURNED:
-	addsoundeffect(SND_DEREZZ);
+	addsoundeffect(SND_CHIP_LOSES);
 	addanimation(chip->pos, NIL, 0, Entity_Explosion, 12);
 	break;
       case RMC_COLLIDED:
-	addsoundeffect(SND_DEREZZ);
+	addsoundeffect(SND_CHIP_LOSES);
 	addanimation(chip->pos, chip->dir, chip->moving, Entity_Explosion, 12);
 	if (also) {
-	    addanimation(also->pos, also->dir, also->moving,
-			 Entity_Explosion, 12);
+	    pos = also->pos;
+	    moving = also->moving;
+	    if (moving == 8) {
+		pos -= delta[also->dir];
+		moving = 0;
+	    }
+	    addanimation(pos, also->dir, moving, Entity_Explosion, 12);
 	    removecreature(also);
 	}
 	break;
@@ -549,6 +571,18 @@ static struct { unsigned char chip, block, creature; } const movelaws[] = {
     /* Boots_Fire */
     { ALL_IN_OUT, ALL_OUT, ALL_OUT },
     /* Block_Static */
+    { 0, 0, 0 },
+    /* Burned_Chip */
+    { 0, 0, 0 },
+    /* Bombed_Chip */
+    { 0, 0, 0 },
+    /* Exited_Chip */
+    { 0, 0, 0 },
+    /* Exit_Extra_1 */
+    { 0, 0, 0 },
+    /* Exit_Extra_2 */
+    { 0, 0, 0 },
+    /* Overlay_Buffer */
     { 0, 0, 0 },
     /* Floor_Reserved3 */
     { 0, 0, 0 },
@@ -855,6 +889,27 @@ static int choosemove(creature *cr)
     return cr->tdir != NIL || cr->fdir != NIL;
 }
 
+static void checkmovingto(void)
+{
+    creature   *cr;
+    int		dir;
+
+    cr = getchip();
+    dir = cr->tdir;
+    if (dir == NIL) {
+	pos_chipmovingto = -1;
+	cr_chipmovingto = NULL;
+	return;
+    }
+    if ((dir & (NORTH | SOUTH)) && (dir & (EAST | WEST))) {
+	pos_chipmovingto = -1;
+	cr_chipmovingto = NULL;
+	return;
+    }
+    pos_chipmovingto = cr->pos + delta[dir];
+    cr_chipmovingto = NULL;
+}
+
 /*
  * Special movements.
  */
@@ -895,12 +950,11 @@ static int teleportcreature(creature *cr)
     cr->pos = pos;
     if (cr->id != Chip)
 	claimlocation(cr->pos);
-    if (cr->id == Chip)
-	addsoundeffect(SND_TELEPORTING);
     return TRUE;
 }
 
-/* Cause a clone machine to produce a clone.
+/* Release a creature currently inside a clone machine. If the
+ * creature successfully exits, a new clone is created to replace it.
  */
 static int activatecloner(int pos)
 {
@@ -917,8 +971,7 @@ static int activatecloner(int pos)
 	return FALSE;
     *clone = *cr;
     if (!advancecreature(cr, TRUE)) {
-	if (!cr->hidden)
-	    clone->hidden = TRUE;
+	clone->hidden = TRUE;
 	return FALSE;
     }
     return TRUE;
@@ -946,10 +999,9 @@ static void springtrap(int pos)
  */
 static int startmovement(creature *cr, int releasing)
 {
-    static int const	delta[] = { 0, -CXGRID, -1, 0, +CXGRID, 0, 0, 0, +1 };
-    int			dir;
-    int			floorfrom;
-    int			f1, f2;
+    int	dir;
+    int	floorfrom;
+    int	f1, f2;
 
     assert(cr->moving <= 0);
 
@@ -993,10 +1045,6 @@ static int startmovement(creature *cr, int releasing)
 
     if (!canmakemove(cr, dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS
 					| (releasing ? CMM_RELEASING : 0))) {
-	if (isice(floorfrom) && (cr->id != Chip || !possession(Boots_Ice))) {
-	    cr->dir = back(dir);
-	    applyicewallturn(cr);
-	}
 	if (cr->id == Chip) {
 	    if (!iscouldntmoveset()) {
 		setcouldntmove();
@@ -1004,14 +1052,27 @@ static int startmovement(creature *cr, int releasing)
 	    }
 	    setpushing();
 	}
+	if (isice(floorfrom) && (cr->id != Chip || !possession(Boots_Ice))) {
+	    cr->dir = back(dir);
+	    applyicewallturn(cr);
+	    if (cr->id == Chip)
+		resetpushing();
+	}
 	return FALSE;
     }
 
     if (floorfrom == CloneMachine || floorfrom == Beartrap)
 	assert(releasing);
 
-    if (cr->id != Chip)
+    if (cr->id != Chip) {
 	removeclaim(cr->pos);
+	if (cr->id != Block && cr->pos == pos_chipmovingto)
+	    cr_chipmovingto = cr;
+    } else if (cr_chipmovingto && !cr_chipmovingto->hidden) {
+	cr_chipmovingto->moving = 8;
+	removechip(RMC_COLLIDED, cr_chipmovingto);
+	return FALSE;
+    }
     cr->pos += delta[dir];
     if (ismarkedanimated(cr->pos))
 	stopanimation(cr->pos);
@@ -1128,7 +1189,7 @@ static int endmovement(creature *cr)
 	    if (chipsneeded())
 		--chipsneeded();
 	    floorat(cr->pos) = Empty;
-	    addsoundeffect(SND_ITEM_COLLECTED);
+	    addsoundeffect(SND_IC_COLLECTED);
 	    break;
 	  case Socket:
 	    assert(chipsneeded() == 0);
@@ -1136,9 +1197,8 @@ static int endmovement(creature *cr)
 	    addsoundeffect(SND_SOCKET_OPENED);
 	    break;
 	  case Exit:
-	    setcompleted();
 	    cr->hidden = TRUE;
-	    startendgametimer();
+	    setcompleted();
 	    addsoundeffect(SND_CHIP_WINS);
 	    break;
 	}
@@ -1181,6 +1241,8 @@ static int endmovement(creature *cr)
 	}
 	break;
       case Teleport:
+	if (cr->id == Chip)
+	    addsoundeffect(SND_TELEPORTING);
 	teleportcreature(cr);
 	break;
       case Beartrap:
@@ -1341,16 +1403,31 @@ static void initialhousekeeping(void)
     if (chip->id == Pushing_Chip)
 	chip->id = Chip;
 
-    if (!inendgame() && timelimit() && currenttime() >= timelimit())
-	removechip(RMC_OUTOFTIME, NULL);
+    if (!inendgame()) {
+	if (timelimit() && currenttime() >= timelimit())
+	    removechip(RMC_OUTOFTIME, NULL);
+	if (iscompleted()) {
+	    startendgametimer();
+	    state->timeoffset = 1;
+	}
+    }
 
     if (isgreentoggleset())
 	togglewalls();
     resetgreentoggle();
 
     for (cr = creaturelist() ; cr->id ; ++cr) {
-	if (!cr->hidden && isanimation(cr->id) && cr->frame <= 0)
+	if (cr->hidden)
+	    continue;
+	if (isanimation(cr->id) && cr->frame <= 0) {
 	    removecreature(cr);
+	} else if (cr->state & CS_REVERSE) {
+	    cr->state &= ~CS_REVERSE;
+	    if (cr->moving <= 0)
+		cr->dir = back(cr->dir);
+	}
+    }
+    for (cr = creaturelist() ; cr->id ; ++cr) {
 	if (cr->state & CS_NOISYMOVEMENT) {
 	    if (cr->hidden || cr->moving <= 0) {
 		stopsoundeffect(SND_BLOCK_MOVING);
@@ -1388,6 +1465,9 @@ static void initialhousekeeping(void)
 	currentinput() = NIL;
 	setnosaving();
     }
+
+    pos_chipmovingto = -1;
+    cr_chipmovingto = NULL;
 }
 
 /* Actions and checks that occur at the end of every tick.
@@ -1396,17 +1476,9 @@ static void finalhousekeeping(void)
 {
     creature   *cr;
 
-    for (cr = creaturelist() ; cr->id ; ++cr) {
-	if (cr->hidden)
-	    continue;
-	if (isanimation(cr->id))
+    for (cr = creaturelist() ; cr->id ; ++cr)
+	if (!cr->hidden && isanimation(cr->id))
 	    --cr->frame;
-	if (cr->state & CS_REVERSE) {
-	    cr->state &= ~CS_REVERSE;
-	    if (cr->moving <= 0)
-		cr->dir = back(cr->dir);
-	}
-    }
 }
 
 /* Set the state fields specifically used to produce the output.
@@ -1429,33 +1501,34 @@ static void preparedisplay(void)
 	  case EAST:	xviewpos() -= chip->moving;	break;
 	}
     }
-    if (!chip->hidden && floor == HintButton && chip->moving <= 0)
-	showhint();
-    else
-	hidehint();
 
-    if (ispushing())
-	chip->id = Pushing_Chip;
-
-    if (chip->moving) {
-	resetfloorsounds(FALSE);
-	floor = floorat(chip->pos);
-	if (floor == Fire && possession(Boots_Fire))
-	    addsoundeffect(SND_FIREWALKING);
-	else if (floor == Water && possession(Boots_Water))
-	    addsoundeffect(SND_WATERWALKING);
-	else if (isice(floor)) {
-	    if (possession(Boots_Ice))
-		addsoundeffect(SND_ICEWALKING);
-	    else if (floor == Ice)
-		addsoundeffect(SND_SKATING_FORWARD);
-	    else
-		addsoundeffect(SND_SKATING_TURN);
-	} else if (isslide(floor)) {
-	    if (possession(Boots_Slide))
-		addsoundeffect(SND_SLIDEWALKING);
-	    else
-		addsoundeffect(SND_SLIDING);
+    if (!chip->hidden) {
+	if (floor == HintButton && chip->moving <= 0)
+	    showhint();
+	else
+	    hidehint();
+	if (ispushing())
+	    chip->id = Pushing_Chip;
+	if (chip->moving) {
+	    resetfloorsounds(FALSE);
+	    floor = floorat(chip->pos);
+	    if (floor == Fire && possession(Boots_Fire))
+		addsoundeffect(SND_FIREWALKING);
+	    else if (floor == Water && possession(Boots_Water))
+		addsoundeffect(SND_WATERWALKING);
+	    else if (isice(floor)) {
+		if (possession(Boots_Ice))
+		    addsoundeffect(SND_ICEWALKING);
+		else if (floor == Ice)
+		    addsoundeffect(SND_SKATING_FORWARD);
+		else
+		    addsoundeffect(SND_SKATING_TURN);
+	    } else if (isslide(floor)) {
+		if (possession(Boots_Slide))
+		    addsoundeffect(SND_SLIDEWALKING);
+		else
+		    addsoundeffect(SND_SLIDING);
+	    }
 	}
     }
 }
@@ -1525,7 +1598,7 @@ static struct { unsigned char isfloor, id, dir; } const fileids[] = {
 /* 36 not used			*/	{ TRUE,  NIL,		    NIL },
 /* 37 not used			*/	{ TRUE,  NIL,		    NIL },
 /* 38 not used			*/	{ TRUE,  NIL,		    NIL },
-/* 39 Chip in exit		*/	{ TRUE,  NIL,		    NIL },
+/* 39 Chip in exit		*/	{ TRUE,  Exited_Chip,	    NIL },
 /* 3A exit (frame 2)		*/	{ TRUE,  Exit,		    NIL },
 /* 3B exit (frame 3)		*/	{ TRUE,  Exit,		    NIL },
 /* 3C Chip swimming N		*/	{ TRUE,  NIL,		    NIL },
@@ -1625,13 +1698,27 @@ static int initgame(gamelogic *logic)
 
     n = -1;
     for (pos = 0 ; pos < CXGRID * CYGRID ; ++pos) {
+	if (layer1[pos] >= (int)(sizeof fileids / sizeof *fileids))
+	    layer1[pos] = 0x01;
+	if (layer2[pos] >= (int)(sizeof fileids / sizeof *fileids))
+	    layer2[pos] = 0x01;
 	state->map[pos].bot.id = Empty;
-	if (layer2[pos])
+	if (layer2[pos]) {
+	    if (fileids[layer1[pos]].isfloor) {
+		warn("Level %d: Invalid \"buried\" tile at (%d %d)",
+		     game->number, pos % CXGRID, pos / CXGRID);
+		markinvalid();
+	    } else if (!fileids[layer2[pos]].isfloor) {
+		warn("Level %d: Invalid \"buried\" creature at (%d %d)",
+		     game->number, pos % CXGRID, pos / CXGRID);
+		markinvalid();
+	    }
 	    floorat(pos) = fileids[layer2[pos]].id;
-	else if (fileids[layer1[pos]].isfloor)
+	} else if (fileids[layer1[pos]].isfloor) {
 	    floorat(pos) = fileids[layer1[pos]].id;
-	else
+	} else {
 	    floorat(pos) = Empty;
+	}
 	if (!fileids[layer1[pos]].isfloor) {
 	    cr->pos = pos;
 	    cr->id = fileids[layer1[pos]].id;
@@ -1639,11 +1726,12 @@ static int initgame(gamelogic *logic)
 	    cr->moving = 0;
 	    cr->hidden = FALSE;
 	    if (cr->id == Chip) {
-		if (n >= 0)
-		    die("Multiple Chips on the map!");
+		if (n >= 0) {
+		    warn("Multiple Chips on the map!");
+		    markinvalid();
+		}
 		n = cr - creaturelist();
 		cr->state = 0;
-		/*cr->state = CS_SLIDETOKEN;*/
 	    } else {
 		cr->state = 0;
 		claimlocation(pos);
@@ -1654,8 +1742,15 @@ static int initgame(gamelogic *logic)
 	    ++cr;
 	}
     }
-    if (n < 0)
-	die("Chip isn't on the map!");
+    if (n < 0) {
+	warn("Chip isn't on the map!");
+	markinvalid();
+	n = cr - creaturelist();
+	cr->pos = 0;
+	cr->hidden = TRUE;
+	++cr;
+    }
+
     cr->pos = -1;
     cr->id = Nothing;
     cr->dir = NIL;
@@ -1689,7 +1784,7 @@ static int initgame(gamelogic *logic)
     xviewoffset = yviewoffset = 0;
 
     preparedisplay();
-    return TRUE;
+    return !ismarkedinvalid();
 }
 
 /* Advance the game state by one tick.
@@ -1712,8 +1807,11 @@ static int advancegame(gamelogic *logic)
 	    choosemove(cr);
     }
 
-    if (getchip()->fdir == NIL && getchip()->tdir == NIL)
+    cr = getchip();
+    if (cr->fdir == NIL && cr->tdir == NIL)
 	resetcouldntmove();
+    else
+	checkmovingto();
 
     for (cr = creaturelist() ; cr->id ; ++cr) ;
     for (--cr ; cr >= creaturelist() ; --cr) {
@@ -1731,11 +1829,11 @@ static int advancegame(gamelogic *logic)
     preparedisplay();
 
     if (inendgame()) {
+	--state->timeoffset;
 	if (!decrendgametimer()) {
 	    resetfloorsounds(TRUE);
 	    return iscompleted() ? +1 : -1;
 	}
-	--state->timeoffset;
     }
 
     return 0;

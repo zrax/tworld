@@ -28,6 +28,7 @@
 #define	SF_CHIPNOTOKAY		0x0070
 #define	SF_CHIPSTATUSMASK	0x0070
 #define	SF_DEFERBUTTONS		0x0080
+#define	SF_COMPLETED		0x0100
 
 #define	creatureid(id)		((id) & ~3)
 #define	creaturedirid(id)	(idxdir((id) & 3))
@@ -1968,9 +1969,9 @@ static int initgame(gamelogic *logic)
     }
 
     for (pos = 0 ; pos < CXGRID * CYGRID ; ++pos) {
-	if (layer1[pos] >= 0x70)
+	if (layer1[pos] >= (int)(sizeof fileids / sizeof *fileids))
 	    layer1[pos] = 0x01;
-	if (layer2[pos] >= 0x70)
+	if (layer2[pos] >= (int)(sizeof fileids / sizeof *fileids))
 	    layer2[pos] = 0x01;
 	cell = cellat(pos);
 	cell->top.state = 0;
@@ -2004,6 +2005,11 @@ static int initgame(gamelogic *logic)
     addtocreaturelist(chip);
     for (n = 0 ; n < game->creaturecount ; ++n) {
 	pos = game->creatures[n];
+	if (pos < 0 || pos >= CXGRID * CYGRID) {
+	    warn("Level %d: Invalid creature location (%d %d)",
+		 game->number, pos % CXGRID, pos / CXGRID);
+	    continue;
+	}
 	if (!layer1[pos] || fileids[layer1[pos]].isfloor) {
 	    warn("Level %d: No creature at location (%d %d)",
 		 game->number, pos % CXGRID, pos / CXGRID);

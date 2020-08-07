@@ -5,7 +5,6 @@
  */
 
 #include	<stdlib.h>
-#include	<assert.h>
 #include	"defs.h"
 #include	"err.h"
 #include	"state.h"
@@ -23,6 +22,20 @@ static gamestate	state;
 /* The current logic module.
  */
 static gamelogic       *logic = NULL;
+
+/* How much mud to make the timer suck (i.e., slowdown factor).
+ */
+static int		mudsucking = 1;
+
+/*
+ */
+int setmudsuckingfactor(int mud)
+{
+    if (mud < 1)
+	return FALSE;
+    mudsucking = mud;
+    return TRUE;
+}
 
 /* Configure the game logic, and some of the OS/hardware layer, to the
  * behavior expected for the given ruleset.
@@ -44,14 +57,14 @@ static int setrulesetbehavior(int ruleset)
 	if (!logic)
 	    return FALSE;
 	setkeyboardarrowsrepeat(TRUE);
-	settimersecond(1000);
+	settimersecond(1000 * mudsucking);
 	break;
       case Ruleset_MS:
 	logic = mslogicstartup();
 	if (!logic)
 	    return FALSE;
 	setkeyboardarrowsrepeat(FALSE);
-	settimersecond(1100);
+	settimersecond(1100 * mudsucking);
 	break;
       default:
 	die("Unknown ruleset requested");
@@ -236,6 +249,10 @@ int replacesolution(void)
     return TRUE;
 }
 
+/* Double-checks the timing for a solution that has just been played
+ * back. If the timing is off, and the cause of the discrepancy can be
+ * reasonably ascertained to be benign, the return value will be TRUE.
+ */
 int checksolution(void)
 {
     int	currenttime;
@@ -245,13 +262,18 @@ int checksolution(void)
     currenttime = state.currenttime + state.timeoffset;
     if (currenttime == state.game->besttime)
 	return FALSE;
-    warn("saved game has solution time of %d ticks", state.game->besttime);
-    warn("but replay took %d ticks", currenttime);
+    warn("saved game has solution time of %d ticks, but replay took %d ticks",
+	 state.game->besttime, currenttime);
     if (state.game->besttime == state.currenttime) {
-	warn("difference matches offset; fixing.");
+	warn("difference matches clock offset; fixing.");
+	state.game->besttime = currenttime;
+	return TRUE;
+    } else if (currenttime - state.game->besttime == 1) {
+	warn("difference matches pre-0.10.1 error; fixing.");
 	state.game->besttime = currenttime;
 	return TRUE;
     }
     warn("reason for difference unknown.");
+    state.game->besttime = currenttime;
     return FALSE;
 }

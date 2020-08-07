@@ -1,4 +1,16 @@
 
+2002 Jan ??: version 0.10.1
+
+* Fixed the bug in the lynx emulation where Chip survived when he
+  shouldn't, using a gross little hack. I hate it. But I've been sitting on
+  this bug for over a month now. It's time to give up and put it out of its
+  misery.
+* Fixed the Lynx clock (it was off by one).
+* Added a simple end-screen to display when the player finishes the last
+  level of a set.
+* Added a little more error-checking in the map decoding.
+* Added some basic documentation.
+
 2002 Jan 03: version 0.10.0
 
 * Vastly improved the Lynx emulation of "diagonal" moves. Had to change the

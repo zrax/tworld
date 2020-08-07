@@ -34,7 +34,7 @@
 
 /* Get a generic tile image.
  */
-#define	gettileimage(id)	(getcellimage((id), Empty, 0))
+#define	gettileimage(id)	(getcellimage((id), Empty, -1))
 
 /* Some prompting icons.
  */
@@ -442,8 +442,11 @@ static void displayinfo(gamestate const *state, int timeleft, int besttime)
 
     rect = infoloc;
 
-    sprintf(buf, "Level %d", state->game->number);
-    puttext(&rect, buf, -1, PT_UPDATERECT);
+    if (state->game->number) {
+	sprintf(buf, "Level %d", state->game->number);
+	puttext(&rect, buf, -1, PT_UPDATERECT);
+    } else
+	puttext(&rect, "", 0, PT_UPDATERECT);
 
     if (state->game->passwd && *state->game->passwd) {
 	sprintf(buf, "Password: %s", state->game->passwd);
@@ -538,7 +541,7 @@ int displayendmessage(int basescore, int timescore, int totalscore,
     SDL_Rect	rect;
     int		n;
 
-    if (completed >= 0) {
+    if (totalscore) {
 	rect = hintloc;
 	puttext(&rect, "Level Completed", -1, PT_CENTER | PT_UPDATERECT);
 	puttext(&rect, "", 0, PT_CENTER | PT_UPDATERECT);
