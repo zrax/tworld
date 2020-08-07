@@ -91,6 +91,7 @@ static int xviewoffset = 0, yviewoffset = 0;
 #define	chipsneeded()		(state->chipsneeded)
 
 #define	addsoundeffect(sfx)	(state->soundeffects |= 1 << (sfx))
+#define	stopsoundeffect(sfx)	(state->soundeffects &= ~(1 << (sfx)))
 
 #define	floorat(pos)		(state->map[pos].top.id)
 
@@ -223,6 +224,17 @@ static void togglewalls(void)
 	    floorat(pos) = SwitchWall_Open;
 }
 
+static void resetfloorsounds(void)
+{
+    stopsoundeffect(SND_SKATING_FORWARD);
+    stopsoundeffect(SND_SKATING_TURN);
+    stopsoundeffect(SND_FIREWALKING);
+    stopsoundeffect(SND_WATERWALKING);
+    stopsoundeffect(SND_ICEWALKING);
+    stopsoundeffect(SND_SLIDEWALKING);
+    stopsoundeffect(SND_SLIDING);
+}
+
 /*
  * Functions that manage the list of entities.
  */
@@ -231,6 +243,7 @@ static void togglewalls(void)
  */
 #define	CS_SLIDETOKEN		0x01	/* can move off of a slide floor */
 #define	CS_REVERSE		0x02	/* needs to turn around */
+#define	CS_NOISYMOVEMENT	0x04	/* block was pushed by Chip */
 
 /* Return the creature located at pos. Ignores Chip unless includechip
  * is TRUE. (This is important in the case when Chip and a second
@@ -283,6 +296,8 @@ static creature *addclone(creature *old)
 static void removecreature(creature *cr)
 {
     cr->hidden = TRUE;
+    if (cr->state & CS_NOISYMOVEMENT)
+	stopsoundeffect(SND_BLOCK_MOVING);
     if (cr->id != Chip)
 	removeclaim(cr->pos);
 }
@@ -503,7 +518,8 @@ static int canmakemove(creature const *cr, int dir, int flags)/*noreally, int re
     floorfrom = floorat(cr->pos);
     floorto = floorat(to);
 
-    if ((floorfrom == Beartrap || floorfrom == CloneMachine) && !(flags & CMM_RELEASING))
+    if ((floorfrom == Beartrap || floorfrom == CloneMachine)
+					&& !(flags & CMM_RELEASING))
 	return FALSE;
 
     if (isslide(floorfrom) && (cr->id != Chip || !possession(Boots_Slide)))
@@ -567,8 +583,9 @@ static int canpushblock(creature *block, int dir, int flags)
     if (flags & CMM_PUSHBLOCKS) {
 	block->tdir = dir;
 	if (advancecreature(block, FALSE)) {
-	    addsoundeffect(SND_BLOCK_MOVING);
 	    setpushing();
+	    addsoundeffect(SND_BLOCK_MOVING);
+	    block->state |= CS_NOISYMOVEMENT;
 	}
     }
 
@@ -740,6 +757,8 @@ static int choosemove(creature *cr)
 {
     if (cr->id == Chip) {
 	choosechipmove(cr, getforcedmove(cr));
+	if (cr->tdir == NIL && cr->fdir == NIL)
+	    resetfloorsounds();
     } else {
 	if (getforcedmove(cr))
 	    cr->tdir = NIL;
@@ -823,10 +842,8 @@ static void springtrap(int pos)
     creature   *cr;
 
     cr = lookupcreature(pos, TRUE);
-    if (cr && cr->dir != NIL) {
+    if (cr && cr->dir != NIL)
 	advancecreature(cr, TRUE);
-	addsoundeffect(SND_TRAP_SPRUNG);
-    }
 }
 
 /*
@@ -900,8 +917,6 @@ static int startmovement(creature *cr, int releasing)
     if (cr->id != Chip && cr->pos == chippos()) {
 	chip = getchip();
 	removecreature(chip);
-	addsoundeffect(SND_CHIP_LOSES);
-
 /*
 	if (cr->id != Block)
 	    removecreature(cr);
@@ -955,7 +970,8 @@ static int endmovement(creature *cr)
 
     floor = floorat(cr->pos);
 
-    applyicewallturn(cr);
+    if (cr->id != Chip || !possession(Boots_Ice))
+	applyicewallturn(cr);
 
     if (cr->id == Chip) {
 	switch (floor) {
@@ -969,10 +985,8 @@ static int endmovement(creature *cr)
 	    }
 	    break;
 	  case Fire:
-	    if (!possession(Boots_Fire)) {
+	    if (!possession(Boots_Fire))
 		removecreature(cr);
-		addsoundeffect(SND_CHIP_LOSES);
-	    }
 	    break;
 	  case Dirt:
 	  case BlueWall_Fake:
@@ -1025,7 +1039,6 @@ static int endmovement(creature *cr)
 	    break;
 	  case Exit:
 	    setcompleted();
-	    addsoundeffect(SND_CHIP_WINS);
 	    break;
 	}
     } else if (cr->id == Block) {
@@ -1067,6 +1080,9 @@ static int endmovement(creature *cr)
 	break;
       case Teleport:
 	teleportcreature(cr);
+	break;
+      case Beartrap:
+	addsoundeffect(SND_TRAP_ENTERED);
 	break;
       case Button_Blue:
 	turntanks();
@@ -1202,8 +1218,12 @@ static void verifymap(void)
  */
 static void initialhousekeeping(void)
 {
-    if (getchip()->id == Pushing_Chip)
-	getchip()->id = Chip;
+    creature   *chip;
+    creature   *cr;
+
+    chip = getchip();
+    if (chip->id == Pushing_Chip)
+	chip->id = Chip;
 
     if (isgreentoggleset())
 	togglewalls();
@@ -1240,6 +1260,15 @@ static void initialhousekeeping(void)
     }
 
     verifymap();
+
+    for (cr = creaturelist() ; cr->id ; ++cr) {
+	if (cr->state & CS_NOISYMOVEMENT) {
+	    if (cr->hidden || cr->moving == 0) {
+		stopsoundeffect(SND_BLOCK_MOVING);
+		cr->state &= ~CS_NOISYMOVEMENT;
+	    }
+	}
+    }
 }
 
 /* Actions and checks that occur at the end of every tick.
@@ -1275,42 +1304,54 @@ static void finalhousekeeping(void)
  */
 static int checkforending(void)
 {
+    int	ret;
+
     if (getchip()->hidden) {
 	getchip()->hidden = FALSE;
-	return -1;
-    }
-    if (iscompleted())
-	return +1;
+	ret = -1;
+	addsoundeffect(SND_CHIP_LOSES);
+    } else if (iscompleted()) {
+	ret = +1;
+	addsoundeffect(SND_CHIP_WINS);
+    } else
+	return 0;
 
-    return 0;
+    resetfloorsounds();
+    stopsoundeffect(SND_BLOCK_MOVING);
+    return ret;
 }
 
 /* Set the state fields specifically used to produce the output.
  */
 static void preparedisplay(void)
 {
-    creature   *cr;
+    creature   *chip;
     int		floor;
 
-    cr = getchip();
-    floor = floorat(cr->pos);
+    chip = getchip();
+    floor = floorat(chip->pos);
 
-    xviewpos() = (cr->pos % CXGRID) * 8 + xviewoffset * 8;
-    yviewpos() = (cr->pos / CXGRID) * 8 + yviewoffset * 8;
-    if (cr->moving) {
-	switch (cr->dir) {
-	  case NORTH:	yviewpos() += cr->moving;	break;
-	  case WEST:	xviewpos() += cr->moving;	break;
-	  case SOUTH:	yviewpos() -= cr->moving;	break;
-	  case EAST:	xviewpos() -= cr->moving;	break;
+    xviewpos() = (chip->pos % CXGRID) * 8 + xviewoffset * 8;
+    yviewpos() = (chip->pos / CXGRID) * 8 + yviewoffset * 8;
+    if (chip->moving) {
+	switch (chip->dir) {
+	  case NORTH:	yviewpos() += chip->moving;	break;
+	  case WEST:	xviewpos() += chip->moving;	break;
+	  case SOUTH:	yviewpos() -= chip->moving;	break;
+	  case EAST:	xviewpos() -= chip->moving;	break;
 	}
     }
-    if (floor == HintButton && cr->moving <= 0)
+    if (floor == HintButton && chip->moving <= 0)
 	showhint();
     else
 	hidehint();
 
-    if (cr->moving) {
+    if (ispushing())
+	chip->id = Pushing_Chip;
+
+    if (chip->moving) {
+	resetfloorsounds();
+	floor = floorat(chip->pos);
 	if (floor == Fire && possession(Boots_Fire))
 	    addsoundeffect(SND_FIREWALKING);
 	else if (floor == Water && possession(Boots_Water))
@@ -1329,9 +1370,6 @@ static void preparedisplay(void)
 		addsoundeffect(SND_SLIDING);
 	}
     }
-
-    if (ispushing())
-	cr->id = Pushing_Chip;
 }
 
 /*

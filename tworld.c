@@ -31,6 +31,7 @@ typedef	struct gamespec {
     int		currentgame;	/* which level is currently selected */
     int		invalid;	/* TRUE if the current level is invalid */
     int		playback;	/* TRUE if in playback mode */
+    int		usepasswds;	/* FALSE if passwords are to be ignored */
 } gamespec;
 
 /* Structure used to pass data back from initoptionswithcmdline().
@@ -40,15 +41,18 @@ typedef	struct startupdata {
     int		levelnum;	/* a selected initial level */ 
     int		listseries;	/* TRUE if the files should be listed */
     int		listscores;	/* TRUE if the scores should be listed */
+    int		usepasswds;	/* FALSE if passwords are to be ignored */
 } startupdata;
 
 /* Online help.
  */
 static char const *yowzitch = 
-	"Usage: tworld [-hvlsqH] [-DRS DIR] [NAME] [LEVEL]\n"
+	"Usage: tworld [-hvlspqH] [-DLRS DIR] [NAME] [LEVEL]\n"
 	"   -D  Read data files from DIR instead of the default\n"
+	"   -L  Read level set files from DIR instead of the default\n"
 	"   -R  Read shared resources from DIR instead of the default\n"
 	"   -S  Save games in DIR instead of the default\n"
+	"   -p  Disable password checking\n"
 	"   -q  Run quietly\n"
 	"   -H  Produce histogram of idle time upon exit\n"
 	"   -l  Display the list of available data files and exit\n"
@@ -74,7 +78,7 @@ static char const *vourzhon =
 	"   Please direct bug reports to breadbox@muppetlabs.com, or post\n"
 	"them on annexcafe.chips.challenge.\n";
 
-/* A FALSE value suppresses sound and the console bell.
+/* FALSE suppresses sound and the console bell.
  */
 static int	silence = FALSE;
 
@@ -86,20 +90,123 @@ static int	showhistogram = FALSE;
  * The top-level user interface functions.
  */
 
+/* Render a table to standard output.
+ */
+void printtable(tablespec const *table)
+{
+    int	       *colsizes;
+    int		len;
+    int		c, n, x, y;
+
+    colsizes = malloc(table->cols * sizeof *colsizes);
+    for (x = 0 ; x < table->cols ; ++x)
+	colsizes[x] = 0;
+    n = 0;
+    for (y = 0 ; y < table->rows ; ++y) {
+	for (x = 0 ; x < table->cols ; ++n) {
+	    c = table->items[n][0] - '0';
+	    if (c == 1) {
+		len = strlen(table->items[n] + 2);
+		if (len > colsizes[x])
+		    colsizes[x] = len;
+	    }
+	    x += c;
+	}
+    }
+
+    n = -table->sep;
+    for (x = 0 ; x < table->cols ; ++x)
+	n += colsizes[x] + table->sep;
+    if (n > 79) {
+	n = n - 79;
+	if (table->collapse < 0)
+	    return;
+	if (colsizes[table->collapse] <= n)
+	    return;
+	colsizes[table->collapse] -= n;
+    }
+
+    n = 0;
+    for (y = 0 ; y < table->rows ; ++y) {
+	for (x = 0 ; x < table->cols ; ++n) {
+	    if (x)
+		printf("%*s", table->sep, "");
+	    c = table->items[n][0] - '0';
+	    len = -table->sep;
+	    while (c--)
+		len += colsizes[x++] + table->sep;
+	    if (table->items[n][1] == '-')
+		printf("%-*.*s", len, len, table->items[n] + 2);
+	    else if (table->items[n][1] == '+')
+		printf("%*.*s", len, len, table->items[n] + 2);
+	    else {
+		len -= (len - strlen(table->items[n] + 3)) / 2;
+		printf("%*.*s", len, len, table->items[n] + 2);
+	    }
+	}
+	putchar('\n');
+    }
+    free(colsizes);
+}
+
+/* A callback functions for handling the keyboard while collecting
+ * input.
+ */
+static int keyinputcallback(void)
+{
+    int	ch;
+
+    ch = input(TRUE);
+    if (isalpha(ch))
+	return toupper(ch);
+    else if (ch == CmdWest)
+	return '\b';
+    else if (ch == CmdProceed)
+	return '\n';
+    else if (ch == CmdQuitLevel)
+	return -1;
+    else if (ch == CmdQuit)
+	exit(0);
+    return 0;
+}
+
+/* Obtain a password from the user and move to the requested level.
+ */
+static int selectlevelbypassword(gamespec *gs)
+{
+    char	passwd[5];
+    int		n;
+
+    setgameplaymode(BeginInput);
+    n = displayinputprompt("Enter Password", passwd, 4, keyinputcallback);
+    setgameplaymode(EndInput);
+    if (!n)
+	return FALSE;
+
+    n = findlevelinseries(&gs->series, 0, passwd);
+    if (n < 0) {
+	bell();
+	return FALSE;
+    }
+
+    gs->currentgame = n;
+    return TRUE;
+}
+
 /* A callback function for handling the keyboard while displaying a
  * scrolling list.
  */
 static int scrollinputcallback(int *move)
 {
     switch (input(TRUE)) {
-      case CmdPrev10:		*move = ScrollHalfPageUp;	break;
-      case CmdNorth:		*move = ScrollUp;		break;
-      case CmdPrev:		*move = ScrollUp;		break;
-      case CmdPrevLevel:	*move = ScrollUp;		break;
-      case CmdSouth:		*move = ScrollDn;		break;
-      case CmdNext:		*move = ScrollDn;		break;
-      case CmdNextLevel:	*move = ScrollDn;		break;
-      case CmdNext10:		*move = ScrollHalfPageDn;	break;
+      case CmdPrev10:		*move = SCROLL_HALFPAGE_UP;	break;
+      case CmdNorth:		*move = SCROLL_UP;		break;
+      case CmdPrev:		*move = SCROLL_UP;		break;
+      case CmdPrevLevel:	*move = SCROLL_UP;		break;
+      case CmdSouth:		*move = SCROLL_DN;		break;
+      case CmdNext:		*move = SCROLL_DN;		break;
+      case CmdNextLevel:	*move = SCROLL_DN;		break;
+      case CmdNext10:		*move = SCROLL_HALFPAGE_DN;	break;
       case CmdProceed:		*move = TRUE;			return FALSE;
       case CmdQuitLevel:	*move = FALSE;			return FALSE;
       case CmdQuit:						exit(0);
@@ -111,29 +218,92 @@ static int scrollinputcallback(int *move)
  */
 static void showscores(gamespec *gs)
 {
-    char      **texts;
-    char const *header;
-    int		listsize, n;
+    tablespec	table;
+    int	       *levellist;
+    int		count, n;
 
-    if (!createscorelist(&gs->series, &texts, &listsize, &header)) {
+    if (!createscorelist(&gs->series, gs->usepasswds,
+			 &levellist, &count, &table)) {
 	bell();
 	return;
     }
-    n = gs->currentgame;
     setsubtitle(NULL);
-    if (displaylist(gs->series.name, header, (char const**)texts, listsize, &n,
-		    scrollinputcallback))
-	if (n < listsize - 1)
-	    gs->currentgame = n;
-    freescorelist(texts, listsize);
+    for (n = 0 ; n < count ; ++n)
+	if (levellist[n] == gs->currentgame)
+	    break;
+    if (displaylist(gs->series.name, &table, &n, scrollinputcallback))
+	if (levellist[n] >= 0)
+	    gs->currentgame = levellist[n];
+    freescorelist(levellist, &table);
 }
 
 /* Mark the current level's solution as replaceable.
  */
 static void replaceablesolution(gamespec *gs)
 {
-    gs->series.games[gs->currentgame].replacebest =
-			!gs->series.games[gs->currentgame].replacebest;
+    gs->series.games[gs->currentgame].sgflags ^= SGF_REPLACEABLE;
+}
+
+/* Mark the current level's password as known to the user.
+ */
+static void passwordseen(gamespec *gs)
+{
+    if (!(gs->series.games[gs->currentgame].sgflags & SGF_HASPASSWD)) {
+	gs->series.games[gs->currentgame].sgflags |= SGF_HASPASSWD;
+	savesolutions(&gs->series);
+    }
+}
+
+/* Change the current game, ensuring that the user is not granted
+ * access to a forbidden level. FALSE is returned if the current game
+ * was not changed.
+ */
+static int changecurrentgame(gamespec *gs, int offset)
+{
+    int	sign, m, n;
+
+    if (offset == 0)
+	return FALSE;
+
+    m = gs->currentgame;
+    n = m + offset;
+    if (n < 0)
+	n = 0;
+    else if (n >= gs->series.total)
+	n = gs->series.total - 1;
+
+    if (gs->usepasswds) {
+	sign = offset < 0 ? -1 : +1;
+	for ( ; n >= 0 && n < gs->series.total ; n += sign) {
+	    if (hassolution(gs->series.games + n)
+			|| (gs->series.games[n].sgflags & SGF_HASPASSWD)
+			|| (n > 0 && hassolution(gs->series.games + n - 1))) {
+		m = n;
+		break;
+	    }
+	}
+	n = m;
+	if (n == gs->currentgame && offset != sign) {
+	    n = gs->currentgame + offset - sign;
+	    for ( ; n != gs->currentgame ; n -= sign) {
+		if (n < 0 || n >= gs->series.total)
+		    continue;
+		if (hassolution(gs->series.games + n)
+			|| (gs->series.games[n].sgflags & SGF_HASPASSWD)
+			|| (n > 0 && hassolution(gs->series.games + n - 1))) {
+		    m = n;
+		    break;
+		}
+	    }
+	}
+    }
+
+    if (n == gs->currentgame) {
+	bell();
+	return FALSE;
+    }
+    gs->currentgame = n;
+    return TRUE;
 }
 
 /* Get a keystroke from the user at the completion of the current
@@ -141,25 +311,35 @@ static void replaceablesolution(gamespec *gs)
  */
 static void endinput(gamespec *gs, int status)
 {
-    displayendmessage(status);
+    int	bscore = 0, tscore = 0, gscore = 0;
+
+    if (status >= 0)
+	getscoresforlevel(&gs->series, gs->currentgame,
+			  &bscore, &tscore, &gscore);
+
+    displayendmessage(bscore, tscore, gscore, status);
 
     for (;;) {
 	switch (input(TRUE)) {
-	  case CmdPrev10:	gs->currentgame -= 10;		return;
-	  case CmdPrevLevel:	--gs->currentgame;		return;
-	  case CmdPrev:		--gs->currentgame;		return;
+	  case CmdPrev10:	changecurrentgame(gs, -10);	return;
+	  case CmdPrevLevel:	changecurrentgame(gs, -1);	return;
+	  case CmdPrev:		changecurrentgame(gs, -1);	return;
 	  case CmdSameLevel:					return;
 	  case CmdSame:						return;
-	  case CmdNextLevel:	++gs->currentgame;		return;
-	  case CmdNext:		++gs->currentgame;		return;
-	  case CmdNext10:	gs->currentgame += 10;		return;
-	  case CmdProceed:	if (status > 0) ++gs->currentgame; return;
+	  case CmdNextLevel:	changecurrentgame(gs, +1);	return;
+	  case CmdNext:		changecurrentgame(gs, +1);	return;
+	  case CmdNext10:	changecurrentgame(gs, +10);	return;
+	  case CmdGotoLevel:	selectlevelbypassword(gs);	return;
 	  case CmdPlayback:	gs->playback = !gs->playback;	return;
 	  case CmdHelp:		gameplayhelp();			return;
 	  case CmdSeeScores:	showscores(gs);			return;
 	  case CmdKillSolution:	replaceablesolution(gs);	return;
 	  case CmdQuitLevel:					exit(0);
 	  case CmdQuit:						exit(0);
+	  case CmdProceed:
+	    if (status > 0)
+		changecurrentgame(gs, +1);
+	    return;
 	}
     }
 }
@@ -172,16 +352,19 @@ static void playgame(gamespec *gs)
     int	cmd, n;
 
     drawscreen();
+    passwordseen(gs);
+
     cmd = input(TRUE);
     switch (cmd) {
       case CmdNorth: case CmdWest:				break;
       case CmdSouth: case CmdEast:				break;
-      case CmdPrev10:		gs->currentgame -= 10;		return;
-      case CmdPrev:		--gs->currentgame;		return;
-      case CmdPrevLevel:	--gs->currentgame;		return;
-      case CmdNextLevel:	++gs->currentgame;		return;
-      case CmdNext:		++gs->currentgame;		return;
-      case CmdNext10:		gs->currentgame += 10;		return;
+      case CmdPrev10:		changecurrentgame(gs, -10);	return;
+      case CmdPrev:		changecurrentgame(gs, -1);	return;
+      case CmdPrevLevel:	changecurrentgame(gs, -1);	return;
+      case CmdNextLevel:	changecurrentgame(gs, +1);	return;
+      case CmdNext:		changecurrentgame(gs, +1);	return;
+      case CmdNext10:		changecurrentgame(gs, +10);	return;
+      case CmdGotoLevel:	selectlevelbypassword(gs);	return;
       case CmdPlayback:		gs->playback = TRUE;		return;
       case CmdSeeScores:	showscores(gs);			return;
       case CmdKillSolution:	replaceablesolution(gs);	return;
@@ -250,7 +433,8 @@ static void playgame(gamespec *gs)
 
   quitloop:
     setgameplaymode(EndPlay);
-    gs->currentgame += n;
+    if (n)
+	changecurrentgame(gs, n);
 }
 
 /* Play back the user's best solution for the current level.
@@ -269,8 +453,8 @@ static void playbackgame(gamespec *gs)
 	    break;
 	waitfortick();
 	switch (input(FALSE)) {
-	  case CmdPrevLevel:	--gs->currentgame;		goto quitloop;
-	  case CmdNextLevel:	++gs->currentgame;		goto quitloop;
+	  case CmdPrevLevel:	changecurrentgame(gs, -1);	goto quitloop;
+	  case CmdNextLevel:	changecurrentgame(gs, +1);	goto quitloop;
 	  case CmdSameLevel:					goto quitloop;
 	  case CmdPlayback:	gs->playback = FALSE;		goto quitloop;
 	  case CmdQuitLevel:	gs->playback = FALSE;		goto quitloop;
@@ -289,8 +473,12 @@ static void playbackgame(gamespec *gs)
     }
     setgameplaymode(EndPlay);
     gs->playback = FALSE;
-    if (n > 0 && gs->currentgame + 1 >= gs->series.count)
-	n = 0;
+    if (n > 0) {
+	if (gs->series.games[gs->currentgame].number == gs->series.final)
+	    n = 0;
+	else if (gs->currentgame + 1 >= gs->series.count)
+	    n = 0;
+    }
     endinput(gs, n);
     return;
 
@@ -304,21 +492,24 @@ static void playbackgame(gamespec *gs)
  */
 static void noplaygame(gamespec *gs)
 {
+    drawscreen();
+    passwordseen(gs);
+
     for (;;) {
-	drawscreen();
 	switch (input(TRUE)) {
-	  case CmdPrev10:	gs->currentgame -= 10;	return;
-	  case CmdPrev:		--gs->currentgame;	return;
-	  case CmdPrevLevel:	--gs->currentgame;	return;
-	  case CmdNextLevel:	++gs->currentgame;	return;
-	  case CmdNext:		++gs->currentgame;	return;
-	  case CmdNext10:	gs->currentgame += 10;	return;
-	  case CmdSeeScores:	showscores(gs);		return;
-	  case CmdHelp:		gameplayhelp();		return;
-	  case CmdQuitLevel:				exit(0);
-	  case CmdQuit:					exit(0);
-	  default:		bell();			break;
+	  case CmdPrev10:	changecurrentgame(gs, -10);	return;
+	  case CmdPrev:		changecurrentgame(gs, -1);	return;
+	  case CmdPrevLevel:	changecurrentgame(gs, -1);	return;
+	  case CmdNextLevel:	changecurrentgame(gs, +1);	return;
+	  case CmdNext:		changecurrentgame(gs, +1);	return;
+	  case CmdNext10:	changecurrentgame(gs, +10);	return;
+	  case CmdSeeScores:	showscores(gs);			return;
+	  case CmdHelp:		gameplayhelp();			return;
+	  case CmdQuitLevel:					exit(0);
+	  case CmdQuit:						exit(0);
+	  default:		bell();				break;
 	}
+	drawscreen();
     }
 }
 
@@ -328,12 +519,34 @@ static void noplaygame(gamespec *gs)
 
 /* Assign values to the different directories that the program uses.
  */
-static void initdirs(char const *res, char const *series, char const *save)
+static void initdirs(char const *series, char const *seriesdat,
+		     char const *res, char const *save)
 {
-    unsigned int	maxpath = getpathbufferlen() - 1;
+    unsigned int	maxpath;
     char const	       *root = NULL;
     char const	       *dir;
 
+    maxpath = getpathbufferlen() - 1;
+    if (series && strlen(series) >= maxpath) {
+	errmsg(NULL, "Data (-D) directory name is too long;"
+		     " using default value instead");
+	series = NULL;
+    }
+    if (seriesdat && strlen(seriesdat) >= maxpath) {
+	errmsg(NULL, "Configured data (-C) directory name is too long;"
+		     " using default value instead");
+	seriesdat = NULL;
+    }
+    if (res && strlen(res) >= maxpath) {
+	errmsg(NULL, "Resource (-R) directory name is too long;"
+		     " using default value instead");
+	res = NULL;
+    }
+    if (save && strlen(save) >= maxpath) {
+	errmsg(NULL, "Save (-S) directory name is too long;"
+		     " using default value instead");
+	save = NULL;
+    }
     if (!save && (dir = getenv("TWORLDSAVEDIR")) && *dir) {
 	if (strlen(dir) < maxpath)
 	    save = dir;
@@ -367,7 +580,13 @@ static void initdirs(char const *res, char const *series, char const *save)
     if (series)
 	strcpy(seriesdir, series);
     else
-	combinepath(seriesdir, root, "data");
+	combinepath(seriesdir, root, "sets");
+
+    seriesdatdir = getpathbuffer();
+    if (seriesdat)
+	strcpy(seriesdatdir, seriesdat);
+    else
+	combinepath(seriesdatdir, root, "data");
 
     savedir = getpathbuffer();
     if (!save) {
@@ -393,6 +612,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     cmdlineinfo	opts;
     char const *optresdir = NULL;
     char const *optseriesdir = NULL;
+    char const *optseriesdatdir = NULL;
     char const *optsavedir = NULL;
     int		ch, n;
 
@@ -401,8 +621,9 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     start->levelnum = 0;
     start->listseries = FALSE;
     start->listscores = FALSE;
+    start->usepasswds = TRUE;
 
-    initoptions(&opts, argc - 1, argv + 1, "D:HR:S:hlqsv");
+    initoptions(&opts, argc - 1, argv + 1, "D:L:HR:S:hlpqsv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -416,11 +637,13 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	    else
 		strncpy(start->filename, opts.val, getpathbufferlen() - 1);
 	    break;
-	  case 'D':	optseriesdir = opts.val;			break;
+	  case 'D':	optseriesdatdir = opts.val;			break;
+	  case 'L':	optseriesdir = opts.val;			break;
 	  case 'R':	optresdir = opts.val;				break;
 	  case 'S':	optsavedir = opts.val;				break;
-	  case 'H':	showhistogram = TRUE;				break;
-	  case 'q':	silence = TRUE;					break;
+	  case 'H':	showhistogram = !showhistogram;			break;
+	  case 'p':	start->usepasswds = !start->usepasswds;		break;
+	  case 'q':	silence = !silence;				break;
 	  case 'l':	start->listseries = TRUE;			break;
 	  case 's':	start->listscores = TRUE;			break;
 	  case 'h':	fputs(yowzitch, stdout); 	   exit(EXIT_SUCCESS);
@@ -443,7 +666,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	strcpy(start->filename, "chips.dat");
     start->filename[getpathbufferlen() - 1] = '\0';
 
-    initdirs(optresdir, optseriesdir, optsavedir);
+    initdirs(optseriesdir, optseriesdatdir, optresdir, optsavedir);
 
     return TRUE;
 }
@@ -453,6 +676,8 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 static int initializesystem(void)
 {
     if (!oshwinitialize(silence, showhistogram))
+	return FALSE;
+    if (!initresources())
 	return FALSE;
     setsubtitle(NULL);
     setkeyboardrepeat(TRUE);
@@ -474,34 +699,33 @@ static int initializesystem(void)
 static int startup(gamespec *gs, startupdata const *start)
 {
     gameseries *serieslist;
-    char      **texts;
-    char const *header;
+    tablespec	table;
     int		listsize, n;
 
-    if (!createserieslist(start->filename, &serieslist,
-			  &texts, &listsize, &header))
-	return FALSE;
-    if (listsize < 1)
-	return FALSE;
-
     if (start->listseries) {
-	puts(header);
-	for (n = 0 ; n < listsize ; ++n)
-	    puts(texts[n]);
+	if (!createserieslist(start->filename, &serieslist, &listsize, &table))
+	    die("Unable to create list of available files.");
+	printtable(&table);
+	if (!listsize)
+	    puts("(no files)");
 	exit(EXIT_SUCCESS);
     }
+
+    if (!createserieslist(start->filename, &serieslist, &listsize, &table))
+	return FALSE;
+    if (!listsize)
+	return FALSE;
 
     if (listsize == 1) {
 	gs->series = serieslist[0];
 	if (!readseriesfile(&gs->series))
 	    return FALSE;
 	if (start->listscores) {
-	    freeserieslist(texts, listsize);
-	    if (!createscorelist(&gs->series, &texts, &listsize, &header))
+	    freeserieslist(&table);
+	    if (!createscorelist(&gs->series, gs->usepasswds,
+				 NULL, NULL, &table))
 		return FALSE;
-	    puts(header);
-	    for (n = 0 ; n < listsize ; ++n)
-		puts(texts[n]);
+	    printtable(&table);
 	    exit(EXIT_SUCCESS);
 	}
 	if (!initializesystem())
@@ -511,8 +735,7 @@ static int startup(gamespec *gs, startupdata const *start)
 	    return FALSE;
 	n = 0;
 	if (!displaylist("    Welcome to Tile World. Select your destination.",
-			 header, (char const**)texts, listsize, &n,
-			 scrollinputcallback))
+			 &table, &n, scrollinputcallback))
 	    exit(EXIT_SUCCESS);
 	if (n < 0 || n >= listsize)
 	    return FALSE;
@@ -521,7 +744,7 @@ static int startup(gamespec *gs, startupdata const *start)
 	    return FALSE;
     }
 
-    freeserieslist(texts, listsize);
+    freeserieslist(&table);
     free(serieslist);
 
     if (start->levelnum > 0 && start->levelnum <= gs->series.total) {
@@ -536,6 +759,7 @@ static int startup(gamespec *gs, startupdata const *start)
 	}
     }
     gs->playback = FALSE;
+    gs->usepasswds = start->usepasswds && gs->series.usepasswds;
     return TRUE;
 }
 
@@ -560,22 +784,8 @@ int main(int argc, char *argv[])
     cleardisplay();
 
     for (;;) {
-	if (spec.currentgame < 0) {
-	    spec.currentgame = 0;
-	    bell();
-	}
-	if (spec.currentgame >= spec.series.total) {
-	    spec.currentgame = spec.series.total - 1;
-	    bell();
-	}
-	if (spec.playback
-		&& !hassolution(spec.series.games + spec.currentgame)) {
-	    spec.playback = FALSE;
-	    bell();
-	}
-
-	spec.invalid = !initgamestate(&spec.series, spec.currentgame,
-						    spec.playback);
+	spec.invalid = !initgamestate(spec.series.games + spec.currentgame,
+				      spec.series.ruleset, spec.playback);
 	setsubtitle(spec.series.games[spec.currentgame].name);
 	if (spec.invalid)
 	    noplaygame(&spec);

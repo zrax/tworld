@@ -1,3 +1,25 @@
+2001 Dec 03: version 0.9.0
+
+* Found and fixed the obscure slide delay bug that was causing the
+  discrepancy in Eric Schmidt's level 29 ("PARAMECIA")!
+* Threw out all the text-drawing code and replaced it with routines that
+  deal in proportional fonts. Which naturally necessitated rewriting a
+  bunch of the code that displayed text. Lots of changes. Created an
+  abstract table "object", so that my tables could be realized either on
+  the text console or in a proportional font equally well.
+* Implemented sound! Spent an entire weekend making 25 wave files -- and
+  they still sound ridiculous. (But the fact that the game finally has
+  sound is nice.) Onomatopoeia is still available via a cmdline switch.
+* Added password-checking code, plus functions to allow the user to jump to
+  a level by entering a password.
+* Changed the save file format (again!) to store password information, and
+  to be a little smaller.
+* Added the configuration file feature, with a few configuration options.
+  This necessitated adding yet another directory, and once again moving the
+  old one.
+* Various bug fixes that I've forgotten about while working on all the
+  other things.
+
 2001 Nov 14: version 0.8.4
 
 * Rewrote a lot of the display code to avoid redundant drawing of areas of

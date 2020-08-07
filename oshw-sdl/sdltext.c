@@ -1,116 +1,278 @@
-/* sdltext.c: Font-drawing functions for SDL.
+/* sdltext.c: Font-rendering functions for SDL.
  *
  * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
+#include	<stdio.h>
+#include	<stdlib.h>
 #include	<string.h>
 #include	<ctype.h>
 #include	"SDL.h"
 #include	"sdlgen.h"
 #include	"../err.h"
 
-
-static void *fillscanline(void *scanline, int bpp, int count, Uint32 color)
+/*
+ */
+static int makefontfromsurface(fontinfo *pf, SDL_Surface *surface)
 {
-    Uint8      *p = scanline;
+    char		brk[256];
+    unsigned char      *p;
+    unsigned char      *dest;
+    Uint8		foregnd, bkgnd;
+    int			pitch, wsum;
+    int			count, ch;
+    int			x, y, x0, y0, w;
 
-    if (!color) {
-	memset(p, 0, bpp * count);
-	return p + bpp * count;
-    }
+    if (surface->format->BytesPerPixel != 1)
+	return FALSE;
 
-    p = scanline;
-    while (count--) {
-	switch (bpp) {
-	  case 1:	*p = (Uint8)color;		break;
-	  case 2:	*(Uint16*)p = (Uint16)color;	break;
-	  case 4:	*(Uint32*)p = color;		break;
-	  case 3:
-	    if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-		p[0] = (Uint8)(color >> 16);
-		p[1] = (Uint8)(color >> 8);
-		p[2] = (Uint8)color;
-	    } else {
-		p[0] = (Uint8)color;
-		p[1] = (Uint8)(color >> 8);
-		p[2] = (Uint8)(color >> 16);
-	    }
-	    break;
+    if (SDL_MUSTLOCK(surface))
+	SDL_LockSurface(surface);
+
+    pitch = surface->pitch;
+    p = surface->pixels;
+    foregnd = p[0];
+    bkgnd = p[pitch];
+    for (y = 1, p += pitch ; y < surface->h && *p == bkgnd ; ++y, p += pitch) ;
+    pf->h = y - 1;
+
+    wsum = 0;
+    ch = 32;
+    memset(pf->w, 0, sizeof pf->w);
+    memset(brk, 0, sizeof brk);
+    for (y = 0 ; y + pf->h < surface->h && ch < 256 ; y += pf->h + 1) {
+	p = surface->pixels;
+	p += y * pitch;
+	x0 = 1;
+	for (x = 1 ; x < surface->w ; ++x) {
+	    if (p[x] == bkgnd)
+		continue;
+	    w = x - x0;
+	    x0 = x + 1;
+	    pf->w[ch] = w;
+	    wsum += w;
+	    ++ch;
+	    if (ch == 127)
+		ch = 160;
 	}
-	p += bpp;
+	brk[ch] = 1;
     }
-    return p;
+
+    count = ch;
+    if (!(pf->memory = calloc(wsum, pf->h)))
+	memerrexit();
+
+    x0 = 1;
+    y0 = 1;
+    dest = pf->memory;
+    for (ch = 0 ; ch < 256 ; ++ch) {
+	pf->bits[ch] = dest;
+	if (pf->w[ch] == 0)
+	    continue;
+	if (brk[ch]) {
+	    x0 = 1;
+	    y0 += pf->h + 1;
+	}
+	p = surface->pixels;
+	p += y0 * pitch + x0;
+	for (y = 0 ; y < pf->h ; ++y, p += pitch)
+	    for (x = 0 ; x < pf->w[ch] ; ++x, ++dest)
+		*dest = p[x] == bkgnd ? 0 : p[x] == foregnd ? 2 : 1;
+	x0 += pf->w[ch] + 1;
+    }
+
+    if (SDL_MUSTLOCK(surface))
+	SDL_UnlockSurface(surface);
+
+    return TRUE;
 }
 
-/* Fill a rectangular area with the background color.
+/*
+ *
  */
-static void fillrect(SDL_Rect const *rect)
-{
-    unsigned char      *scanline;
-    int			bpp, y;
 
-    bpp = sdlg.screen->format->BytesPerPixel;
-    scanline = sdlg.screen->pixels;
-    scanline += rect->y * sdlg.screen->pitch + rect->x * bpp;
-    for (y = rect->h ; y ; --y, scanline += sdlg.screen->pitch)
-	fillscanline(scanline, bpp, rect->w, sdlg.font->bkgnd);
+/*
+ */
+static int measuremltext(unsigned char const *text, int len, int maxwidth)
+{
+    int	brk, w, h, n;
+
+    if (len < 0)
+	len = strlen(text);
+    h = 0;
+    brk = 0;
+    for (n = 0, w = 0 ; n < len ; ++n) {
+	w += sdlg.font.w[text[n]];
+	if (isspace(text[n])) {
+	    brk = w;
+	} else if (w > maxwidth) {
+	    h += sdlg.font.h;
+	    if (brk) {
+		w -= brk;
+		brk = 0;
+	    } else {
+		w = sdlg.font.w[text[n]];
+		brk = 0;
+	    }
+	}
+    }
+    if (w)
+	h += sdlg.font.h;
+    return h;
 }
 
-/* Render a line of text to the screen.
+/*
+ *
  */
-static void drawtext(SDL_Rect *rect, char const *text, int len, int flags)
+
+static void drawtextscanline8(Uint8 *scanline, int w, int y, Uint32 *clr,
+			      unsigned char const *text, int len)
 {
-    Uint8		       *scanline;
-    Uint8		       *p;
     unsigned char const	       *glyph;
-    unsigned char		bit;
-    Uint32			c;
-    int				pitch, bpp, indent;
-    int				n, x, y;
+    int				n, x;
 
-    n = len * sdlg.font->w;
-    if (n > rect->w) {
-	len = rect->w / sdlg.font->w;
-	n = len * sdlg.font->w;
+    for (n = 0 ; n < len ; ++n) {
+	glyph = sdlg.font.bits[text[n]];
+	glyph += y * sdlg.font.w[text[n]];
+	for (x = 0 ; w && x < sdlg.font.w[text[n]] ; ++x, --w)
+	    scanline[x] = (Uint8)clr[glyph[x]];
+	scanline += x;
     }
-    indent = flags & PT_RIGHT ? rect->w - n
-	   : flags & PT_CENTER ? (rect->w - n) / 2 : 0;
+    if (w)
+	memset(scanline, clr[0], w);
+}
+
+static void drawtextscanline16(Uint16 *scanline, int w, int y, Uint32 *clr,
+			       unsigned char const *text, int len)
+{
+    unsigned char const	       *glyph;
+    int				n, x;
+
+    for (n = 0 ; n < len ; ++n) {
+	glyph = sdlg.font.bits[text[n]];
+	glyph += y * sdlg.font.w[text[n]];
+	for (x = 0 ; x < sdlg.font.w[text[n]] ; ++x)
+	    scanline[x] = (Uint16)clr[glyph[x]];
+	scanline += x;
+    }
+    while (w--)
+	scanline[w] = (Uint16)clr[0];
+}
+
+static void drawtextscanline24(Uint8 *scanline, int w, int y, Uint32 *clr,
+			       unsigned char const *text, int len)
+{
+    unsigned char const	       *glyph;
+    Uint32			c;
+    int				n, x;
+
+    for (n = 0 ; n < len ; ++n) {
+	glyph = sdlg.font.bits[text[n]];
+	glyph += y * sdlg.font.w[text[n]];
+	for (x = 0 ; w && x < sdlg.font.w[text[n]] ; ++x, --w) {
+	    c = clr[glyph[x]];
+	    if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+		*scanline++ = (Uint8)(c >> 16);
+		*scanline++ = (Uint8)(c >> 8);
+		*scanline++ = (Uint8)c;
+	    } else {
+		*scanline++ = (Uint8)c;
+		*scanline++ = (Uint8)(c >> 8);
+		*scanline++ = (Uint8)(c >> 16);
+	    }
+	}
+    }
+    c = clr[0];
+    while (w--) {
+	if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+	    *scanline++ = (Uint8)(c >> 16);
+	    *scanline++ = (Uint8)(c >> 8);
+	    *scanline++ = (Uint8)c;
+	} else {
+	    *scanline++ = (Uint8)c;
+	    *scanline++ = (Uint8)(c >> 8);
+	    *scanline++ = (Uint8)(c >> 16);
+	}
+    }
+}
+
+static void *drawtextscanline32(Uint32 *scanline, int w, int y, Uint32 *clr,
+				unsigned char const *text, int len)
+{
+    unsigned char const	       *glyph;
+    int				n, x;
+
+    for (n = 0 ; n < len ; ++n) {
+	glyph = sdlg.font.bits[text[n]];
+	glyph += y * sdlg.font.w[text[n]];
+	for (x = 0 ; w && x < sdlg.font.w[text[n]] ; ++x, --w)
+	    scanline[x] = clr[glyph[x]];
+	scanline += x;
+    }
+    while (w--)
+	*scanline++ = clr[0];
+    return scanline;
+}
+
+/* The routine to draw a line of text to the screen.
+ */
+static void drawtext(SDL_Rect *rect, unsigned char const *text,
+		     int len, int flags)
+{
+    Uint32     *clr;
+    void       *p;
+    void       *q;
+    int		l, r;
+    int		pitch, bpp, n, w, y;
+
+    if (len < 0)
+	len = text ? strlen(text) : 0;
+
+    w = 0;
+    for (n = 0 ; n < len ; ++n)
+	w += sdlg.font.w[text[n]];
+    if (flags & PT_CALCSIZE) {
+	rect->h = sdlg.font.h;
+	rect->w = w;
+	return;
+    }
+    if (w >= rect->w) {
+	w = rect->w;
+	l = r = 0;
+    } else if (flags & PT_RIGHT) {
+	l = rect->w - w;
+	r = 0;
+    } else if (flags & PT_CENTER) {
+	l = (rect->w - w) / 2;
+	r = (rect->w - w) - l;
+    } else {
+	l = 0;
+	r = rect->w - w;
+    }
+
+    if (flags & PT_DIM)
+	clr = sdlg.dimtextclr.c;
+    else if (flags & PT_HILIGHT)
+	clr = sdlg.hilightclr.c;
+    else
+	clr = sdlg.textclr.c;
 
     pitch = sdlg.screen->pitch;
     bpp = sdlg.screen->format->BytesPerPixel;
-    scanline = sdlg.screen->pixels + rect->y * pitch + rect->x * bpp;
-
-    for (y = 0 ; y < sdlg.font->h && y < rect->h ; ++y) {
-	p = fillscanline(scanline, bpp, indent, sdlg.font->bkgnd);
-	for (n = 0 ; n < len ; ++n) {
-	    glyph = sdlg.font->bits;
-	    glyph += *(unsigned char const*)(text + n) * sdlg.font->h;
-	    for (x = sdlg.font->w, bit = 128 ; x ; --x, bit >>= 1) {
-		c = glyph[y] & bit ? sdlg.font->color : sdlg.font->bkgnd;
-		switch (bpp) {
-		  case 1:	*p = (Uint8)c;			break;
-		  case 2:	*(Uint16*)p = (Uint16)c;	break;
-		  case 4:	*(Uint32*)p = c;		break;
-		  case 3:
-		    if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-			p[0] = (Uint8)(c >> 16);
-			p[1] = (Uint8)(c >> 8);
-			p[2] = (Uint8)c;
-		    } else {
-			p[0] = (Uint8)c;
-			p[1] = (Uint8)(c >> 8);
-			p[2] = (Uint8)(c >> 16);
-		    }
-		    break;
-		}
-		p += bpp;
-	    }
+    p = (unsigned char*)sdlg.screen->pixels + rect->y * pitch + rect->x * bpp;
+    for (y = 0 ; y < sdlg.font.h && y < rect->h ; ++y) {
+	switch (bpp) {
+	  case 1: drawtextscanline8(p, w, y, clr, text, len);  break;
+	  case 2: drawtextscanline16(p, w, y, clr, text, len); break;
+	  case 3: drawtextscanline24(p, w, y, clr, text, len); break;
+	  case 4:
+	    q = drawtextscanline32(p, l, y, clr, "", 0);
+	    q = drawtextscanline32(q, w, y, clr, text, len);
+	    q = drawtextscanline32(q, r, y, clr, "", 0);
+	    break;
 	}
-	x = rect->w - len * sdlg.font->w;
-	if (x > 0)
-	    fillscanline(p, bpp, x, sdlg.font->bkgnd);
-	scanline += pitch;
+	p = (unsigned char*)p + pitch;
     }
     if (flags & PT_UPDATERECT) {
 	rect->y += y;
@@ -119,195 +281,233 @@ static void drawtext(SDL_Rect *rect, char const *text, int len, int flags)
 }
 
 /*
- * Exported font-drawing functions.
  */
+static void drawmultilinetext(SDL_Rect *rect, unsigned char const *text,
+			      int len, int flags)
+{
+    SDL_Rect	area;
+    int		index, brkw, brkn;
+    int		w, n;
+
+    if (flags & PT_CALCSIZE) {
+	rect->h = measuremltext(text, len, rect->w);
+	return;
+    }
+
+    if (len < 0)
+	len = strlen(text);
+
+    area = *rect;
+    brkw = brkn = 0;
+    index = 0;
+    for (n = 0, w = 0 ; n < len ; ++n) {
+	w += sdlg.font.w[text[n]];
+	if (isspace(text[n])) {
+	    brkn = n;
+	    brkw = w;
+	} else if (w > rect->w) {
+	    if (brkw) {
+		drawtext(&area, text + index, brkn - index,
+				 flags | PT_UPDATERECT);
+		index = brkn + 1;
+		w -= brkw;
+	    } else {
+		drawtext(&area, text + index, n - index,
+				 flags | PT_UPDATERECT);
+		w = sdlg.font.w[text[n]];
+	    }
+	    brkw = 0;
+	}
+    }
+    if (w)
+	drawtext(&area, text + index, len - index, flags | PT_UPDATERECT);
+    if (flags & PT_UPDATERECT) {
+	*rect = area;
+    } else {
+	while (area.h)
+	    drawtext(&area, "", 0, PT_UPDATERECT);
+    }
+}
 
 /* Draw a line of text.
  */
-static void putntext(SDL_Rect *rect, char const *text, int len, int flags)
+static void _puttext(SDL_Rect *rect, char const *text, int len, int flags)
 {
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_LockSurface(sdlg.screen);
-    drawtext(rect, text, len, flags);
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_UnlockSurface(sdlg.screen);
-}
+    if (!sdlg.font.h)
+	die("No font!");
 
-/* Draw a line of NUL-terminated text.
- */
-static void puttext(SDL_Rect *rect, char const *text, int flags)
-{
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_LockSurface(sdlg.screen);
-    drawtext(rect, text, strlen(text), flags);
-    if (SDL_MUSTLOCK(sdlg.screen))
-	SDL_UnlockSurface(sdlg.screen);
-}
-
-/* Draw multiple lines of text, looking for whitespace characters to
- * break lines at and subtracting each line from area as it gets used.
- */
-static void putmltext(SDL_Rect *rect, char const *text, int flags)
-{
-    SDL_Rect	area;
-    int		index, width, n;
+    if (len < 0)
+	len = text ? strlen(text) : 0;
 
     if (SDL_MUSTLOCK(sdlg.screen))
 	SDL_LockSurface(sdlg.screen);
 
-    area = *rect;
-    width = area.w / sdlg.font->w;
-    index = 0;
-    while (area.h >= sdlg.font->h) {
-	while (isspace(text[index]))
-	    ++index;
-	if (!text[index])
-	    break;
-	n = strlen(text + index);
-	if (n > width) {
-	    n = width;
-	    while (!isspace(text[index + n]) && n >= 0)
-		--n;
-	    if (n < 0)
-		n = width;
-	}
-	drawtext(&area, text + index, n, flags | PT_UPDATERECT);
-	index += n;
-    }
-    if (flags & PT_UPDATERECT)
-	*rect = area;
+    if (flags & PT_MULTILINE)
+	drawmultilinetext(rect, (unsigned char const*)text, len, flags);
+    else
+	drawtext(rect, (unsigned char const*)text, len, flags);
 
     if (SDL_MUSTLOCK(sdlg.screen))
 	SDL_UnlockSurface(sdlg.screen);
 }
 
 /*
- * The scrollable list functions.
  */
-
-/* Draw the visible lines of the list, with the selected line in its
- * own color.
- */
-static void scrollredraw(scrollinfo *scroll)
+static SDL_Rect *_measuretable(SDL_Rect const *area, tablespec const *table)
 {
-    SDL_Rect	area;
-    Uint32	fontcolor;
-    int		n;
+    SDL_Rect		       *cols;
+    unsigned char const	       *p;
+    int				sep, ml;
+    int				n, i, j, w, x, c;
+
+    if (!(cols = malloc(table->cols * sizeof *cols)))
+	memerrexit();
+    for (i = 0 ; i < table->cols ; ++i) {
+	cols[i].x = 0;
+	cols[i].y = area->y;
+	cols[i].w = 0;
+	cols[i].h = area->h;
+    }
+
+    ml = -1;
+    n = 0;
+    for (j = 0 ; j < table->rows ; ++j) {
+	for (i = 0 ; i < table->cols ; ++n) {
+	    c = table->items[n][0] - '0';
+	    if (c == 1) {
+		if (table->items[n][1] == '!') {
+		    ml = i;
+		} else {
+		    w = 0;
+		    for (p = table->items[n] + 2 ; *p ; ++p)
+			w += sdlg.font.w[*p];
+		    if (w > cols[i].w)
+			cols[i].w = w;
+		}
+	    }
+	    i += c;
+	}
+    }
+    sep = sdlg.font.w[' '] * table->sep;
+    w = -sep;
+    for (i = 0 ; i < table->cols ; ++i)
+	w += cols[i].w + sep;
+    if (w > area->w) {
+	w -= area->w;
+	if (table->collapse >= 0 && cols[table->collapse].w > w)
+	    cols[table->collapse].w -= w;
+    } else if (ml >= 0) {
+	cols[ml].w += area->w - w;
+    }
+
+    x = 0;
+    for (i = 0 ; i < table->cols && x < area->w ; ++i) {
+	cols[i].x = area->x + x;
+	x += cols[i].w + sep;
+	if (x >= area->w)
+	    cols[i].w = area->x + area->w - cols[i].x;
+    }
+    for ( ; i < table->cols ; ++i) {
+	cols[i].x = area->x + area->w;
+	cols[i].w = 0;
+    }
+
+    return cols;
+}
+
+/*
+ */
+static int _drawtablerow(tablespec const *table, SDL_Rect *cols,
+			 int *row, int flags)
+{
+    SDL_Rect			rect;
+    unsigned char const	       *p;
+    int				c, f, n, i, y;
+
+    if (!cols) {
+	for (i = 0 ; i < table->cols ; i += table->items[(*row)++][0] - '0') ;
+	return TRUE;
+    }
 
     if (SDL_MUSTLOCK(sdlg.screen))
 	SDL_LockSurface(sdlg.screen);
 
-    area = scroll->area;
-    fontcolor = sdlg.font->color;
-    for (n = scroll->topitem ; n < scroll->itemcount ; ++n) {
-	if (area.h < sdlg.font->h)
-	    break;
-	if (n == scroll->index)
-	    sdlg.font->color = scroll->highlight;
-	drawtext(&area, scroll->items[n], strlen(scroll->items[n]),
-			PT_UPDATERECT);
-	if (n == scroll->index)
-	    sdlg.font->color = fontcolor;
+    y = cols[0].y;
+    n = *row;
+    for (i = 0 ; i < table->cols ; ++n) {
+	p = table->items[n];
+	c = p[0] - '0';
+	rect = cols[i];
+	i += c;
+	if (c > 1)
+	    rect.w = cols[i - 1].x + cols[i - 1].w - rect.x;
+	f = flags | PT_UPDATERECT;
+	if (p[1] == '+')
+	    f |= PT_RIGHT;
+	else if (p[1] == '.')
+	    f |= PT_CENTER;
+	if (p[1] == '!')
+	    drawmultilinetext(&rect, p + 2, -1, f);
+	else
+	    drawtext(&rect, p + 2, -1, f);
+	if (rect.y > y)
+	    y = rect.y;
     }
-    if (area.h)
-	fillrect(&area);
 
     if (SDL_MUSTLOCK(sdlg.screen))
 	SDL_UnlockSurface(sdlg.screen);
-}
 
-/* Return the index of the selected line.
- */
-static int scrollindex(scrollinfo const *scroll)
-{
-    return scroll->index;
-}
+    *row = n;
+    for (i = 0 ; i < table->cols ; ++i) {
+	cols[i].h -= y - cols[i].y;
+	cols[i].y = y;
+    }
 
-/* Change the index of the selected line to pos, ensuring that the
- * number is in range and forcing that line to be visible.
- */
-static int scrollsetindex(scrollinfo *scroll, int pos)
-{
-    int	half;
-
-    scroll->index = pos < 0 || pos >= scroll->itemcount ?
-					scroll->itemcount - 1 : pos;
-
-    if (scroll->linecount >= scroll->itemcount)
-	return TRUE;
-
-    half = scroll->linecount / 2;
-    if (scroll->index < half)
-	scroll->topitem = 0;
-    else if (scroll->index >= scroll->itemcount - half)
-	scroll->topitem = scroll->itemcount - scroll->linecount;
-    else
-	scroll->topitem = scroll->index - half;
     return TRUE;
 }
 
-/* Change the selected line relative to the current selection.
+/*
+ * Exported text-drawing function.
  */
-static int scrollmove(scrollinfo *scroll, int delta)
-{
-    int	n;
-    int	r = TRUE;
 
-    n = scroll->index;
-    switch (delta) {
-      case ScrollUp:		--n;					break;
-      case ScrollDn:		++n;					break;
-      case ScrollHalfPageUp:	n -= (scroll->linecount + 1) / 2;	break;
-      case ScrollHalfPageDn:	n += (scroll->linecount + 1) / 2;	break;
-      case ScrollPageUp:	n -= scroll->linecount;			break;
-      case ScrollPageDn:	n += scroll->linecount;			break;
-      case ScrollToTop:		n = 0;					break;
-      case ScrollToBot:		n = scroll->itemcount - 1;		break;
+/* Free a font's memory.
+ */
+void freefont(void)
+{
+    if (sdlg.font.h) {
+	free(sdlg.font.memory);
+	sdlg.font.memory = NULL;
+	sdlg.font.h = 0;
     }
-    if (n < 0) {
-	n = 0;
-	r = FALSE;
-    } else if (n >= scroll->itemcount) {
-	n = scroll->itemcount - 1;
-	r = FALSE;
-    }
-    scrollsetindex(scroll, n);
-    return r;
 }
 
-/* Initialize the scrolling list's structure.
+/* Load a proportional font.
  */
-static int createscroll(scrollinfo *scroll, SDL_Rect const *area,
-			Uint32 highlightcolor, int itemcount,
-			char const **items)
+int loadfontfromfile(char const *filename)
 {
-    fontinfo const     *font = sdlg.font;
+    SDL_Surface	       *bmp;
+    fontinfo		font;
 
-    scroll->area = *area;
-    scroll->highlight = highlightcolor;
-    scroll->itemcount = itemcount;
-    scroll->items = items;
-    scroll->linecount = area->h / font->h;
-    scroll->maxlen = area->w / font->w;
-    scroll->topitem = 0;
-    scroll->index = 0;
+    bmp = SDL_LoadBMP(filename);
+    if (!bmp)
+	die("%s: can't load font bitmap: %s", filename, SDL_GetError());
+    if (!makefontfromsurface(&font, bmp))
+	die("failed to make font");
+    SDL_FreeSurface(bmp);
+    freefont();
+    sdlg.font = font;
+    return TRUE;
+}
+
+int _sdltextinitialize(void)
+{
+    sdlg.font.h = 0;
+    sdlg.puttextfunc = _puttext;
+    sdlg.measuretablefunc = _measuretable;
+    sdlg.drawtablerowfunc = _drawtablerow;
     return TRUE;
 }
 
 /*
  *
  */
-
-int _sdltextinitialize(void)
-{
-    sdlg.puttext = puttext;
-    sdlg.putntext = putntext;
-    sdlg.putmltext = putmltext;
-    sdlg.putblank = fillrect;
-    sdlg.createscroll = createscroll;
-    sdlg.scrollredraw = scrollredraw;
-    sdlg.scrollindex = scrollindex;
-    sdlg.scrollsetindex = scrollsetindex;
-    sdlg.scrollmove = scrollmove;
-    return TRUE;
-}

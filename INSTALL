@@ -7,7 +7,7 @@ http://www.libsdl.org/download.html. If you download a precompiled version
 -- i.e., an .rpm or .deb file -- note that you will need the development
 runtime, as opposed to the binary runtime.)
 
-Installing Tile World involves the usual three-step invocation:
+Installing Tile World involves the usual three-part incantation:
 
   ./configure
 
@@ -21,7 +21,8 @@ or via the command line.)
 
   make
 
-There shouldn't be any serious warnings from the compiler.
+There shouldn't be any serious warnings from the compiler. Use "make
+mklynxcc" if you want to also build a copy of mklynxcc (see below).
 
   make install
 
@@ -30,20 +31,18 @@ Running "make install" as root will do the following:
 * Copy the tworld binary to /usr/local/games.
 * Create /usr/local/share/tworld if it does not exist. (Or whatever
   directory you specified to ./configure.)
-* Copy the external resources (i.e., the tile bitmaps) to
+* Copy the external resources (i.e., the bitmaps and wave files) to
   /usr/local/share/tworld.
-* Create an empty directory /usr/local/share/tworld/data.
+* Create the directories /usr/local/share/tworld/data and
+  /usr/local/share/tworld/sets.
 
-This empty directory is where you will store the .dat files that you want
-to use.
-
-N.B.: With every alpha release, there is the possibility that one or more
-of your saved games from a previous release will no longer work correctly.
-This happens when your solution, knowingly or not, is dependent on a bug in
-the emulation that has been fixed. When this happens, you can use Ctrl-X to
-mark a solution as "replaceable", and then play the level. When you solve
-it, your new solution will replace the old one, whether or not it has a
-better time.
+The sets directory is where you will store the .dat files that you want to
+use. However, if you want to make use of a configuration file with a
+particular data file, then you will need to store the data file in the data
+directory, and the configuration file goes into the sets directory instead.
+(Documentation for the configuration file feature is not quite yet written,
+so you will probably just want to store your data files in the sets
+directory for now.)
 
   mklynxcc
 

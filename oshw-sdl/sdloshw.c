@@ -15,9 +15,14 @@
  */
 oshwglobals	sdlg;
 
+/* This is an automatically-generated file, which contains a
+ * representation of the program's icon.
+ */
+#include	"ccicon.c"
+
 /* Dispatch all events sitting in the SDL event queue. 
  */
-static void eventupdate(int wait)
+static void _eventupdate(int wait)
 {
     SDL_Event	event;
 
@@ -27,10 +32,10 @@ static void eventupdate(int wait)
     while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_ALLEVENTS)) {
 	switch (event.type) {
 	  case SDL_KEYDOWN:
-	    sdlg.keyeventcallback(event.key.keysym.sym, TRUE);
+	    keyeventcallback(event.key.keysym.sym, TRUE);
 	    break;
 	  case SDL_KEYUP:
-	    sdlg.keyeventcallback(event.key.keysym.sym, FALSE);
+	    keyeventcallback(event.key.keysym.sym, FALSE);
 	    break;
 	  case SDL_QUIT:
 	    exit(EXIT_SUCCESS);
@@ -55,27 +60,36 @@ void setsubtitle(char const *subtitle)
  */
 static void shutdown(void)
 {
-    if (SDL_WasInit(SDL_INIT_VIDEO))
-	SDL_Quit();
+    SDL_Quit();
 }
 
 /* Initialize SDL.
  */
 int oshwinitialize(int silence, int showhistogram)
 {
-    sdlg.eventupdate = eventupdate;
+    SDL_Surface	       *icon;
 
-    (void)silence;
-    atexit(shutdown);
+    sdlg.eventupdatefunc = _eventupdate;
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	die("Cannot initialize SDL system: %s\n", SDL_GetError());
+    atexit(shutdown);
+
+    icon = SDL_CreateRGBSurfaceFrom(cciconimage, CXCCICON, CYCCICON,
+				    32, 4 * CXCCICON,
+				    0x0000FF, 0x00FF00, 0xFF0000, 0);
+    if (icon) {
+	SDL_WM_SetIcon(icon, cciconmask);
+	SDL_FreeSurface(icon);
+    } else
+	warn("couldn't create icon surface: %s", SDL_GetError());
 
     setsubtitle(NULL);
 
     return _sdltimerinitialize(showhistogram)
-	&& _sdlresourceinitialize()
 	&& _sdltextinitialize()
 	&& _sdltileinitialize()
 	&& _sdlinputinitialize()
-	&& _sdloutputinitialize();
+	&& _sdloutputinitialize()
+	&& _sdlsfxinitialize(silence);
 }

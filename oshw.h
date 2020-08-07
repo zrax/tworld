@@ -54,6 +54,11 @@ extern int setkeyboardrepeat(int enable);
  */
 extern int setkeyboardarrowsrepeat(int enable);
 
+/* Turn input mode on or off. In input mode, only the arrow and letter
+ * keys are recognized.
+ */
+extern int setkeyboardinputmode(int enable);
+
 /* Return the latest/current keystroke. If wait is TRUE and no
  * keystrokes are pending, the function blocks until a keystroke
  * arrives.
@@ -70,8 +75,26 @@ extern int anykey(void);
  * Resource-loading functions.
  */
 
+/* Use the the given file as the program's font.
+ */
+extern int loadfontfromfile(char const *filename);
+
+/* Free all memory associated with the current font.
+ */
+extern void freefont(void);
+
+/* Load the tile images stored in the given file. If complain is FALSE,
+ * no error messages will be displayed if the file could not be used.
+ */
 extern int loadsmalltileset(char const *filename, int complain);
+
+/* Same as the last function, but reads the full set of tiles,
+ * including the animated sequences used in the Lynx emulation.
+ */
 extern int loadlargetileset(char const *filename, int complain);
+
+/* Free all memory associated with the current tile images.
+ */
 extern void freetileset(void);
 
 /*
@@ -96,7 +119,8 @@ extern int displaygame(void const *state, int timeleft, int besttime);
 /* Display a short message appropriate to the end of a level's game
  * play. completed is TRUE if the level was successfully completed.
  */
-extern int displayendmessage(int completed);
+extern int displayendmessage(int basescore, int timescore, int totalscore,
+			     int completed);
 
 /* Display a scrollable list of strings. title provides the title of
  * the list. header provides a single line of text at the top of the
@@ -105,26 +129,62 @@ extern int displayendmessage(int completed);
  * upon return, the value will be changed to the item that was finally
  * selected. inputcallback points to a function that is called after
  * displaying the list. The function is passed a pointer to an
- * integer; this value should be filled in with an enum value indicating
- * how the selection is to be moved. If the return value from the
- * function is TRUE, the display is updated and the function is called
+ * integer; this value should be filled in with a value indicating how
+ * the selection is to be moved. If the return value from the function
+ * is TRUE, the display is updated and the function is called
  * again. If the return value from the function is FALSE,
  * displaylist() ends, returning the value that was stored via the
  * pointer argument.
  */
-extern int displaylist(char const *title, char const *header,
-		       char const **items, int itemcount, int *index,
+extern int displaylist(char const *title, void const *table, int *index,
 		       int (*inputcallback)(int*));
 
-/* Enum values for moving the selection.
+/* Symbolic values for moving the selection of a scrolling list.
  */
 enum {
-    ScrollNop = 0,
-    ScrollUp,		ScrollDn,
-    ScrollPageUp,	ScrollPageDn,
-    ScrollHalfPageUp,	ScrollHalfPageDn,
-    ScrollToTop,	ScrollToBot
+    SCROLL_NOP			= -1,
+    SCROLL_UP			= -2,
+    SCROLL_DN			= -3,
+    SCROLL_PAGE_UP		= -4,
+    SCROLL_PAGE_DN		= -5,
+    SCROLL_HALFPAGE_UP		= -6,
+    SCROLL_HALFPAGE_DN		= -7,
+    SCROLL_ALLTHEWAY_UP		= -8,
+    SCROLL_ALLTHEWAY_DN		= -9
 };
+
+extern int displayinputprompt(char const *prompt, char *input, int maxlen,
+			      int (*inputcallback)(void));
+
+/*
+ * Sound functions.
+ */
+
+/* Activate or deactivate the sound system.
+ */
+extern int setaudiosystem(int active);
+
+/* Load a wave file into memory and associate it with the given sound
+ * effect.
+ */
+extern int loadsfxfromfile(int index, char const *filename);
+
+/* Select the onomatopoeia to be used for textual sound effects based
+ * on the given ruleset.
+ */
+extern void selectsoundset(int ruleset);
+
+/* Select the sounds effects to be played at this time.
+ */
+extern void playsoundeffects(unsigned long sfx);
+
+/* Immediately turn off all sounds effects.
+ */
+extern void clearsoundeffects(void);
+
+/* Release all memory used for the given sound effect.
+ */
+extern void freesfx(int index);
 
 /*
  * Miscellaneous functions.

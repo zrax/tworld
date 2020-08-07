@@ -13,6 +13,10 @@
 #include	"../err.h"
 #include	"../state.h"
 
+/* The total number of tile images.
+ */
+#define	NTILES		128
+
 typedef	struct tilemap {
     Uint32     *opaque;
     Uint32     *transp;
@@ -154,7 +158,7 @@ static tilemap		tileptr[NTILES];
 
 /* Return a pointer to a specific tile image.
  */
-static Uint32 const *gettileimage(int id, int transp)
+static Uint32 const *_gettileimage(int id, int transp)
 {
     if (transp)
 	return tileptr[id].transp ? tileptr[id].transp
@@ -166,10 +170,10 @@ static Uint32 const *gettileimage(int id, int transp)
 
 /* Return a pointer to a tile image for a creature.
  */
-static Uint32 const *getcreatureimage(int id, int dir, int moving)
+static Uint32 const *_getcreatureimage(int id, int dir, int moving)
 {
     (void)moving;
-    id += (0x30210 >> (dir * 2)) & 3;
+    id += diridx(dir);
     return tileptr[id].transp ? tileptr[id].transp : tileptr[id].opaque;
 }
 
@@ -177,7 +181,7 @@ static Uint32 const *getcreatureimage(int id, int dir, int moving)
  * transparent, the appropriate image is created in the overlay
  * buffer.
  */
-static Uint32 const *getcellimage(int top, int bot)
+static Uint32 const *_getcellimage(int top, int bot)
 {
     Uint32     *src;
     Uint32     *dest;
@@ -200,11 +204,11 @@ static Uint32 const *getcellimage(int top, int bot)
  */
 
 /* First, the tiles are transferred from the bitmap surface to a
- * surface with the same pixel format as the display. Then, the mask
- * is applied, to set the transparent pixels. Finally, the tiles are
- * transferred to a one-dimensional surface for easy copying.
+ * 32-bit surface. Then, the mask is applied, setting the transparent
+ * pixels.  Finally, the tiles are individually transferred to a
+ * one-dimensional array.
  */
-static int initializetileset(SDL_Surface *bmp, int wset, int hset,
+static int inittileswithmask(SDL_Surface *bmp, int wset, int hset,
 			     int xmask, int ymask, int wmask, int hmask,
 			     int xmaskdest, int ymaskdest)
 {
@@ -220,7 +224,7 @@ static int initializetileset(SDL_Surface *bmp, int wset, int hset,
     int			x, y, z, n;
 
     if (!sdlg.screen) {
-	warn("initializetileset() called before creating 32-bit screen");
+	warn("inittileswithmask() called before creating 32-bit screen");
 	fmt = SDL_GetVideoInfo()->vfmt;
     } else
 	fmt = sdlg.screen->format;
@@ -271,9 +275,8 @@ static int initializetileset(SDL_Surface *bmp, int wset, int hset,
 	SDL_UnlockSurface(mask);
     SDL_FreeSurface(mask);
 
-    cctiles = calloc(wset * hset * sdlg.cptile, sizeof *cctiles);
-    if (!dest)
-	die("insufficient memory");
+    if (!(cctiles = calloc(wset * hset * sdlg.cptile, sizeof *cctiles)))
+	memerrexit();
     dest = cctiles;
     for (x = 0 ; x < wset * sdlg.wtile ; x += sdlg.wtile) {
 	for (y = 0 ; y < hset * sdlg.htile ; y += sdlg.htile) {
@@ -344,7 +347,7 @@ int loadsmalltileset(char const *filename, int complain)
     sdlg.htile = y;
     sdlg.cptile = x * y;
     sdlg.cbtile = sdlg.cptile * sizeof(Uint32);
-    initializetileset(bmp, 10, 16, 10, 0, 3, 16, 7, 0);
+    inittileswithmask(bmp, 10, 16, 10, 0, 3, 16, 7, 0);
 
     SDL_FreeSurface(bmp);
     return cctiles != NULL;
@@ -361,8 +364,8 @@ int loadlargetileset(char const *filename, int complain)
 
 int _sdltileinitialize(void)
 {
-    sdlg.gettileimage = gettileimage;
-    sdlg.getcreatureimage = getcreatureimage;
-    sdlg.getcellimage = getcellimage;
+    sdlg.gettileimagefunc = _gettileimage;
+    sdlg.getcreatureimagefunc = _getcreatureimage;
+    sdlg.getcellimagefunc = _getcellimage;
     return TRUE;
 }

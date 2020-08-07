@@ -67,26 +67,25 @@ static int setrulesetbehavior(int ruleset)
 /* Initialize the current state to the starting position of the
  * current level.
  */
-int initgamestate(gameseries *series, int level, int replay)
+int initgamestate(gamesetup *game, int ruleset, int replay)
 {
-    if (!setrulesetbehavior(series->ruleset))
+    if (!setrulesetbehavior(ruleset))
 	return FALSE;
 
     memset(&state, 0, sizeof state);
-    state.game = &series->games[level];
-    state.ruleset = series->ruleset;
+    state.game = game;
+    state.ruleset = ruleset;
     state.lastmove = NIL;
-    state.statusflags |= SF_ONOMATOPOEIA;
     state.soundeffects = 0;
-    state.timelimit = state.game->time * TICKS_PER_SECOND;
+    state.timelimit = game->time * TICKS_PER_SECOND;
 
     if (replay) {
-	if (!state.game->savedsolution.count)
+	if (!game->savedsolution.count)
 	    return FALSE;
 	state.replay = 0;
-	copymovelist(&state.moves, &state.game->savedsolution);
-	state.initrndslidedir = state.game->savedrndslidedir;
-	restartprng(&state.mainprng, state.game->savedrndseed);
+	copymovelist(&state.moves, &game->savedsolution);
+	state.initrndslidedir = game->savedrndslidedir;
+	restartprng(&state.mainprng, game->savedrndseed);
     } else {
 	state.replay = -1;
 	initmovelist(&state.moves);
@@ -97,15 +96,17 @@ int initgamestate(gameseries *series, int level, int replay)
     return (*initgame)(&state);
 }
 
-/* Put the program into game-play mode.
+/* Put the program into a game-play mode.
  */
 void setgameplaymode(int mode)
 {
     switch (mode) {
-      case BeginPlay:	settimer(+1);	setkeyboardrepeat(FALSE);	break;
-      case SuspendPlay:	settimer(0);	setkeyboardrepeat(TRUE);	break;
-      case ResumePlay:	settimer(+1);	setkeyboardrepeat(FALSE);	break;
-      case EndPlay:	settimer(-1);	setkeyboardrepeat(TRUE);	break;
+      case BeginPlay:	setkeyboardrepeat(FALSE);	settimer(+1);	break;
+      case SuspendPlay:	setkeyboardrepeat(TRUE);	settimer(0);	break;
+      case ResumePlay:	setkeyboardrepeat(FALSE);	settimer(+1);	break;
+      case EndPlay:	setkeyboardrepeat(TRUE);	settimer(-1);	break;
+      case BeginInput:	setkeyboardinputmode(TRUE);			break;
+      case EndInput:	setkeyboardinputmode(FALSE);			break;
     }
 }
 
@@ -119,7 +120,7 @@ int doturn(int cmd)
     action	act;
     int		n;
 
-    state.soundeffects = 0;
+    state.soundeffects &= ~((1 << SND_ONESHOT_COUNT) - 1);
     state.currenttime = gettickcount();
     if (state.replay < 0) {
 	if (cmd != CmdPreserve)
@@ -155,7 +156,7 @@ int doturn(int cmd)
  */
 int drawscreen(void)
 {
-    int currtime, besttime;
+    int timeleft, besttime;
 
     if (hassolution(state.game)) {
 	besttime = (state.game->time ? state.game->time : 999)
@@ -166,15 +167,17 @@ int drawscreen(void)
 	besttime = 0;
 
     if (state.game->time)
-	currtime = state.game->time - state.currenttime / TICKS_PER_SECOND;
+	timeleft = state.game->time - state.currenttime / TICKS_PER_SECOND;
     else
-	currtime = -1;
+	timeleft = -1;
 
-    return displaygame(&state, currtime, besttime);
+    playsoundeffects(state.soundeffects);
+    return displaygame(&state, timeleft, besttime);
 }
 
 int endgamestate(void)
 {
+    clearsoundeffects();
     return (*endgame)(&state);
 }
 
@@ -193,12 +196,12 @@ int replacesolution(void)
 {
     if (state.statusflags & SF_NOSAVING)
 	return FALSE;
-    if (hassolution(state.game) && !state.game->replacebest
+    if (hassolution(state.game) && !(state.game->sgflags & SGF_REPLACEABLE)
 				&& state.currenttime >= state.game->besttime)
 	return FALSE;
 
     state.game->besttime = state.currenttime;
-    state.game->replacebest = FALSE;
+    state.game->sgflags &= ~SGF_REPLACEABLE;
     state.game->savedrndslidedir = state.initrndslidedir;
     state.game->savedrndseed = getinitialseed(&state.mainprng);
     copymovelist(&state.game->savedsolution, &state.moves);

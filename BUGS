@@ -3,20 +3,11 @@ Contents
 * Bugs in the MS game logic emulation
 * Bugs in the Lynx game logic emulation
 * Other bugs and misfeatures
+* TODO: Missing features
 ___________________________________________________________________________
 
 Bugs in the MS game logic emulation
 
-* The behavior of the paramecia in Eric Schmidt's level 29 ("PARAMECIA")
-  still does not match the real game (although it's much closer than it was
-  before). I don't yet know what the root cause of the discrepancy is.
-* (It is debatable whether or not this one qualifies as a bug.) The
-  keyboard is scanned twice per tick, once at the beginning and once in the
-  middle. As a result, if Chip makes a move at the beginning of a tick, the
-  game does not update the display twice in a row (once after the creatures
-  move and once after Chip moves), but just does it once. In a few places
-  this does have a non-trivial effect on how the game appears, most notably
-  when Chip tries to move against a force floor.
 * Several of the weirder obscure bugs aren't reproduced faithfully. (For
   example, the tank-hits-red-button-cloning-block-which-hits-blue-button
   bug correctly produces an extra tank in the emulation, but the first tank
@@ -24,6 +15,15 @@ Bugs in the MS game logic emulation
   motivated to improve the emulation of these, as they are pretty obscure.
   However, their existence may point to areas where the emulator could be
   mirroring the internal logic of the MS game better.
+* The keyboard is scanned twice per tick, once at the beginning and once in
+  the middle. As a result, if Chip makes a move at the beginning of a tick,
+  the game does not update the display twice in a row (once after the
+  creatures move and once after Chip moves), but just does it once. In a
+  few places this has a non-trivial effect on how the game appears, most
+  notably when Chip tries to move against a force floor. I do not believe
+  that this optimization ever has an real effect on the gameplay, however.
+  It is still a bit of an open question in my mind, however, which is why
+  it is mentioned here.
 ___________________________________________________________________________
 
 Bugs in the Lynx game logic emulation
@@ -63,6 +63,8 @@ Other bugs and misfeatures
 
 * There ought to be a way to return to the file list, instead of having to
   shut down and restart the program. That drives me crazy.
-* The display code needs to be revamped to run more efficiently across the
-  various display resolutions (right now it runs well on 32-bit displays
-  and poorly on 8-bit displays).
+___________________________________________________________________________
+
+TODO: Missing features
+
+  None; the program is currently believed to be feature-complete.
