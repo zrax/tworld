@@ -11,13 +11,13 @@ Installing Tile World involves the usual three-part incantation:
 
   ./configure
 
-By default, the program is set up so that it will keep its shared files in
-/usr/local/share/tworld. If you would prefer the tworld directory to be
-somewhere besides /usr/local/share, use the --datadir option to change it
-when you run ./configure. Alternately, you can use the --with-sharedir=DIR
-option to explicitly specify a completely different path. (This value can
-also be changed at runtime, either via the TWORLDDIR environment variable
-or via the command line.)
+By default, the program is set up so that it will keep its shared files
+under /usr/local/share/tworld. If you would prefer the tworld directory to
+be somewhere besides /usr/local/share, use the --datadir option to change
+it when you run ./configure. Alternately, you can use the
+--with-sharedir=DIR option to explicitly specify a completely different
+path. (This value can also be changed at runtime, either via the TWORLDDIR
+environment variable or via the command line.)
 
   make
 
@@ -32,7 +32,7 @@ Running "make install" as root will do the following:
 * Create /usr/local/share/tworld if it does not exist. (Or whatever
   directory you specified to ./configure.)
 * Copy the external resources (i.e., the bitmaps and wave files) to
-  /usr/local/share/tworld.
+  /usr/local/share/tworld/res.
 * Create the directories /usr/local/share/tworld/data and
   /usr/local/share/tworld/sets.
 

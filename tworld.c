@@ -349,6 +349,8 @@ static int startinput(gamespec *gs)
 	  case CmdNext:		leveldelta(+1);			return CmdNone;
 	  case CmdNext10:	leveldelta(+10);		return CmdNone;
 	  case CmdKillSolution:	replaceablesolution(gs);	break;
+	  case CmdVolumeUp:	changevolume(+2, TRUE);		break;
+	  case CmdVolumeDown:	changevolume(-2, TRUE);		break;
 	  case CmdHelp:		onlinehelp(Help_KeysBetweenGames); break;
 	  case CmdQuit:						exit(0);
 	  case CmdPlayback:
@@ -434,6 +436,7 @@ static int playgame(gamespec *gs, int firstcmd)
 	waitfortick();
 	cmd = input(FALSE);
 	if (cmd == CmdQuitLevel) {
+	    quitgamestate();
 	    n = -1;
 	    break;
 	}
@@ -446,6 +449,14 @@ static int playgame(gamespec *gs, int firstcmd)
 	      case CmdDebugCmd1:				break;
 	      case CmdDebugCmd2:				break;
 	      case CmdQuit:					exit(0);
+	      case CmdVolumeUp:
+		changevolume(+2, TRUE);
+		cmd = CmdNone;
+		break;
+	      case CmdVolumeDown:
+		changevolume(-2, TRUE);
+		cmd = CmdNone;
+		break;
 	      case CmdPauseGame:
 		setgameplaymode(SuspendPlay);
 		anykey();
@@ -483,6 +494,7 @@ static int playgame(gamespec *gs, int firstcmd)
     return TRUE;
 
   quitloop:
+    quitgamestate();
     setgameplaymode(EndPlay);
     if (n)
 	changecurrentgame(gs, n);
@@ -512,6 +524,12 @@ static int playbackgame(gamespec *gs)
 	  case CmdPlayback:	gs->playback = FALSE;		goto quitloop;
 	  case CmdQuitLevel:	gs->playback = FALSE;		goto quitloop;
 	  case CmdQuit:						exit(0);
+	  case CmdVolumeUp:
+	    changevolume(+2, TRUE);
+	    break;
+	  case CmdVolumeDown:
+	    changevolume(-2, TRUE);
+	    break;
 	  case CmdPauseGame:
 	    setgameplaymode(SuspendPlay);
 	    anykey();
@@ -538,6 +556,7 @@ static int playbackgame(gamespec *gs)
     return TRUE;
 
   quitloop:
+    quitgamestate();
     setgameplaymode(EndPlay);
     gs->playback = FALSE;
     return FALSE;
@@ -671,7 +690,7 @@ static void initdirs(char const *series, char const *seriesdat,
 	    warn("Value of environment variable TWORLDSAVEDIR is too long");
     }
 
-    if (!res || !series) {
+    if (!res || !series || !seriesdat) {
 	if ((dir = getenv("TWORLDDIR")) && *dir) {
 	    if (strlen(dir) < maxpath - 8)
 		root = dir;
@@ -691,7 +710,7 @@ static void initdirs(char const *series, char const *seriesdat,
     if (res)
 	strcpy(resdir, res);
     else
-	strcpy(resdir, root);
+	combinepath(resdir, root, "res");
 
     seriesdir = getpathbuffer();
     if (series)

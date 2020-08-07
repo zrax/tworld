@@ -1,4 +1,14 @@
 
+2002 Jan 03: version 0.10.0
+
+* Vastly improved the Lynx emulation of "diagonal" moves. Had to change the
+  save file format (again!!) so that diagonal moves could be properly
+  stored.
+* Added a volume control.
+* Fixed bug in Lynx logic that prevented Chip from standing still on the
+  very first frame when starting on a force floor.
+* Fixes for a few other random things.
+
 2002 Jan 01: version 0.9.3
 
 * Added a proper Chip-dies sequence to the Lynx emulation. Also removed

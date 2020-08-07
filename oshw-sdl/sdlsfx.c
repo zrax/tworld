@@ -36,9 +36,18 @@ static SDL_AudioSpec	spec;
  */
 static sfxinfo		sounds[SND_COUNT];
 
-/* TRUE if there is a sound device to talk to.
+/* TRUE if sound-playing has been enabled.
+ */
+static int		enabled = FALSE;
+
+/* TRUE if there is currently a sound device to talk to.
  */
 static int		hasaudio = FALSE;
+
+/* The sound's volume level.
+ */
+static int		volume = SDL_MIX_MAXVOLUME;
+
 
 /* Initialize the textual sound effects.
  */
@@ -76,42 +85,20 @@ static void initonomatopoeia(void)
  */
 static void displaysoundeffects(unsigned long sfx, int display)
 {
-    static int		nowplaying = -1;
-    static Uint32	playtime = 0;
     unsigned long	flag;
-    int			play;
-    int			i, f;
+    int			i;
 
     if (!display) {
-	nowplaying = -1;
-	playtime = 0;
+	setdisplaymsg(NULL, 0, 0);
 	return;
     }
 
-    play = -1;
     for (flag = 1, i = 0 ; flag ; flag <<= 1, ++i) {
 	if (sfx & flag) {
-	    play = i;
-	    break;
+	    setdisplaymsg(sounds[i].textsfx, 500, 10);
+	    return;
 	}
     }
-
-    f = PT_CENTER;
-    if (play >= 0) {
-	nowplaying = i;
-	playtime = SDL_GetTicks() + 500;
-    } else if (nowplaying >= 0) {
-	if (SDL_GetTicks() < playtime) {
-	    play = nowplaying;
-	    f |= PT_DIM;
-	} else
-	    nowplaying = -1;
-    }
-
-    if (play >= 0)
-	puttext(&sdlg.textsfxrect, sounds[play].textsfx, -1, f);
-    else
-	puttext(&sdlg.textsfxrect, "", 0, 0);
 }
 
 /* The function that is called by the sound driver to supply the
@@ -130,24 +117,21 @@ static void sfxcallback(void *data, Uint8 *wave, int len)
 		continue;
 	n = sounds[i].len - sounds[i].pos;
 	if (n > len) {
-	    SDL_MixAudio(wave, sounds[i].wave + sounds[i].pos, len,
-			 SDL_MIX_MAXVOLUME);
+	    SDL_MixAudio(wave, sounds[i].wave + sounds[i].pos, len, volume);
 	    sounds[i].pos += len;
 	} else {
-	    SDL_MixAudio(wave, sounds[i].wave + sounds[i].pos, n,
-			 SDL_MIX_MAXVOLUME);
+	    SDL_MixAudio(wave, sounds[i].wave + sounds[i].pos, n, volume);
 	    sounds[i].pos = 0;
 	    if (i < SND_ONESHOT_COUNT) {
 		sounds[i].playing = FALSE;
 	    } else if (sounds[i].playing) {
 		while (len - n >= (int)sounds[i].len) {
 		    SDL_MixAudio(wave + n, sounds[i].wave, sounds[i].len,
-				 SDL_MIX_MAXVOLUME);
+				 volume);
 		    n += sounds[i].len;
 		}
 		sounds[i].pos = len - n;
-		SDL_MixAudio(wave + n, sounds[i].wave, sounds[i].pos,
-			     SDL_MIX_MAXVOLUME);
+		SDL_MixAudio(wave + n, sounds[i].wave, sounds[i].pos, volume);
 	    }
 	}
     }
@@ -163,6 +147,9 @@ int setaudiosystem(int active)
 {
     SDL_AudioSpec	des;
     int			n;
+
+    if (!enabled)
+	return !active;
 
     if (!active) {
 	if (hasaudio) {
@@ -215,8 +202,13 @@ int loadsfxfromfile(int index, char const *filename)
 	freesfx(index);
 	return TRUE;
     }
-    if (!hasaudio)
+
+    if (!enabled)
 	return FALSE;
+
+    if (!hasaudio)
+	if (!setaudiosystem(TRUE))
+	    return FALSE;
 
     if (!SDL_LoadWAV(filename, &specin, &wavein, &lengthin)) {
 	warn("can't load %s: %s\n", filename, SDL_GetError());
@@ -258,7 +250,7 @@ void playsoundeffects(unsigned long sfx)
     unsigned long	flag;
     int			i;
 
-    if (!hasaudio) {
+    if (!hasaudio || !volume) {
 	displaysoundeffects(sfx, TRUE);
 	return;
     }
@@ -281,7 +273,7 @@ void clearsoundeffects(void)
 {
     int	i;
 
-    if (!hasaudio) {
+    if (!hasaudio || !volume) {
 	displaysoundeffects(0, FALSE);
 	return;
     }
@@ -308,6 +300,31 @@ void freesfx(int index)
     }
 }
 
+/* Change the current volume level.
+ */
+int changevolume(int delta, int display)
+{
+    char	buf[16];
+    int		v;
+
+    if (!hasaudio)
+	return FALSE;
+    v = (10 * volume) / SDL_MIX_MAXVOLUME;
+    v += delta;
+    if (v < 0)
+	v = 0;
+    else if (v > 10)
+	v = 10;
+    if (!volume && v)
+	displaysoundeffects(0, FALSE);
+    volume = (SDL_MIX_MAXVOLUME * v + 9) / 10;
+    if (display) {
+	sprintf(buf, "Volume: %d", v);
+	setdisplaymsg(buf, 1000, 1000);
+    }
+    return TRUE;
+}
+
 /* Shut down the sound system.
  */
 static void shutdown(void)
@@ -315,6 +332,7 @@ static void shutdown(void)
     setaudiosystem(FALSE);
     if (SDL_WasInit(SDL_INIT_AUDIO))
 	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    hasaudio = FALSE;
 }
 
 /* Initialize the sound system.
@@ -323,7 +341,10 @@ int _sdlsfxinitialize(int silence)
 {
     atexit(shutdown);
     initonomatopoeia();
-    if (silence)
+    if (silence) {
+	enabled = FALSE;
 	return TRUE;
+    }
+    enabled = TRUE;
     return setaudiosystem(TRUE);
 }
