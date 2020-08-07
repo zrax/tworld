@@ -1,6 +1,6 @@
 /* sdlgen.h: The internal shared definitions of the SDL OS/hardware layer.
  * 
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -100,8 +100,8 @@ typedef	struct oshwglobals
     /* Return a pointer to a tile image for a creature, completing the
      * fields of the given rect.
      */
-    Uint32 const* (*getcreatureimagefunc)(SDL_Rect *rect,
-					  int id, int dir, int moving);
+    Uint32 const* (*getcreatureimagefunc)(SDL_Rect *rect, int id, int dir,
+					  int moving, int frame);
 
     /* Return a pointer to a tile image for a cell. If the top image
      * is transparent, the appropriate image is created in the overlay
@@ -125,9 +125,6 @@ extern oshwglobals sdlg;
 #define	getcreatureimage	(*sdlg.getcreatureimagefunc)
 #define	getcellimage		(*sdlg.getcellimagefunc)
 #define	getonomatopoeia		(*sdlg.getonomatopoeiafunc)
-
-#define	gettileimage(id)	(getcellimage((id), Empty, 0))
-
 
 /* The initialization functions.
  */

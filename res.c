@@ -1,6 +1,6 @@
 /* res.c: Functions for loading resources from external files.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -22,6 +22,7 @@
 #define	RES_SND_CHIP_WINS	(RES_SND_BASE + SND_CHIP_WINS)
 #define	RES_SND_TIME_OUT	(RES_SND_BASE + SND_TIME_OUT)
 #define	RES_SND_TIME_LOW	(RES_SND_BASE + SND_TIME_LOW)
+#define	RES_SND_DEREZZ		(RES_SND_BASE + SND_DEREZZ)
 #define	RES_SND_CANT_MOVE	(RES_SND_BASE + SND_CANT_MOVE)
 #define	RES_SND_IC_COLLECTED	(RES_SND_BASE + SND_IC_COLLECTED)
 #define	RES_SND_ITEM_COLLECTED	(RES_SND_BASE + SND_ITEM_COLLECTED)
@@ -64,6 +65,7 @@ static rcitem rclist[] = {
     { "levelcompletesound",	FALSE },
     { "chipdeathbytimesound",	FALSE },
     { "ticksound",		FALSE },
+    { "derezzsound",		FALSE },
     { "blockedmovesound",	FALSE },
     { "pickupchipsound",	FALSE },
     { "pickuptoolsound",	FALSE },
@@ -105,9 +107,11 @@ char		       *resdir = NULL;
 
 static void initresourcedefaults(void)
 {
+    strcpy(allresources[Ruleset_None][RES_IMG_TILES].str, "tiles.bmp");
+    strcpy(allresources[Ruleset_None][RES_IMG_FONT].str, "font.bmp");
+#if 0
     strcpy(globalresources[RES_IMG_TILES].str, "tiles.bmp");
     strcpy(globalresources[RES_IMG_FONT].str, "font.bmp");
-#if 0
     strcpy(globalresources[RES_SND_CHIP_LOSES].str, "bummer.wav");
     strcpy(globalresources[RES_SND_CHIP_WINS].str, "ditty1.wav");
     strcpy(globalresources[RES_SND_TIME_OUT].str, "bell.wav");
@@ -123,10 +127,10 @@ static void initresourcedefaults(void)
     strcpy(globalresources[RES_SND_BOMB_EXPLODES].str, "hit3.wav");
     strcpy(globalresources[RES_SND_WATER_SPLASH].str, "water2.wav");
 #endif
-    memcpy(&allresources[Ruleset_MS], &globalresources,
-	   sizeof globalresources);
-    memcpy(&allresources[Ruleset_Lynx], &globalresources,
-	   sizeof globalresources);
+    memcpy(&allresources[Ruleset_MS], &allresources[Ruleset_None],
+				sizeof allresources[Ruleset_None]);
+    memcpy(&allresources[Ruleset_Lynx], &allresources[Ruleset_None],
+				sizeof allresources[Ruleset_None]);
 }
 
 static int readrcfile(void)

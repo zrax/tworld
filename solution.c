@@ -1,6 +1,6 @@
 /* solution.c: Functions for reading and writing the solution files.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -46,10 +46,10 @@
  * 00DDddDD
  *
  * 01234567
- * 01DDTTTT
+ * 10DDTTTT
  *
  * 01234567 89012345
- * 10DDTTTT TTTTTTTT
+ * 01DDTTTT TTTTTTTT
  *
  * 01234567 89012345 67890123 45678901
  * 11DDTTTT TTTTTTTT TTTTTTTT TTTTTTTT

@@ -56,6 +56,13 @@ ___________________________________________________________________________
 
 Bugs in the Lynx game logic emulation
 
+* Something about hit detection isn't correct. You can see this by playing
+  GO WITH THE FLOW (27) and heading directly for the fire boots. In the
+  emulator, Chip will slide past the tank safely. In the real game, Chip
+  gets killed when he does this.
+* On levels where Chips starts out on a force floor, if he begins the level
+  without moving, the force floor doesn't take effect until after the first
+  frame. In the emulation, the force floor takes effect from the get-go.
 * The pattern of "clone boosting" is not the same as the Lynx game. It's
   hard to find examples that clearly show this; I have only one. Play ICE
   HOUSE (102) on the Lynx. After landing safely on the red button, step
@@ -72,21 +79,12 @@ Bugs in the Lynx game logic emulation
   necessary to start finding patterns, and there are few levels that have
   the necessary elements for such investigation. So this one is still up in
   the air.
-* "Diagonal" moves (moving in one direction while pushing in a
-  perpendicular direction) are not supported. The keyboard-handling needs
-  to be changed to deal with multiple keypresses in order to make this
-  work.
 * The Lynx game only permitted 128 creatures (including Chip) to exist
   simultaneously. Thus, a clone machine activated when the population was
   at maximum would "run out". The emulator does not enforce any such
   maximum. Of course, fixing this would put a limit on the kinds of new
   levels that people could create under the Lynx ruleset -- so this one may
   be better off as it is....
-* On levels where Chips starts out on a force floor, if he begins the level
-  without moving, the force floor doesn't take effect until after the first
-  frame. In the emulation, the force floor takes effect from the get-go.
-* Blocks change their direction when Chip pushes on them, even if the block
-  can't be moved. The emulator does not do this.
 ___________________________________________________________________________
 
 Other bugs and misfeatures
@@ -96,6 +94,6 @@ ___________________________________________________________________________
 
 TODO: Missing features
 
-* The program needs to have some kind of end-sequence when Chip dies.
-  Likewise, some kind of end-sequence is needed when the last level of a
-  set is completed.
+* The program needs to have some kind of end-sequence when the last level
+  of a set is completed.
+* A fair bit of documentation also needs to be written before release.

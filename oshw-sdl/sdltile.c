@@ -1,6 +1,6 @@
 /* sdltiles.c: Functions for rendering tile images.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -63,20 +63,6 @@ typedef	struct tileidinfo {
     char	transpsize;	/* SIZE_* flags for the transparent size */
     int		shape;		/* enum values for the free-form bitmap */
 } tileidinfo;
-
-/* Information describing the overall layout of a fixed-form tile
- * bitmap. All coordinates are expressed in tiles.
- */
-typedef	struct imagelayout {
-    int		wtiles;		/* width of the main image */
-    int		htiles;		/* height of the main image */
-    int		xmask;		/* coordinates of the mask image */
-    int		ymask;
-    int		wmask;		/* width of the mask image */
-    int		hmask;		/* height of the mask image */
-    int		xmaskdest;	/* coordinates of the tiles to be masked */
-    int		ymaskdest;
-} imagelayout;
 
 static tileidinfo const tileidmap[NTILES] = {
     { Empty,		 0,  0, -1, -1, 0, 0, 0, 0, TILEIMG_SINGLEOPAQUE },
@@ -193,8 +179,8 @@ static tileidinfo const tileidmap[NTILES] = {
     { Paramecium + 2,	 6,  2,  9,  2, 0, 0, 1, 0, TILEIMG_IMPLICIT },
     { Paramecium + 3,	 6,  3,  9,  3, 0, 0, 1, 0, TILEIMG_IMPLICIT },
     { Water_Splash,	 3,  3, -1, -1, 0, 0, 0, 0, TILEIMG_ANIMATION },
-    { Dirt_Splash,	 3,  7, -1, -1, 0, 0, 0, 0, TILEIMG_ANIMATION },
     { Bomb_Explosion,	 3,  6, -1, -1, 0, 0, 0, 0, TILEIMG_ANIMATION },
+    { Entity_Explosion,	 3,  7, -1, -1, 0, 0, 0, 0, TILEIMG_ANIMATION }
 };
 
 static Uint32	       *cctiles = NULL;
@@ -256,15 +242,27 @@ static Uint32 const *_gettileimage(int id, int transp)
  * fields of the given rect.
  */
 static Uint32 const *_getcreatureimage(SDL_Rect *rect,
-				       int id, int dir, int moving)
+				       int id, int dir, int moving, int frame)
 {
     tilemap const      *q;
     int			n;
 
     rect->w = sdlg.wtile;
     rect->h = sdlg.htile;
-    q = tileptr + id + diridx(dir);
+    q = tileptr + id;
+    if (!isanimation(id))
+	q += diridx(dir);
 
+    if (!q->transpsize || isanimation(id)) {
+	if (moving > 0) {
+	    switch (dir) {
+	      case NORTH:	rect->y += moving * rect->h / 8;	break;
+	      case WEST:	rect->x += moving * rect->w / 8;	break;
+	      case SOUTH:	rect->y -= moving * rect->h / 8;	break;
+	      case EAST:	rect->x -= moving * rect->w / 8;	break;
+	    }
+	}
+    }
     if (q->transpsize) {
 	if (q->transpsize & SIZE_EXTLEFT) {
 	    rect->x -= sdlg.wtile;
@@ -278,17 +276,8 @@ static Uint32 const *_getcreatureimage(SDL_Rect *rect,
 	}
 	if (q->transpsize & SIZE_EXTDOWN)
 	    rect->h += sdlg.htile;
-    } else if (!isanimation(id)) {
-	if (moving > 0) {
-	    switch (dir) {
-	      case NORTH:	rect->y += moving * rect->h / 8;	break;
-	      case WEST:	rect->x += moving * rect->w / 8;	break;
-	      case SOUTH:	rect->y -= moving * rect->h / 8;	break;
-	      case EAST:	rect->x -= moving * rect->w / 8;	break;
-	    }
-	}
     }
-    n = q->celcount > 1 ? moving / 2 : 0;
+    n = q->celcount > 1 ? frame : 0;
     if (n >= q->celcount)
 	die("requested cel #%d from a %d-cel sequence (%d+%d)",
 	    n, q->celcount, id, diridx(dir));
@@ -307,7 +296,7 @@ static Uint32 const *_getcellimage(int top, int bot, int timerval)
 
     if (!tileptr[top].celcount)
 	die("map element %02X has no suitable image", top);
-    nt = (timerval + tileptr[top].celcount) % tileptr[top].celcount;
+    nt = (timerval + 1) % tileptr[top].celcount;
     if (bot == Nothing || bot == Empty || !tileptr[top].transp[0]) {
 	if (tileptr[top].opaque[nt])
 	    return tileptr[top].opaque[nt];
@@ -320,7 +309,7 @@ static Uint32 const *_getcellimage(int top, int bot, int timerval)
 
     if (!tileptr[bot].celcount)
 	die("map element %02X has no suitable image", bot);
-    nb = (timerval + tileptr[bot].celcount) % tileptr[bot].celcount;
+    nb = (timerval + 1) % tileptr[bot].celcount;
     dest = tileptr[Overlay_Buffer].opaque[0];
     if (tileptr[bot].opaque[nb])
 	memcpy(dest, tileptr[bot].opaque[nb], sdlg.cbtile);
@@ -336,43 +325,6 @@ static Uint32 const *_getcellimage(int top, int bot, int timerval)
  *
  */
 
-#if 0
-/* Translate the given surface to one with the same color layout as
- * the display surface.
- */
-static SDL_Surface *copytilesto32(SDL_Surface *src, int wset, int hset)
-{
-    SDL_PixelFormat    *fmt;
-    SDL_Surface	       *dest;
-    SDL_Rect		rect;
-
-    rect.x = 0;
-    rect.y = 0;
-    if (wset && hset) {
-	rect.w = wset * sdlg.wtile;
-	rect.h = hset * sdlg.htile;
-    } else {
-	rect.w = src->w;
-	rect.h = src->h;
-    }
-
-    if (!sdlg.screen) {
-	warn("copytilesto32() called before creating 32-bit surface");
-	fmt = SDL_GetVideoInfo()->vfmt;
-    } else
-	fmt = sdlg.screen->format;
-
-    dest = SDL_CreateRGBSurface(SDL_SWSURFACE, rect.w, rect.h, 32,
-				fmt->Rmask, fmt->Gmask,
-				fmt->Bmask, fmt->Amask);
-    if (!dest)
-	return NULL;
-
-    SDL_BlitSurface(src, &rect, dest, &rect);
-
-    return dest;
-}
-#else
 /* Translate the given surface to one with the same color layout as
  * the display surface.
  */
@@ -415,7 +367,6 @@ static SDL_Surface *loadtilesto32(char const *filename)
     SDL_FreeSurface(bmp);
     return tiles;
 }
-#endif
 
 /* Extract the mask section of the given image to an 8-bit surface.
  */
@@ -595,7 +546,7 @@ static void extractopaquetileseq(SDL_Surface *tiles, SDL_Rect const *rect,
 
     dest = *pdest;
     tile = (Uint32*)((char*)tiles->pixels + rect->y * tiles->pitch) + rect->x;
-    for (n = count - 1 ; n >= 0 ; --n) {
+    for (n = 0 ; n < count ; ++n) {
 	ptrs[n] = dest;
 	p = tile;
 	memcpy(dest, tileptr[Empty].opaque[0], sdlg.cbtile);
@@ -905,17 +856,17 @@ static int initfreeformtileset(SDL_Surface *tiles)
 	    y += 1 + h * sdlg.htile;
 	    h = 0;
 	    do {
+		++h;
 		if (y + h * sdlg.htile >= tiles->h) {
 		    h = 0;
 		    break;
 		}
-		++h;
 		nextrow += sdlg.htile * tiles->pitch;
 	    } while (*(Uint32*)nextrow == transpclr);
 	    if (!h) {
 		warn("incomplete tile set: missing %02X",
 		     tileidmap[n].id);
-		break;
+		goto failure;
 	    }
 	    x = 0;
 	    goto findwidth;

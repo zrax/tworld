@@ -1,6 +1,6 @@
 /* state.h: The structure embodying the state of a game in progress.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -114,8 +114,8 @@ enum
     Entity_Reserved1	= 0x78,
 
     Water_Splash	= 0x7C,
-    Dirt_Splash		= 0x7D,
-    Bomb_Explosion	= 0x7E,
+    Bomb_Explosion	= 0x7D,
+    Entity_Explosion	= 0x7E,
     Animation_Reserved1	= 0x7F
 };
 
@@ -176,11 +176,11 @@ typedef struct creature {
     unsigned char	id;		/* type of creature */
     unsigned char	dir;		/* current direction of creature */
     signed char		moving;		/* positional offset of creature */
+    unsigned char	frame;		/* explicit animation index */
     unsigned char	hidden;		/* TRUE if creature is invisible */
     unsigned char	state;		/* internal state value */
     unsigned char	fdir;		/* internal state value */
     unsigned char	tdir;		/* internal state value */
-    signed char		waits;		/* internal state value */
 } creature;
 #endif
 
@@ -198,6 +198,7 @@ typedef struct gamestate {
     int			replay;			/* playback move index */
     int			timelimit;		/* maximum time permitted */
     int			currenttime;		/* the current tick count */
+    int			timeoffset;		/* offset for displayed time */
     short		currentinput;		/* the current keystroke */
     short		chipsneeded;		/* no. of chips still needed */
     short		xviewpos;		/* the visible part of the */

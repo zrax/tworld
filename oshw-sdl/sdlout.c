@@ -1,6 +1,6 @@
 /* sdlout.c: Creating the program's displays.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -355,7 +355,7 @@ static void displaymapview(gamestate const *state)
 	    pos = y * CXGRID + x;
 	    p = getcellimage(state->map[pos].top.id, state->map[pos].bot.id,
 			     (state->statusflags & SF_NOANIMATION) ?
-						0 : state->currenttime);
+						-1 : state->currenttime);
 	    drawopaquetileclipped(xorigin + x * sdlg.wtile,
 				  yorigin + y * sdlg.htile, p);
 	}
@@ -374,7 +374,7 @@ static void displaymapview(gamestate const *state)
 	    continue;
 	rect.x = xorigin + x * sdlg.wtile;
 	rect.y = yorigin + y * sdlg.htile;
-	p = getcreatureimage(&rect, cr->id, cr->dir, cr->moving);
+	p = getcreatureimage(&rect, cr->id, cr->dir, cr->moving, cr->frame);
 	drawtransptileclipped(&rect, p);
     }
 }

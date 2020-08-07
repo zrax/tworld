@@ -1,6 +1,6 @@
 /* sdlsfx.c: Creating the program's sound effects.
  *
- * Copyright (C) 2001 by Brian Raiter, under the GNU General Public
+ * Copyright (C) 2001,2002 by Brian Raiter, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -48,6 +48,7 @@ static void initonomatopoeia(void)
     sounds[SND_CHIP_WINS].textsfx       = "Tadaa!";
     sounds[SND_TIME_OUT].textsfx        = "Clang!";
     sounds[SND_TIME_LOW].textsfx        = "Ktick!";
+    sounds[SND_DEREZZ].textsfx		= "Bzont!";
     sounds[SND_CANT_MOVE].textsfx       = "Mnphf!";
     sounds[SND_IC_COLLECTED].textsfx    = "Chack!";
     sounds[SND_ITEM_COLLECTED].textsfx  = "Slurp!";
