@@ -10,51 +10,84 @@
 #include	"gen.h"
 #include	"cc.h"
 #include	"objects.h"
-#include	"userio.h"
+#include	"statestr.h"
+#include	"userout.h"
 
 #include	"font_9x16.c"
 #include	"cctiles.c"
 
 #define	CXSCREEN	640
 #define	CYSCREEN	480
-
 #define	CXFONT		9
 #define	CYFONT		16
+
+#define	CXMARGIN	16
+#define	CYMARGIN	16
+
 #define	CXTILE		48
 #define	CYTILE		48
 
-#define	CXVIEW		9
-#define	CYVIEW		9
+#define	CXDISPLAY	9
+#define	CYDISPLAY	9
+#define	CXVIEW		13
+#define	CYVIEW		13
 
-#define	XVIEW		16
-#define	YVIEW		16
-#define	XINFO		(16 + (CXVIEW * CXTILE) + 16)
-#define	YINFO		16
+#define	XMIDDISPLAY	4
+#define	YMIDDISPLAY	4
+#define	XMIDVIEW	6
+#define	YMIDVIEW	6
+
+#define	XINFO		(CXMARGIN + CXDISPLAY * CXTILE + CXMARGIN)
+#define	YINFO		CYMARGIN
 
 #define	NTILES		(Count_Floors + 4 * Count_Entities)
 
 static GraphicsContext *virtscreen = NULL;
 static GraphicsContext *realscreen = NULL;
+static int		origpalette[256 * 3];
 
-static int silence = FALSE;
+static int		silence;
 
-char const     *programname = "a.out";
-char const     *currentfilename = NULL;
+char const	       *programname = "a.out";
+char const	       *currentfilename = NULL;
 
 #define	floortile(id)		(cctiles + (id) * CXTILE * CYTILE)
-#define	entitytile(id)		(cctiles + (Count_Floors + (id)) * CXTILE * CYTILE)
 #define	entitydirtile(id, dir)	\
-    (cctiles + (Count_Floors + (id) * 4 + dir) * CXTILE * CYTILE)
+    (cctiles + (Count_Floors + (id) * 4 + (dir)) * CXTILE * CYTILE)
 
-#define	copytile(dest, src)	(memcpy((dest), (src), CXTILE * CYTILE))
+/*
+ *
+ */
+
+static void copytile(unsigned char *dest, unsigned char const *src)
+{
+    int	n;
+
+    for (n = 0 ; n < CXTILE * CYTILE ; ++n)
+	dest[n] = src[n] & 0x0F;
+}
 
 static void addtile(unsigned char *dest, unsigned char const *src)
 {
-    int	i;
+    int	n;
 
-    for (i = 0 ; i < CXTILE * CYTILE ; ++i)
-	if (!(src[i] & 0xF0))
-	    dest[i] = src[i];
+    for (n = 0 ; n < CXTILE * CYTILE ; ++n)
+	if (!(src[n] & 0xF0))
+	    dest[n] = src[n];
+}
+
+static void puttile(unsigned char *view, int ypos, int xpos,
+		    unsigned char const *tile)
+{
+    unsigned char const	       *src = tile;
+    unsigned char	       *dest;
+    int				x, y;
+
+    dest = view + ypos * (CYTILE * CXTILE * CXVIEW) / 4 + xpos * CXTILE / 4;
+    for (y = 0 ; y < CYTILE ; ++y, dest += CXTILE * CXVIEW)
+	for (x = 0 ; x < CXTILE ; ++x, ++src)
+	    if (!(*src & 0xF0))
+		dest[x] = *src;
 }
 
 static void initializetiles(void)
@@ -98,69 +131,105 @@ static void writemlstring(int x0, int y0, int cx, int cy, char const *text)
     }
 }
 
-int displaygame(mapcell const *map, int chippos, int chipdir,
-		int icchipsleft, int timeleft, int state,
-		int levelnum, char const *title, char const *passwd,
-		int besttime, char const *hinttext,
-		short keys[4], short boots[4], char const *soundeffect,
-		int displayflags)
+int xviewshift = 0, yviewshift = 0;
+int displaygame(gamestate const *state, int timeleft, int besttime)
 {
-    unsigned char	tilebuf[CXTILE * CYTILE];
-    char		buf[32];
-    int			xfrom, yfrom, pos, x, y;
+    static unsigned char	view[CXVIEW * CYVIEW * CXTILE * CYTILE];
+    creature const	       *cr;
+    char			buf[32];
+    int				xfrom, yfrom, xcenter, ycenter, x, y;
+    int				pos;
 
-    x = chippos % CXGRID;
-    y = chippos / CXGRID;
-    xfrom = x - CXVIEW / 2;
-    yfrom = y - CYVIEW / 2;
+    memset(view, 0, sizeof view);
+
+    pos = state->creatures->pos;
+    xcenter = state->creatures->pos % CXGRID;
+    ycenter = state->creatures->pos / CXGRID;
+    xcenter += xviewshift;
+    ycenter += yviewshift;
+    xfrom = xcenter - XMIDDISPLAY;
+    yfrom = ycenter - YMIDDISPLAY;
     if (xfrom < 0)			xfrom = 0;
     if (yfrom < 0)			yfrom = 0;
-    if (xfrom > CXGRID - CXVIEW)	xfrom = CXGRID - CXVIEW;
-    if (yfrom > CYGRID - CYVIEW)	yfrom = CYGRID - CYVIEW;
+    if (xfrom > CXGRID - CXDISPLAY)	xfrom = CXGRID - CXDISPLAY;
+    if (yfrom > CYGRID - CYDISPLAY)	yfrom = CYGRID - CYDISPLAY;
+    xfrom += XMIDDISPLAY - XMIDVIEW;
+    yfrom += YMIDDISPLAY - YMIDVIEW;
+
+    for (y = 1 ; y < CYVIEW - 1 ; ++y) {
+	if (yfrom + y < 0 || yfrom + y >= CXGRID)
+	    continue;
+	pos = (yfrom + y) * CXGRID + xfrom + 1;
+	for (x = 1 ; x < CXVIEW - 1 ; ++x, ++pos) {
+	    if (xfrom + x < 0 || xfrom + x >= CXGRID)
+		continue;
+	    puttile(view, y * 4, x * 4, floortile(state->map[pos].floor));
+	}
+    }
+
+    for (cr = state->creatures ; cr->id ; ++cr) {
+	if (cr->id != Chip && (cr->state & 1))
+	    continue;
+	x = (cr->pos % CXGRID - xfrom) * 4;
+	y = (cr->pos / CXGRID - yfrom) * 4;
+	if (cr->moving > 0) {
+	    switch (cr->dir) {
+	      case NORTH:	y += cr->moving / 2;	break;
+	      case WEST:	x += cr->moving / 2;	break;
+	      case SOUTH:	y -= cr->moving / 2;	break;
+	      case EAST:	x -= cr->moving / 2;	break;
+	    }
+	}
+	if (x >= 0 && y >= 0 && x <= (CXVIEW - 1) * 4 && y <= (CYVIEW - 1) * 4)
+	    puttile(view, y, x,
+		    entitydirtile(cr->id,
+				  cr->dir == (uchar)NIL ? 0 : cr->dir));
+    }
+
+    xcenter *= 4;
+    ycenter *= 4;
+    if (state->creatures->moving > 0) {
+	switch (state->creatures->dir) {
+	  case NORTH:	ycenter += state->creatures->moving / 2;	break;
+	  case WEST:	xcenter += state->creatures->moving / 2;	break;
+	  case SOUTH:	ycenter -= state->creatures->moving / 2;	break;
+	  case EAST:	xcenter -= state->creatures->moving / 2;	break;
+	}
+    }
+    x = xcenter - (xfrom + XMIDDISPLAY) * 4;
+    y = ycenter - (yfrom + YMIDDISPLAY) * 4;
+    if (xcenter < XMIDDISPLAY * 4)
+	x = (XMIDVIEW - XMIDDISPLAY) * 4;
+    if (xcenter > (CXGRID - XMIDDISPLAY - 1) * 4)
+	x = (XMIDVIEW - XMIDDISPLAY) * 4;
+    if (ycenter < YMIDDISPLAY * 4)
+	y = (YMIDVIEW - YMIDDISPLAY) * 4;
+    if (ycenter > (CYGRID - YMIDDISPLAY - 1) * 4)
+	y = (YMIDVIEW - YMIDDISPLAY) * 4;
+    x *= CXTILE / 4;
+    y *= CYTILE / 4;
+
 
     gl_setcontext(virtscreen);
     gl_clearscreen(0);
 
-#if 0
-    gl_putboxpart(XVIEW, 0,
-		  CXVIEW * CXTILE, YVIEW, (CXVIEW + 3) * CXTILE, YVIEW,
-		  horzframe, (xfrom & 3) * CXTILE, 0);
-    gl_putboxpart(XVIEW, YVIEW + (CYVIEW * CYTILE),
-		  CXVIEW * CXTILE, YVIEW, (CXVIEW + 3) * CXTILE, YVIEW,
-		  horzframe, (xfrom & 3) * CXTILE, 0);
-    gl_putboxpart(0, YVIEW,
-		  XVIEW, CYVIEW * CYTILE, XVIEW, (CYVIEW + 3) * CYTILE,
-		  vertframe, 0, (yfrom & 3) * CYTILE);
-    gl_putboxpart(XVIEW + (CXVIEW * CYTILE), YVIEW,
-		  XVIEW, CYVIEW * CYTILE, XVIEW, (CYVIEW + 3) * CYTILE,
-		  vertframe, 0, (yfrom & 3) * CYTILE);
-#endif
-
-    for (x = 0 ; x < CXVIEW ; ++x) {
-	for (y = 0 ; y < CYVIEW ; ++y) {
-	    pos = (yfrom + y) * CXGRID + (xfrom + x);
-	    copytile(tilebuf, floortile(map[pos].floor));
-	    if (pos == chippos)
-		addtile(tilebuf, entitydirtile(Chip, chipdir));
-	    if (map[pos].entity)
-		addtile(tilebuf, entitytile(map[pos].entity));
-	    gl_putbox(XVIEW + x * CXTILE, YVIEW + y * CYTILE,
-		      CXTILE, CYTILE, tilebuf);
-	}
-    }
+    gl_putboxpart(CXMARGIN, CYMARGIN, CXDISPLAY * CXTILE, CYDISPLAY * CYTILE,
+		  CXVIEW * CXTILE, CYVIEW * CYTILE, view, x, y);
 
     gl_setfont(CXFONT, CYFONT, font_9x16);
     gl_setwritemode(WRITEMODE_MASKED | FONT_COMPRESSED);
-    gl_setfontcolors(0, vga_white());
+    gl_setfontcolors(0, 15);
 
-    if (soundeffect && *soundeffect)
-	gl_write(XVIEW, YVIEW + CYVIEW * CYTILE, (char*)soundeffect);
+    if (state->soundeffect && *state->soundeffect)
+	gl_write(CXMARGIN, CYMARGIN + CYDISPLAY * CYTILE,
+		 (char*)state->soundeffect);
 
-    sprintf(buf, "Level %d", levelnum);
+    sprintf(buf, "Level %d", state->game->number);
     gl_write(XINFO, YINFO + 0 * CYFONT, buf);
-    gl_write(XINFO, YINFO + 1 * CYFONT, (char*)title);
+    gl_write(XINFO, YINFO + 1 * CYFONT, (char*)state->game->name);
     gl_write(XINFO, YINFO + 2 * CYFONT, "Password:");
-    gl_write(XINFO + 10 * CXFONT, YINFO + 2 * CYFONT, (char*)passwd);
+    gl_write(XINFO + 10 * CXFONT, YINFO + 2 * CYFONT,
+	     (char*)state->game->passwd);
     if (besttime) {
 	if (timeleft < 0)
 	    sprintf(buf, "(Best time: %d)", besttime);
@@ -169,8 +238,7 @@ int displaygame(mapcell const *map, int chippos, int chipdir,
 	gl_write(XINFO, YINFO + 3 * CYFONT, buf);
     }
 
-
-    sprintf(buf, "Chips %3d", icchipsleft);
+    sprintf(buf, "Chips %3d", state->chipsneeded);
     gl_write(XINFO, YINFO + 5 * CYFONT, buf);
     if (timeleft < 0)
 	strcpy(buf, "Time  ---");
@@ -178,19 +246,19 @@ int displaygame(mapcell const *map, int chippos, int chipdir,
 	sprintf(buf, "Time  %3d", timeleft);
     gl_write(XINFO, YINFO + 6 * CYFONT, buf);
 
-    if (displayflags & DF_SHOWHINT) {
+    if (state->displayflags & DF_SHOWHINT) {
 	writemlstring(XINFO, YINFO + 9 * CYFONT,
 		      CXSCREEN - XINFO, 8 * CYFONT,
-		      hinttext);
+		      state->game->hinttext);
     } else {
 	for (y = 0 ; y < 4 ; ++y)
 	    gl_putbox(XINFO + 1 * CXTILE, YINFO + 9 * CYFONT + y * CYTILE,
 		      CXTILE, CYTILE,
-		      floortile(keys[y] ? Key_Blue + y : Empty));
+		      floortile(state->keys[y] ? Key_Blue + y : Empty));
 	for (y = 0 ; y < 4 ; ++y)
 	    gl_putbox(XINFO + 2 * CXTILE, YINFO + 9 * CYFONT + y * CYTILE,
 		      CXTILE, CYTILE,
-		      floortile(boots[y] ? Boots_Slide + y : Empty));
+		      floortile(state->boots[y] ? Boots_Slide + y : Empty));
     }
 
     vga_waitretrace();
@@ -209,7 +277,7 @@ int displayhelp(char const *title, objhelptext const *text, int textcount)
 
     gl_setfont(CXFONT, CYFONT, font_9x16);
     gl_setwritemode(WRITEMODE_MASKED | FONT_COMPRESSED);
-    gl_setfontcolors(0, vga_white());
+    gl_setfontcolors(0, 15);
 
     n = strlen(title);
 
@@ -263,81 +331,49 @@ int displayendmessage(int completed)
  *
  */
 
-int inputwait(void)
-{
-    fd_set	in;
-
-    FD_ZERO(&in);
-    FD_SET(STDIN_FILENO, &in);
-    return select(STDIN_FILENO + 1, &in, NULL, NULL, NULL) > 0;
-}
-
-int input(void)
-{
-    static int	lastkey = 0, penkey = 0;
-    int		key;
-
-    if (lastkey) {
-	key = lastkey;
-	lastkey = penkey;
-	penkey = 0;
-    } else {
-	key = vga_getkey();
-	if (key < 0) {
-	    key = 'q';
-	} else if (key == '\033') {
-	    lastkey = vga_getkey();
-	    if (lastkey == '[' || lastkey == 'O') {
-		penkey = vga_getkey();
-		switch (penkey) {
-		  case 'A':	key = 'k'; lastkey = penkey = 0;	break;
-		  case 'B':	key = 'j'; lastkey = penkey = 0;	break;
-		  case 'C':	key = 'l'; lastkey = penkey = 0;	break;
-		  case 'D':	key = 'h'; lastkey = penkey = 0;	break;
-		}
-	    }
-	}
-    }
-    return key;
-}
-
-/*
- *
- */
-
 static void shutdown(void)
 {
     if (vga_getcurrentmode() != TEXT) {
+	vga_setpalvec(0, 256, origpalette);
 	vga_setmode(TEXT);
 	putchar('\n');
-	fflush(stdout);
+	fclose(stderr);
     }
 }
 
-int ioinitialize(int silenceflag)
+int outputinitialize(int silenceflag)
 {
+    int	palette[] = {
+	 0,  0,  0,   0,  0, 32,   0, 32,  0,   0, 32, 32,
+	32,  0,  0,  32,  0, 32,  32, 32,  0,  48, 48, 48,
+	32, 32, 32,   0,  0, 63,   0, 63,  0,   0, 63, 63,
+	63,  0,  0,  63,  0, 63,  63, 63,  0,  63, 63, 63
+    };
+
     silence = silenceflag;
 
+    atexit(shutdown);
     vga_safety_fork(shutdown);
+
     if (vga_init()) {
 	fprintf(stderr, "Cannot access virtual console!\n");
 	exit(EXIT_FAILURE);
     }
-    atexit(shutdown);
-
-    if (!vga_hasmode(G640x480x16)) {
-	fprintf(stderr, "Cannot access standard VGA mode!\n");
+    if (!vga_hasmode(G640x480x256)) {
+	fprintf(stderr, "Cannot access 256-color VGA mode!\n");
 	exit(EXIT_FAILURE);
     }
 
-    freopen("./err.log", "a", stderr);
+    freopen("./err.log", "w", stderr);
 
     virtscreen = gl_allocatecontext();
     realscreen = gl_allocatecontext();
-    gl_setcontextvgavirtual(G640x480x16);
+    gl_setcontextvgavirtual(G640x480x256);
+    vga_getpalvec(0, 256, origpalette);
     gl_getcontext(virtscreen);
-    vga_setmode(G640x480x16);
-    gl_setcontextvga(G640x480x16);
+    vga_setmode(G640x480x256);
+    gl_setcontextvga(G640x480x256);
+    vga_setpalvec(0, 16, palette);
     gl_getcontext(realscreen);
 
     initializetiles();
@@ -378,12 +414,23 @@ void die(char const *fmt, ...)
 {
     va_list	args;
 
-    shutdown();
     va_start(args, fmt);
     fprintf(stderr, "%s: ", programname);
     vfprintf(stderr, fmt, args);
     fputc('\n', stderr);
     fflush(stderr);
     va_end(args);
+    shutdown();
     exit(EXIT_FAILURE);
+}
+
+void warn(char const *fmt, ...)
+{
+    va_list	args;
+
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fputc('\n', stderr);
+    fflush(stderr);
+    va_end(args);
 }
