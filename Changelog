@@ -1,11 +1,25 @@
 
-2003 Feb 22: version 1.1.1
-* Fixed broken handling of tanks not stopping in traps, and the fact that
-  tanks on clone machines can sometimes turn around (MS logic).
+2003 Mar 08: version 1.1.2
+* Added frame-skipping code, so that gameplay doesn't slow down on slower
+  hardware.
+* Blocks on beartraps were getting default initial direction of nil (Lynx
+  logic). Default changed to north. (Reported by ccexplore.)
+* Fixed broken handling (Lynx logic) of creatures that start out on ice
+  (reported by ccexplore).
+* Fixed bug where tanks could be turned around while sliding (Lynx logic).
+* It is now possible to finish a level with exactly zero seconds left (Lynx
+  logic).
+* Improved fixlynx feature to also fix the maps for levels 121 and 127.
+* Reorganized logic code to use fewer static variables.
+
+2003 Mar 01: version 1.1.1
+* Fixed broken handling (MS logic) of tanks not stopping in traps, and the
+  fact that tanks on clone machines can sometimes turn around (reported by
+  ccexplore).
 * Attempted to fix controller bug, where a controller being added to the
   slip list sets the controller direction according to its slipping
-  direction rather than its visible direction. Hopefully fixing this hasn't
-  broken anything else.
+  direction rather than its visible direction (reported by ccexplore).
+  Hopefully fixing this hasn't broken anything else.
 
 2003 Feb 22: version 1.1
 * Fixed most of the broken handling of controllers (MS logic).

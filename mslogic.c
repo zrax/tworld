@@ -19,35 +19,42 @@
 				        " breadbox@muppetlabs.com", #test), 0))
 #endif
 
-/* Internal game status flags.
+/* A list of ways for Chip to lose.
  */
-#define	SF_CHIPWAITMASK		0x0007
-#define	SF_CHIPOKAY		0x0000
-#define	SF_CHIPBURNED		0x0010
-#define	SF_CHIPBOMBED		0x0020
-#define	SF_CHIPDROWNED		0x0030
-#define	SF_CHIPHIT		0x0040
-#define	SF_CHIPNOTOKAY		0x0070
-#define	SF_CHIPSTATUSMASK	0x0070
-#define	SF_DEFERBUTTONS		0x0080
-#define	SF_COMPLETED		0x0100
+enum {
+    CHIP_OKAY = 0,
+    CHIP_DROWNED, CHIP_BURNED, CHIP_BOMBED, CHIP_OUTOFTIME, CHIP_COLLIDED,
+    CHIP_NOTOKAY
+};
 
 #define	creatureid(id)		((id) & ~3)
 #define	creaturedirid(id)	(idxdir((id) & 3))
 
+/* Status information specific to the MS game logic.
+ */
+struct msstate {
+    unsigned char	chipwait;	/* ticks since Chip's last movement */
+    unsigned char	chipstatus;	/* Chip's status (one of CHIP_*) */
+    unsigned char	controllerdir;	/* current controller direction */
+    unsigned char	deferbuttons;	/* button actions are being deferred */
+    signed char		xviewoffset;	/* offset of map view center */
+    signed char		yviewoffset;	/*   position from position of Chip */
+    unsigned char	completed;	/* level completed successfully */
+};
+
+/* Forward declaration of a central function.
+ */
 static int advancecreature(creature *cr, int dir);
 
 /* A pointer to the game state, used so that it doesn't have to be
  * passed to every single function.
  */
 static gamestate	       *state;
-static int			controllerdir = NIL;
-
-static int			xviewoffset, yviewoffset;
 
 /*
  * Accessor macros for various fields in the game state. Many of the
- * macros can be used as an lvalue.  */
+ * macros can be used as an lvalue.
+ */
 
 #define	setstate(p)		(state = (p)->state)
 
@@ -71,34 +78,25 @@ static int			xviewoffset, yviewoffset;
 
 #define	mainprng()		(&state->mainprng)
 
-#define	iscompleted()		(state->statusflags & SF_COMPLETED)
-#define	setcompleted()		(state->statusflags |= SF_COMPLETED)
-#define	setnosaving()		(state->statusflags |= SF_NOSAVING)
-#define	showhint()		(state->statusflags |= SF_SHOWHINT)
-#define	hidehint()		(state->statusflags &= ~SF_SHOWHINT)
-
-#define	setdeferbuttons()	(state->statusflags |= SF_DEFERBUTTONS)
-#define	resetdeferbuttons()	(state->statusflags &= ~SF_DEFERBUTTONS)
-#define	buttonsdeferred()	(state->statusflags & SF_DEFERBUTTONS)
-
-#define	getchipstatus()		(state->statusflags & SF_CHIPSTATUSMASK)
-#define	setchipstatus(s)	\
-    (state->statusflags = (state->statusflags & ~SF_CHIPSTATUSMASK) | (s))
-
-#define	getcontrollerdir(c)	(controllerdir)
-#define setcontrollerdir(c, d)	(controllerdir = (d))
-
-#define	resetchipwait()		(state->statusflags &= ~SF_CHIPWAITMASK)
-#define	getchipwait()		(state->statusflags & SF_CHIPWAITMASK)
-#define	incrchipwait()		\
-    (state->statusflags = (state->statusflags & ~SF_CHIPWAITMASK) \
-			| ((state->statusflags & SF_CHIPWAITMASK) + 1))
-
 #define	lastmove()		(state->lastmove)
 
 #define	addsoundeffect(sfx)	(state->soundeffects |= 1 << (sfx))
 
 #define	cellat(pos)		(&state->map[pos])
+
+#define	setnosaving()		(state->statusflags |= SF_NOSAVING)
+#define	showhint()		(state->statusflags |= SF_SHOWHINT)
+#define	hidehint()		(state->statusflags &= ~SF_SHOWHINT)
+
+#define	getmsstate()		((struct msstate*)state->localstateinfo)
+
+#define	completed()		(getmsstate()->completed)
+#define	deferbuttons()		(getmsstate()->deferbuttons)
+#define	chipstatus()		(getmsstate()->chipstatus)
+#define	chipwait()		(getmsstate()->chipwait)
+#define	controllerdir()		(getmsstate()->controllerdir)
+#define	xviewoffset()		(getmsstate()->xviewoffset)
+#define	yviewoffset()		(getmsstate()->yviewoffset)
 
 #define	possession(obj)	(*_possession(obj))
 static short *_possession(int obj)
@@ -210,7 +208,6 @@ static creature *allocatecreature(void)
     cr->id = Nothing;
     cr->pos = -1;
     cr->dir = NIL;
-    cr->fdir = NIL;
     cr->tdir = NIL;
     cr->state = 0;
     cr->frame = 0;
@@ -334,7 +331,7 @@ static void removefromsliplist(creature *cr)
 
 #define	FS_BUTTONDOWN		0x01
 #define	FS_CLONING		0x02
-#define	FS_BROKEN		0x08
+#define	FS_BROKEN		0x04
 
 /* Translate a slide floor into the direction it points in. In the
  * case of a random slide floor, a new direction is selected.
@@ -582,10 +579,10 @@ static void updatecreature(creature const *cr)
 	tile->id = Block_Static;
 	return;
     } else if (id == Chip) {
-	if (getchipstatus()) {
-	    switch (getchipstatus()) {
-	      case SF_CHIPBURNED:	tile->id = Burned_Chip;		return;
-	      case SF_CHIPDROWNED:	tile->id = Drowned_Chip;	return;
+	if (chipstatus()) {
+	    switch (chipstatus()) {
+	      case CHIP_BURNED:		tile->id = Burned_Chip;		return;
+	      case CHIP_DROWNED:	tile->id = Drowned_Chip;	return;
 	    }
 	} else if (cellat(cr->pos)->bot.id == Water) {
 	    id = Swimming_Chip;
@@ -633,8 +630,8 @@ static void removecreature(creature *cr)
 {
     cr->state &= ~(CS_SLIP | CS_SLIDE);
     if (cr->id == Chip) {
-	if (getchipstatus() == SF_CHIPOKAY)
-	    setchipstatus(SF_CHIPNOTOKAY);
+	if (chipstatus() == CHIP_OKAY)
+	    chipstatus() = CHIP_NOTOKAY;
     } else
 	cr->hidden = TRUE;
 }
@@ -948,7 +945,7 @@ static void choosecreaturemove(creature *cr)
 	updatecreature(cr);
     }
     if (cr->state & CS_HASMOVED) {
-	setcontrollerdir(cr, NIL);
+	controllerdir() = NIL;
 	return;
     }
     if (cr->state & (CS_SLIP | CS_SLIDE))
@@ -959,12 +956,6 @@ static void choosecreaturemove(creature *cr)
     pdir = dir = cr->dir;
 
     if (floor == CloneMachine || floor == Beartrap) {
-/*
-	if (floor == Beartrap && !(cr->state & CS_RELEASED))
-	    return;
-	if (floor == CloneMachine && (cr->state & CS_CLONING))
-	    return;
-*/
 	switch (cr->id) {
 	  case Tank:
 	  case Ball:
@@ -983,8 +974,8 @@ static void choosecreaturemove(creature *cr)
 	  case Bug:
 	  case Paramecium:
 	  case Teeth:
-	    choices[0] = getcontrollerdir(cr);
-	    cr->tdir = getcontrollerdir(cr);
+	    choices[0] = controllerdir();
+	    cr->tdir = controllerdir();
 	    return;
 	    break;
 	  default:
@@ -1066,7 +1057,7 @@ static void choosecreaturemove(creature *cr)
 
     for (n = 0 ; n < 4 && choices[n] != NIL ; ++n) {
 	cr->tdir = choices[n];
-	setcontrollerdir(cr, cr->tdir);
+	controllerdir() = cr->tdir;
 	if (canmakemove(cr, choices[n], 0))
 	    return;
     }
@@ -1130,8 +1121,8 @@ static int teleportcreature(creature *cr, int start)
     origpos = cr->pos;
     dest = start;
 
-    defer = buttonsdeferred();
-    resetdeferbuttons();
+    defer = deferbuttons();
+    deferbuttons() = FALSE;
     for (;;) {
 	--dest;
 	if (dest < 0)
@@ -1148,8 +1139,7 @@ static int teleportcreature(creature *cr, int start)
 	if (f)
 	    break;
     }
-    if (defer)
-	setdeferbuttons();
+    deferbuttons() = defer;
 
     return dest;
 }
@@ -1334,11 +1324,11 @@ static void endmovement(creature *cr, int dir)
 	    break;
 	  case Water:
 	    if (!possession(Boots_Water))
-		setchipstatus(SF_CHIPDROWNED);
+		chipstatus() = CHIP_DROWNED;
 	    break;
 	  case Fire:
 	    if (!possession(Boots_Fire))
-		setchipstatus(SF_CHIPBURNED);
+		chipstatus() = CHIP_BURNED;
 	    break;
 	  case Dirt:
 	    poptile(newpos);
@@ -1390,7 +1380,7 @@ static void endmovement(creature *cr, int dir)
 	    addsoundeffect(SND_SOCKET_OPENED);
 	    break;
 	  case Bomb:
-	    setchipstatus(SF_CHIPBOMBED);
+	    chipstatus() = CHIP_BOMBED;
 	    addsoundeffect(SND_BOMB_EXPLODES);
 	    break;
 	}
@@ -1463,27 +1453,27 @@ static void endmovement(creature *cr, int dir)
 
     switch (floor) {
       case Button_Blue:
-	if (buttonsdeferred())
+	if (deferbuttons())
 	    tile->state |= FS_BUTTONDOWN;
 	else
 	    turntanks(cr);
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Green:
-	if (buttonsdeferred())
+	if (deferbuttons())
 	    tile->state |= FS_BUTTONDOWN;
 	else
 	    togglewalls();
 	break;
       case Button_Red:
-	if (buttonsdeferred())
+	if (deferbuttons())
 	    tile->state |= FS_BUTTONDOWN;
 	else
 	    activatecloner(newpos);
 	addsoundeffect(SND_BUTTON_PUSHED);
 	break;
       case Button_Brown:
-	if (buttonsdeferred())
+	if (deferbuttons())
 	    tile->state |= FS_BUTTONDOWN;
 	else
 	    springtrap(newpos);
@@ -1510,17 +1500,17 @@ static void endmovement(creature *cr, int dir)
 
     if (cr->id == Chip) {
 	if (iscreature(cell->bot.id) && creatureid(cell->bot.id) != Chip) {
-	    setchipstatus(SF_CHIPHIT);
+	    chipstatus() = CHIP_COLLIDED;
 	    return;
 	} else if (cell->bot.id == Exit) {
-	    setcompleted();
+	    completed() = TRUE;
 	    return;
 	}
     } else {
 	if (iscreature(cell->bot.id)) {
 	    _assert(creatureid(cell->bot.id) == Chip
 			|| creatureid(cell->bot.id) == Swimming_Chip);
-	    setchipstatus(SF_CHIPHIT);
+	    chipstatus() = CHIP_COLLIDED;
 	    return;
 	}
     }
@@ -1537,7 +1527,7 @@ static void endmovement(creature *cr, int dir)
 	cr->state &= ~(CS_SLIP | CS_SLIDE);
 
     if (!wasslipping && (cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip)
-	setcontrollerdir(cr, getslipdir(cr));
+	controllerdir() = getslipdir(cr);
 }
 
 /* Move the given creature in the given direction.
@@ -1548,15 +1538,15 @@ static int advancecreature(creature *cr, int dir)
 	return TRUE;
 
     if (cr->id == Chip) {
-	resetchipwait();
+	chipwait() = 0;
 	resetbuttons();
-	setdeferbuttons();
+	deferbuttons() = TRUE;
     }
 
     if (!startmovement(cr, dir)) {
 	if (cr->id == Chip) {
 	    addsoundeffect(SND_CANT_MOVE);
-	    resetdeferbuttons();
+	    deferbuttons() = FALSE;
 	    resetbuttons();
 	}
 	return FALSE;
@@ -1564,7 +1554,7 @@ static int advancecreature(creature *cr, int dir)
 
     endmovement(cr, dir);
     if (cr->id == Chip) {
-	resetdeferbuttons();
+	deferbuttons() = FALSE;
 	handlebuttons();
     }
 
@@ -1575,11 +1565,11 @@ static int advancecreature(creature *cr, int dir)
  */
 static int checkforending(void)
 {
-    if (iscompleted()) {
+    if (completed()) {
 	addsoundeffect(SND_CHIP_WINS);
 	return +1;
     }
-    if (getchipstatus() != SF_CHIPOKAY) {
+    if (chipstatus() != CHIP_OKAY) {
 	addsoundeffect(SND_CHIP_LOSES);
 	return -1;
     }
@@ -1757,11 +1747,11 @@ static void initialhousekeeping(void)
 
     if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatICChip) {
 	switch (currentinput()) {
-	  case CmdCheatNorth:		--yviewoffset;			break;
-	  case CmdCheatWest:		--xviewoffset;			break;
-	  case CmdCheatSouth:		++yviewoffset;			break;
-	  case CmdCheatEast:		++xviewoffset;			break;
-	  case CmdCheatHome:		xviewoffset = yviewoffset = 0;	break;
+	  case CmdCheatNorth:		--yviewoffset();		break;
+	  case CmdCheatWest:		--xviewoffset();		break;
+	  case CmdCheatSouth:		++yviewoffset();		break;
+	  case CmdCheatEast:		++xviewoffset();		break;
+	  case CmdCheatHome:		xviewoffset()=yviewoffset()=0;	break;
 	  case CmdCheatKeyRed:		++possession(Key_Red);		break;
 	  case CmdCheatKeyBlue:		++possession(Key_Blue);		break;
 	  case CmdCheatKeyYellow:	++possession(Key_Yellow);	break;
@@ -1784,9 +1774,9 @@ static void initialhousekeeping(void)
 		updatecreature(creatures[n]);
 	    }
 	}
-	incrchipwait();
-	if (getchipwait() > 3) {
-	    resetchipwait();
+	++chipwait();
+	if (chipwait() > 3) {
+	    chipwait() = 0;
 	    getchip()->dir = SOUTH;
 	    updatecreature(getchip());
 	}
@@ -1810,8 +1800,8 @@ static void preparedisplay(void)
     else
 	hidehint();
 
-    xviewpos() = (pos % CXGRID) * 8 + xviewoffset * 8;
-    yviewpos() = (pos / CYGRID) * 8 + yviewoffset * 8;
+    xviewpos() = (pos % CXGRID) * 8 + xviewoffset() * 8;
+    yviewpos() = (pos / CYGRID) * 8 + yviewoffset() * 8;
 }
 
 /*
@@ -2050,7 +2040,7 @@ static int initgame(gamelogic *logic)
 			&& fileids[layer2[pos]].id == Chip) {
 		chip->pos = pos;
 		chip->dir = fileids[layer2[pos]].dir;
-		setchipstatus(SF_CHIPHIT);
+		chipstatus() = CHIP_COLLIDED;
 	    }
 	}
 	layer1[pos] = 0;
@@ -2083,7 +2073,13 @@ static int initgame(gamelogic *logic)
 	if (isoccupied(traps->from))
 	    springtrap(traps->from);
 
-    xviewoffset = yviewoffset = 0;
+    chipwait() = 0;
+    completed() = FALSE;
+    chipstatus() = CHIP_OKAY;
+    deferbuttons() = FALSE;
+    controllerdir() = NIL;
+    xviewoffset() = 0;
+    yviewoffset() = 0;
 
     preparedisplay();
     return TRUE;
@@ -2103,7 +2099,7 @@ static int advancegame(gamelogic *logic)
     initialhousekeeping();
 
     if (currenttime() && !(currenttime() & 1)) {
-	setcontrollerdir(cr, NIL);
+	controllerdir() = NIL;
 	for (n = 1 ; n < creaturecount ; ++n) {
 	    cr = creatures[n];
 	    if (cr->hidden || (cr->state & CS_CLONING))
@@ -2125,6 +2121,7 @@ static int advancegame(gamelogic *logic)
     timeoffset() = 0;
     if (timelimit()) {
 	if (currenttime() >= timelimit()) {
+	    chipstatus() = CHIP_OUTOFTIME;
 	    addsoundeffect(SND_TIME_OUT);
 	    return -1;
 	} else if (timelimit() - currenttime() <= 15 * TICKS_PER_SECOND
@@ -2187,9 +2184,6 @@ static void shutdown(gamelogic *logic)
 gamelogic *mslogicstartup(void)
 {
     static gamelogic	logic;
-
-    xviewoffset = 0;
-    yviewoffset = 0;
 
     logic.ruleset = Ruleset_MS;
     logic.initgame = initgame;

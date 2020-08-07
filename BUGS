@@ -36,11 +36,19 @@ Bugs in the MS game logic emulation
   blocks. In TW, the blocks are pushed and preserved correctly, but Chip
   does not make it to the latter teleport (instead he either proceeds to a
   different teleport or bounces back from the original teleport).
-* The keyboard is scanned twice per tick, once at the beginning and once in
-  the middle. As a result, if Chip makes a move at the beginning of a tick,
-  the game does not update the display twice in a row (once after the
-  creatures move and once after Chip moves), but just does it once. In a
-  few places this has a non-trivial effect on how the game appears, most
+* The MS game permits movement via the mouse, which allows for a few
+  unusual maneuvers not otherwise possible. Tile World does not have any
+  form of mouse input.
+* The MS game checks for input more than once per tick. Probably this was
+  done to catch last-minute keyboard events, but it has the effect that by
+  having more than one input event in the queue, Chip can sometimes have
+  the latter move processed after he has moved but before ay other
+  creatures move.
+* In TW, the keyboard is scanned twice per tick, once at the beginning and
+  once in the middle. As a result, if Chip makes a move at the beginning of
+  a tick, the game does not update the display twice in a row (once after
+  the creatures move and once after Chip moves), but just does it once. In
+  a few places this has a non-trivial effect on how the game appears, most
   notably when Chip tries to move against a force floor. I do not believe
   that this optimization has a real effect on the gameplay. It does,
   however, make it easier to examine the screen when pushing against a
@@ -60,11 +68,7 @@ Bugs in the Lynx game logic emulation
   ice when the glider arrives, and the latter bounces off and retreats. The
   boosting pattern is governed by how slots in the creature list come back
   up for reuse after a creature has been killed. Clearly, the emulator is
-  not using the same algorithm as the Lynx game. Unfortunately, it's a
-  tedious business to collect any amount of data on this that would be
-  necessary to start finding patterns, and there are few levels that have
-  the necessary elements for such investigation. So this one is still up in
-  the air.
+  not using the same algorithm as the Lynx game.
 * The Lynx game only permitted 128 creatures (including Chip) to exist
   simultaneously. Thus, a clone machine activated when the population was
   at maximum would "run out". The emulator does not enforce any such
@@ -74,12 +78,17 @@ Bugs in the Lynx game logic emulation
 * Block pushing is currently not handled correctly. Pushed blocks move when
   Chip does, when in reality they need to retain their own position in the
   ordering.
-* TW's handling of creatures that start out on ice isn't quite correct. The
-  difference shows up most noticeably in the case of a creature on ice that
-  is blocked from making its default move. There is only one instance of
-  this in the original set, namely SHRINKING (98). TW currently corrects
-  for this in a bad way that just happens to get the right results in this
-  particular case.
+* Under the real Lynx game it is possible, with carefully constructed
+  circumstances, to have Chip push a block off of an open toggle wall that
+  then closes before Chip can enter it. This is the only situation I know
+  of, barring diagonal moves, in which Chip can push a block without
+  following it. This is impossible to do in TW. (This one may be just
+  another manifestation of the previous bug.)
+* Under the real Lynx game it is possible, with carefully constructed
+  circumstances, for Chip to push a block away from him as it's heading
+  towards him. That is, a block starts moving into the square that Chip
+  occupies, but in the same frame, Chip starts pushing the block in the
+  opposite direction. This is impossible to do in TW.
 ___________________________________________________________________________
 
 Other bugs and misfeatures
