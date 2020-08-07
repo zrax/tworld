@@ -66,6 +66,8 @@ typedef	struct tablespec {
  */
 #define	MAXIMUM_TICK_COUNT	0x7FFFFF
 
+#define FOREVER			(2*MAXIMUM_TICK_COUNT)
+
 /* A magic number used to indicate an undefined time value.
  */
 #define	TIME_NIL		0x7FFFFFFF

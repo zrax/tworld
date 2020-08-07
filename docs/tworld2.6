@@ -1,4 +1,4 @@
-.TH tworld2 6 "Mar 2014" "Tile World"
+.TH tworld2 6 "Jul 2017" "Tile World"
 .LO 1
 .SH NAME
 tworld2 \- Tile World 2
@@ -256,6 +256,24 @@ displays the list of solution files in the save directory whose
 names start with the name of the current level set. From here a
 different solution file can be selected.
 .P
+A few commands are available only during solution playback:
+.TP
+.B D
+toggles the display of the stepping and (in Lynx mode) the initial
+direction of the "random" force floors.
+.TP
+.B PgUp
+goes back about 10 seconds.
+.TP
+.B PgDn
+goes forward about 10 seconds.
+.TP
+.B E
+advances the playback by a "tick". (1/10th second in MS, 1/20th second
+in Lynx.)
+.TP
+.B Shift-E advances the playback by a "move". (1/5th second.)
+.P
 At every point in the program, the Esc key will abort the current
 activity and return to the previous display.
 .br
@@ -295,10 +313,6 @@ level set directory (cf
 .BR "DIRECTORIES" ),
 and Tile World will then make
 it available for playing.
-.P
-An alternate method is to use a configuration file (see
-.B CONFIGURATION FILES
-below).
 .br
 .SH COMMAND-LINE OPTIONS
 tworld2 is normally invoked without arguments. The program begins by
@@ -421,9 +435,10 @@ file.)
 .SH CONFIGURATION FILES
 Configuration files are used to override some of the settings in a
 data file, or to set values not provided for by the data file format.
+Starting in Tile World 2.2, they are generated automatically, so you
+don't need to mess with them unless you want to change the defaults.
 Configuration files are by convention named with a .dac extension. A
-configuration file is stored in the level set directory in the place
-of the data file, which then goes into the data directory (cf
+configuration file is stored in the sets directory. (cf.
 .BR "DIRECTORIES" ).
 .P
 The configuration file is a simple text file. The first line of a
@@ -440,6 +455,12 @@ is the filename of the data file. (Arbitrary
 whitespace is permitted around the equal sign, but there cannot be any
 whitespace embedded at the beginning of the line.) After this initial
 line, the configuration file can contain any of the following lines:
+.P
+fileinsetsdir =
+.I y|n
+.P
+This specifies that the level set is found in the sets directory, rather than
+the data directory. The default is n.
 .P
 usepasswords =
 .I y|n
@@ -765,14 +786,13 @@ below).
 .P
 .TP
 .B Sets
-This directory is used to hold the available level sets. The files
-in this directory are either data files or configuration
-files. (default for Linux: /usr/local/share/tworld/sets)
+This directory is used to hold the configuration files. For backward
+compatibility only, level sets can also be placed here.
+(default for Linux: /usr/local/share/tworld/sets)
 .TP
 .B Data
-This directory is used to hold the data files that are referenced by
-configuration files. (default for Linux:
-/usr/local/share/tworld/data)
+This directory is used to hold the level sets, as well as CCX files.
+(default for Linux: /usr/local/share/tworld/data)
 .TP
 .B Res
 This directory stores the graphics and sound files used by the
@@ -795,7 +815,7 @@ the resource, level set, and data file directories.
 Specifies a directory for saving solution files and settings.
 .br
 .SH LICENSE
-Tile World is copyright (C) 2001-2014 by Brian Raiter, Madhav
+Tile World is copyright (C) 2001-2017 by Brian Raiter, Madhav
 Shanbhag, and Eric Schmidt.
 .P
 This program is free software; you can redistribute it and/or  
@@ -851,12 +871,11 @@ created a sequel ("Chip's Challenge 2"). The sequel included the
 original game as a proper subset, and the company held the rights to
 both games. Bridgestone Multimedia, who has now become Alpha Omega
 Publications, unfortunately did not see fit to actually release
-"Chip's Challenge 2", and by now it is highly unlikely that it ever
-will be released. Since Chuck Sommerville no longer has rights to
-either game, and Microsoft no longer sells either of the Entertainment
-Packs, the original "Chip's Challenge" is no longer available except
-by purchasing a used copy of one of the aforementioned Entertainment
-Packs (or by downloading an illegal copy).
+"Chip's Challenge 2". It was, however, finally released on Steam in 2015,
+alongside a port of the original game. The other versions, including
+the famous port by Microsoft, are no longer being sold and cannot be
+obtained except by purchasing a used copy (or by downloading an illegal
+copy).
 .P
 In 2001, Brain Raiter author began writing "Tile World" with the
 intention of recreating a version of the MS game for the Linux
@@ -866,7 +885,8 @@ well, and also making the program work under MS Windows in addition to
 Linux.
 .P
 In 2010, Madhav Shanbhag produced "Tile World 2", which had several
-new features. In 2014, Eric Schmidt produced version 2.1.
+new features. In 2014, Eric Schmidt produced version 2.1. In 2017,
+he produced version 2.2.
 .br
 .SH APPENDIX: NOTES ON NOMENCLATURE
 "Chip's Challenge" has seen several incarnations. Each had its own

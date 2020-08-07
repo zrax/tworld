@@ -760,7 +760,7 @@ typedef	struct solutiondata {
  * structure, then add it to the pool of filenames, prefixed with
  * "1-". This function is a callback for findfiles().
  */
-static int getsolutionfile(char *filename, void *data)
+static int getsolutionfile(char const *filename, void *data)
 {
     solutiondata       *sdata = data;
     int			n;

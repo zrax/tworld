@@ -13,7 +13,8 @@ TWProgressBar::TWProgressBar(QWidget* pParent)
 	QProgressBar(pParent),
 	m_nValue(0),
 	m_nPar(-1),
-	m_bParBad(false)
+	m_bParBad(false),
+	m_bFullBar(false)
 {
 }
 	
@@ -39,6 +40,12 @@ void TWProgressBar::setParBad(bool bParBad)
 	update();
 }
 
+void TWProgressBar::setFullBar(bool bFullBar)
+{
+	if (m_bFullBar == bFullBar) return;
+	m_bFullBar = bFullBar;
+	update();
+}
 
 QString TWProgressBar::text() const
 {
@@ -65,7 +72,7 @@ void TWProgressBar::paintEvent(QPaintEvent* pPaintEvent)
 	{
 		bool bHasPar = (par() > minimum());
 		QRect rect2 = rect;
-		double v = double(value() - minimum()) / d;
+		double v = ( isFullBar() ? 1.0 : (double(value() - minimum()) / d) );
 		rect2.setWidth(int(v * rect.width()));
 		painter.fillRect(rect2, (bHasPar && !m_bParBad) ? QColor(160, 32, 32) : pal.highlight());
 		// qDrawShadePanel(&painter, rect2, pal, false, 1);

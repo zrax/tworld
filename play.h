@@ -12,9 +12,9 @@
 /* The different modes of the program with respect to gameplay.
  */
 enum {
-    BeginPlay, EndPlay,
-    SuspendPlay, SuspendPlayShuttered, ResumePlay,
-    BeginInput, EndInput, BeginVerify, EndVerify
+    NormalPlay, EndPlay,
+    SuspendPlay, SuspendPlayShuttered,
+    NonrenderPlay
 };
 
 /* TRUE if the program is running without a user interface.
@@ -45,6 +45,10 @@ extern int setstepping(int stepping, int display);
 extern int changestepping(int delta, int display);
 
 extern void advanceinitrandomff(int display);
+
+/* Get a string representing the stepping and (in Lynx mode) initial random
+ * force floor direction. */
+extern char const *getinitstatestring(void);
 
 /* Return the amount of time passed in the current game, in seconds.
  */
@@ -111,6 +115,11 @@ extern void setpedanticmode(void);
  * purposes.
  */
 extern int setmudsuckingfactor(int mud);
+
+/* Toggle whether to show stepping/initial random force floor direction
+ * during solution playback.
+ */
+extern void toggleshowinitstate(void);
 
 #ifdef __cplusplus
 }

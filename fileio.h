@@ -17,9 +17,6 @@ extern "C" {
  */
 extern void clearfileinfo(fileinfo *file);
 
-/* Determine whether a file exists */
-extern int fileexists(char const * name);
-
 /* Open a file. If the fileinfo structure does not already have a
  * filename assigned to it, name will be used as the filename. If msg
  * is NULL, no error will be displayed if the file cannot be opened.
@@ -31,12 +28,12 @@ extern int fileopen(fileinfo *file, char const *name, char const *mode,
 		    char const *msg);
 
 /* The following functions correspond directly to C's standard I/O
- * functions. The extra msg parameter works as described above for
- * fileopen().
+ * functions. If msg is NULL, no error will be displayed if
+ * the operation fails. If msg points to a string, an error will
+ * be displayed. The text of msg will be used only if errno is
+ * zero; otherwise a message appropriate to the error will be used.
  */
 extern int filerewind(fileinfo *file, char const *msg);
-extern int filegetpos(fileinfo *file, fpos_t *pos, char const *msg);
-extern int filesetpos(fileinfo *file, fpos_t *pos, char const *msg);
 extern int fileread(fileinfo *file, void *data, unsigned long size,
 		    char const *msg);
 extern int filewrite(fileinfo *file, void const *data, unsigned long size,
@@ -63,9 +60,9 @@ extern int filewriteint8(fileinfo *file, unsigned char val8,
 extern int filereadint16(fileinfo *file, unsigned short *val16,
 			 char const *msg);
 extern int filewriteint16(fileinfo *file, unsigned short val16,
-			  char const *msg);
-extern int filereadint32(fileinfo *file, unsigned long *val32,
 			 char const *msg);
+extern int filereadint32(fileinfo *file, unsigned long *val32,
+  			 char const *msg);
 extern int filewriteint32(fileinfo *file, unsigned long val32,
 			  char const *msg);
 
@@ -80,15 +77,6 @@ extern void *filereadbuf(fileinfo *file, unsigned long size, char const *msg);
  */
 extern int filegetline(fileinfo *file, char *buf, int *len, char const *msg);
 
-/* Read a config-style line from a file, looking for the pattern
- * "name=value". FALSE is returned if the end of the file is found
- * first.
- */
-extern int filegetconfiglineint(fileinfo *file, char const *name, int *value,
-			     char const *msg);
-
-/* Update an integer config line in a file. */
-extern int updateconfiglineint(char const *fname, char const *name, int value); 
 /* Return the maximum size of a legal pathname.
  */
 extern int getpathbufferlen(void);
@@ -142,7 +130,7 @@ extern int openfileindir(fileinfo *file, char const *dir, char const *filename,
  * examined.
  */
 extern int findfiles(char const *dir, void *data,
-		     int (*filecallback)(char*, void*));
+		     int (*filecallback)(char const*, void*));
 
 /* Display a simple error message prefixed by the name of the given
  * file. If errno is set, a message appropriate to the value is used;

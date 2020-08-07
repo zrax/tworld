@@ -46,9 +46,9 @@ int readoption(cmdlineinfo *opt)
 	/* Special case: if the next argument is "--", we skip over it and
 	 * stop looking for options for the rest of the cmdline.
 	 */
-	if (!opt->stop && opt->argptr && opt->argptr[0] == '-'
-				      && opt->argptr[1] == '-'
-				      && opt->argptr[2] == '\0') {
+	if (!opt->stop && opt->argptr[0] == '-'
+	               && opt->argptr[1] == '-'
+		       && opt->argptr[2] == '\0') {
 	    opt->argptr = NULL;
 	    opt->stop = TRUE;
 	    goto redo;

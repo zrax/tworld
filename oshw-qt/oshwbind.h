@@ -94,6 +94,7 @@ enum
 	
     TWC_SEESCORES,
     TWC_SEESOLUTIONFILES,
+    TWC_TIMESCLIPBOARD,
     TWC_QUITLEVEL,
     TWC_QUIT,
 
@@ -111,6 +112,7 @@ enum
     TWC_SEEK,
 
     TWC_HELP,
+    TWC_KEYS,
 
 	TWK_LAST
 };

@@ -1,6 +1,6 @@
 /* settings.cpp: Functions for managing settings.
  *
- * Copyright (C) 2014 by Eric Schmidt, under the GNU General Public
+ * Copyright (C) 2014-2017 by Eric Schmidt, under the GNU General Public
  * License. No warranty. See COPYING for details.
  */
 
@@ -21,8 +21,8 @@ using std::free;
 using std::getline;
 using std::ifstream;
 using std::istringstream;
-using std::make_pair;
 using std::map;
+using std::move;
 using std::ofstream;
 using std::ostringstream;
 using std::string;
@@ -49,13 +49,13 @@ void loadsettings()
     {
         size_t pos(line.find('='));
         if (pos != string::npos)
-            newsettings.insert(make_pair(line.substr(0, pos), line.substr(pos+1)));
+	    newsettings.insert({line.substr(0, pos), line.substr(pos+1)});
     }
 
     if (!in.eof())
         warn("Error reading settings file");
 
-    settings.swap(newsettings);
+    settings = move(newsettings);
 }
 
 void savesettings()
@@ -98,4 +98,17 @@ void setintsetting(char const * name, int val)
     std::ostringstream out;
     out << val;
     settings[name] = out.str();
+}
+
+char const * getstringsetting(char const * name)
+{
+    std::map<string, string>::const_iterator loc(settings.find(name));
+    if (loc == settings.end())
+	return nullptr;
+    return loc->second.c_str();
+}
+
+void setstringsetting(char const * name, char const * val)
+{
+    settings[name] = val;
 }

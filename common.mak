@@ -27,7 +27,7 @@ endif
 LINK = $(CXX)
 
 
-COMMONFLAGS = -Wall -O2 -I. -DNDEBUG
+COMMONFLAGS = -Wall -pedantic -O2 -I. -DNDEBUG
 ifneq ($(OSTYPE),windows)
 	COMMONFLAGS += '-DROOTDIR="$(sharedir)"' -Dstricmp=strcasecmp
 endif
@@ -35,8 +35,8 @@ ifneq ($(findstring qt,$(OSHW)),)
         COMMONFLAGS += -DTWPLUSPLUS
 endif
 
-CFLAGS += $(COMMONFLAGS)
-CXXFLAGS += $(COMMONFLAGS)
+CFLAGS += $(COMMONFLAGS) -std=gnu11
+CXXFLAGS += $(COMMONFLAGS) -std=gnu++11
 
 %.o: %.c
 	@echo Compiling $<...

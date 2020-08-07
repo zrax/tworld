@@ -1,9 +1,10 @@
 /* series.c: Functions for finding and reading the data files.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2017 by Brian Raiter and Eric Schmidt under the GNU
+ * General Public License. No warranty. See COPYING for details.
  */
 
+#include	<errno.h>
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
@@ -27,13 +28,66 @@
  */
 #define	SIG_DACFILE		0x656C6966
 
-/* Mini-structure for passing data in and out of findfiles().
+typedef struct {
+    mapfileinfo *buf;
+    int count;
+    int datdircount; /* Number of mapfiles in datdir */
+} mfinfovector;
+
+static void addgameseries(intlist *g, int gameseriesindex, int ruleset)
+{
+    g += ruleset;
+    ++g->count;
+    x_alloc(g->list, g->count * sizeof g->list);
+    g->list[g->count-1] = gameseriesindex;
+}
+
+/* Add a level file to a mfinfovector. The vector takes ownership of the
+ * filename string.
+ */
+static void addlevelfile(mfinfovector *v, char *filename, int levelcount, int locdirs)
+{
+    ++v->count;
+    x_alloc(v->buf, v->count * sizeof *v->buf);
+    v->buf[v->count-1].filename = filename;
+    for (int n = 0; n < Ruleset_Count; ++n) {
+    	v->buf[v->count-1].sfilelst[n].list = NULL;
+    	v->buf[v->count-1].sfilelst[n].count = 0;
+    }
+
+    v->buf[v->count-1].levelcount = levelcount;
+    v->buf[v->count-1].locdirs = locdirs;
+}
+
+/* A callback function to compare mapfileinfo structs */
+static int compare_mapfileinfo(void const *a, void const *b)
+{
+    return stricmp(((mapfileinfo*)a)->filename, ((mapfileinfo*)b)->filename);
+}
+
+/* Remove .dat and .ccl suffixes from the mapfilenames */
+static void removefilenamesuffixes(mfinfovector *v)
+{
+    for (int n = 0; n < v->count; ++n)
+    {
+    	size_t const namelength = strlen(v->buf[n].filename);
+	if (namelength > 4u)
+	{
+	    char *suffix = &v->buf[n].filename[namelength - 4u];
+	    if (!stricmp(suffix, ".dat") || !stricmp(suffix, ".ccl"))
+		*suffix = '\0';
+	}
+    }
+}
+
+/* Mini-structure for finding/generating the series files.
  */
 typedef	struct seriesdata {
+    mfinfovector mfinfo;	/* list of levelset files */
     gameseries *list;		/* the gameseries list */
+    char const *curdir;		/* directory we are searching */
     int		allocated;	/* number of gameseries currently allocated */
     int		count;		/* number of gameseries filled in */
-    int		usedatdir;	/* TRUE if the file is in seriesdatdir. */
 } seriesdata;
 
 /* The directory containing the series files (data files and
@@ -384,8 +438,12 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
     n = sizeof buf - 1;
     if (!filegetline(file, buf, &n, "invalid configuration file"))
 	return NULL;
-    if (sscanf(buf, "file = %s", datfilename) != 1) {
+    if (sscanf(buf, "file = %[^\n\r]", datfilename) != 1) {
 	fileerr(file, "bad filename in configuration file");
+	return NULL;
+    }
+    if (haspathname(datfilename)) {
+	fileerr(file, "levelset filename may not contain a path");
 	return NULL;
     }
     for (lineno = 2 ; ; ++lineno) {
@@ -400,10 +458,7 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 	    return NULL;
 	}
 	for (p = name ; (*p = tolower(*p)) != '\0' ; ++p) ;
-	if (!strcmp(name, "name")) {
-	    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
-					  skippathname(value));
-	} else if (!strcmp(name, "lastlevel")) {
+	if (!strcmp(name, "lastlevel")) {
 	    n = (int)strtol(value, &p, 10);
 	    if (*p || n <= 0) {
 		fileerr(file, "invalid lastlevel in configuration file");
@@ -427,6 +482,11 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
 		series->gsflags &= ~GSF_LYNXFIXES;
 	    else
 		series->gsflags |= GSF_LYNXFIXES;
+	} else if (!strcmp(name, "fileinsetsdir")) {
+	    if (tolower(*value) == 'n')
+		series->gsflags &= ~GSF_DATFORDACSERIESDIR;
+	    else
+		series->gsflags |= GSF_DATFORDACSERIESDIR;
 	} else {
 	    warn("line %d: directive \"%s\" unknown", lineno, name);
 	    fileerr(file, "unrecognized setting in configuration file");
@@ -447,7 +507,7 @@ static char *readconfigfile(fileinfo *file, gameseries *series)
  * list stored under the second argument. This function is used as a
  * findfiles() callback.
  */
-static int getseriesfile(char *filename, void *data)
+static int getseriesfile(char const *filename, void *data)
 {
     fileinfo		file;
     seriesdata	       *sdata = (seriesdata*)data;
@@ -457,7 +517,7 @@ static int getseriesfile(char *filename, void *data)
     int			config, f;
 
     clearfileinfo(&file);
-    if (!openfileindir(&file, seriesdir, filename, "rb", "unknown error"))
+    if (!openfileindir(&file, sdata->curdir, filename, "rb", "unknown error"))
 	return 0;
     if (!filereadint32(&file, &magic, "unexpected EOF")) {
 	fileclose(&file, NULL);
@@ -497,7 +557,7 @@ static int getseriesfile(char *filename, void *data)
     f = FALSE;
     if (config) {
 	fileclose(&file, NULL);
-	if (!openfileindir(&file, seriesdir, filename, "r", "unknown error"))
+	if (!openfileindir(&file, sdata->curdir, filename, "r", "unknown error"))
 	    return 0;
 	clearfileinfo(&series->mapfile);
 	free(series->mapfilename);
@@ -505,7 +565,9 @@ static int getseriesfile(char *filename, void *data)
 	datfilename = readconfigfile(&file, series);
 	fileclose(&file, NULL);
 	if (datfilename) {
-	    if (openfileindir(&series->mapfile, seriesdatdir,
+	    char const *datdir = ((series->gsflags & GSF_DATFORDACSERIESDIR)
+		? seriesdir : seriesdatdir);
+	    if (openfileindir(&series->mapfile, datdir,
 			      datfilename, "rb", NULL))
 		f = readseriesheader(series);
 	    else
@@ -513,7 +575,7 @@ static int getseriesfile(char *filename, void *data)
 	    fileclose(&series->mapfile, NULL);
 	    clearfileinfo(&series->mapfile);
 	    if (f)
-		series->mapfilename = getpathforfileindir(seriesdatdir,
+		series->mapfilename = getpathforfileindir(datdir,
 							  datfilename);
 	}
     } else {
@@ -521,26 +583,254 @@ static int getseriesfile(char *filename, void *data)
 	f = readseriesheader(series);
 	fileclose(&series->mapfile, NULL);
 	clearfileinfo(&series->mapfile);
-	if (f)
-	    series->mapfilename = getpathforfileindir(seriesdir, filename);
+	if (f) {
+	    series->mapfilename = getpathforfileindir(sdata->curdir, filename);
+	    char *dup = strdup(filename);
+	    if (dup == NULL) memerrexit();
+	    addlevelfile(&sdata->mfinfo, dup, series->count, LOC_SERIESDIR);
+	}
     }
     if (f)
 	++sdata->count;
     return 0;
 }
 
+/* Determine whether the file is a map file. If so, add it to the list of
+ * available map files. This function is used as a findfiles() callback.
+ */
+static int getmapfile(char const *filename, void *data)
+{
+    fileinfo		file;
+    seriesdata	       *sdata = (seriesdata*)data;
+    gameseries	        s;
+    unsigned long	magic;
+    int			f;
+
+    clearfileinfo(&file);
+    if (!openfileindir(&file, sdata->curdir, filename, "rb", "unknown error"))
+	return 0;
+    if (!filereadint32(&file, &magic, "unexpected EOF")) {
+	fileclose(&file, NULL);
+	return 0;
+    }
+    filerewind(&file, NULL);
+    if ((magic & 0xFFFF) != SIG_DATFILE) {
+	fileclose(&file, NULL);
+	return 0;
+    }
+
+    s.mapfile = file;
+    s.ruleset = Ruleset_None;
+    f = readseriesheader(&s);
+    fileclose(&file, NULL);
+    clearfileinfo(&file);
+    if (f) {
+    	mfinfovector *v = &sdata->mfinfo;
+	mapfileinfo key;
+	key.filename = (char*)filename;
+	mapfileinfo *existingmf =
+ 	    bsearch(&key, v->buf, v->datdircount, sizeof key, compare_mapfileinfo);
+	if (existingmf) {
+	    existingmf->locdirs |= LOC_SERIESDATDIR;
+	    existingmf->levelcount = s.count;
+	} else {
+	    char *dup = strdup(filename);
+	    if (dup == NULL) memerrexit();
+	    addlevelfile(v, dup, s.count, LOC_SERIESDATDIR);
+	}
+    }
+    return 0;
+}
+
+#ifndef TWPLUSPLUS
 /* A callback function to compare two gameseries structures by
  * comparing their filenames.
  */
-static int gameseriescmp(void const *a, void const *b)
+static int gameseriescmp_name(void const *a, void const *b)
 {
-    return
-#ifdef WIN32
-        stricmp
-#else
-        strcasecmp
+    return stricmp(((gameseries*)a)->name, ((gameseries*)b)->name);
+}
 #endif
-           (((gameseries*)a)->name, ((gameseries*)b)->name);
+
+/* A callback function to compare two gameseries structures by
+ * comparing their map filenames.
+ */
+static int gameseriescmp_mapfilename(void const *a, void const *b)
+{
+    char const * namea = skippathname(((gameseries*)a)->mapfilename);
+    char const * nameb = skippathname(((gameseries*)b)->mapfilename);
+    return stricmp(namea, nameb);
+}
+
+/* The name we should use for a (currently) nonexisting .dac file */
+char *generatenewdacname(mapfileinfo const *datfile, int ruleset)
+{
+    static char const  *rulesetname[Ruleset_Count];
+    rulesetname[Ruleset_Lynx] = "lynx";
+    rulesetname[Ruleset_MS] = "ms";
+
+    char const *basename = skippathname(datfile->filename);
+    size_t newnamelen = 0u;
+    newnamelen += strlen(basename);
+    newnamelen += 1u; /* hyphen */
+    newnamelen += strlen(rulesetname[ruleset]);
+    newnamelen += strlen(".dac");
+
+    char *namebuf = NULL;
+    x_alloc(namebuf, newnamelen+1u);
+
+    sprintf(namebuf, "%s-%s.dac", basename, rulesetname[ruleset]);
+
+    return namebuf;
+}
+
+/* Generate a new dac file. Return TRUE if successful. */
+static int createnewdacfile
+    (char const *name, mapfileinfo const *datfile, int ruleset)
+{
+    fileinfo file;
+    clearfileinfo(&file);
+    if (!openfileindir(&file, seriesdir, name, "wx", "unknown error"))
+	return FALSE;
+
+    char const *locstr =
+	(datfile->locdirs & LOC_SERIESDATDIR ? "" : "fileinsetsdir=y\n");
+    char const *rulesetstr = (ruleset == Ruleset_MS ? "ms" : "lynx");
+    errno = 0;
+    int status = fprintf(file.fp, "file=%s\n%sruleset=%s\n",
+	datfile->filename, locstr, rulesetstr);
+    if (status < 0) {
+	fileerr(&file, "write error");
+	return FALSE;
+    }
+    fileclose(&file, NULL);
+
+    return TRUE;
+}
+
+/* Try to create a new gameseries for the specified level file and ruleset. Also
+ * attempt to create the .dac file. Fail if our chosen filename is taken. If
+ * the filename wasn't taken but creation still failed for some reason, we
+ * still create the gameseries. The gameseries is added to the seriesdata
+ * struct. Returns the new gameseries if successful.
+ */
+static gameseries* createnewseries
+    (seriesdata *s, mapfileinfo const *datfile, int ruleset)
+{
+    char *newdacname = generatenewdacname(datfile, ruleset);
+    int ok = createnewdacfile(newdacname, datfile, ruleset);
+    if (!ok) {
+	errmsg(newdacname, "Attempt to create %s ruleset .dac for %s failed",
+	   ruleset == Ruleset_MS ? "MS" : "Lynx", datfile->filename);
+    }
+    if (errno == EEXIST) return NULL;
+
+    if (s->count >= s->allocated) {
+	s->allocated = s->count + 1;
+	x_alloc(s->list, s->allocated * sizeof *s->list);
+    }
+    gameseries *series = s->list + s->count;
+    clearfileinfo(&series->mapfile);
+    clearfileinfo(&series->savefile);
+    series->savefilename = NULL;
+    series->gsflags = 0;
+    series->solheaderflags = 0;
+    series->allocated = 0;
+    series->count = datfile->levelcount;
+    series->final = 0;
+    series->ruleset = ruleset;
+    series->games = NULL;
+    sprintf(series->filebase, "%.*s", (int)(sizeof series->filebase - 1),
+				      newdacname);
+    sprintf(series->name, "%.*s", (int)(sizeof series->name - 1),
+				      newdacname);
+    char *datfileloc =
+	(datfile->locdirs & LOC_SERIESDATDIR ? seriesdatdir : seriesdir);
+    series->mapfilename = getpathforfileindir(datfileloc, datfile->filename);
+    ++s->count;
+    free(newdacname);
+    return series;
+}
+
+/* For each map file present, ensure at least one gameseries exists for each
+ * ruleset. We also populate the structures mapping mapfile/ruleset to
+ * gameseries. */
+static void createallmissingseries(seriesdata *s)
+{
+    qsort(s->mfinfo.buf, s->mfinfo.count,
+	sizeof *s->mfinfo.buf, compare_mapfileinfo);
+    qsort(s->list, s->count, sizeof *s->list, gameseriescmp_mapfilename);
+    int seriesrulesetcount[Ruleset_Count];
+    int nseries = s->count;
+    int m = 0;
+    for (int n = 0; n < s->mfinfo.count; ++n) {
+	memset(seriesrulesetcount, 0, sizeof seriesrulesetcount);
+	mapfileinfo const *currentlevelfile = &s->mfinfo.buf[n];
+	char *currentmapname = currentlevelfile->filename;
+	while (m < nseries && !stricmp(currentmapname, skippathname(s->list[m].mapfilename))) {
+	    int ruleset = s->list[m].ruleset;
+	    addgameseries(s->mfinfo.buf[n].sfilelst, m, ruleset);
+	    ++seriesrulesetcount[ruleset];
+	    ++m;
+	}
+	for (int k = Ruleset_First; k < Ruleset_Count; ++k) {
+	    if (seriesrulesetcount[k] == 0) {
+		gameseries *newseries = createnewseries(s, currentlevelfile, k);
+		if (newseries)
+		    addgameseries(s->mfinfo.buf[n].sfilelst,
+			newseries - s->list, k);
+	    }
+	}
+    }
+}
+
+/* Produce a warning if the versions of the named file in both seriesdir and
+ * seriesdatdir are different.
+ */
+static void warnifversionsaredifferent(char const *fname)
+{
+    fileinfo file1;
+    clearfileinfo(&file1);
+    if (!openfileindir(&file1, seriesdir, fname, "rb", "unknown error"))
+    	return;
+
+    fileinfo file2;
+    clearfileinfo(&file2);
+    if (!openfileindir(&file2, seriesdatdir, fname, "rb", "unknown error")) {
+	fileclose(&file1, NULL);
+    	return;
+    }
+
+    for (;;) {
+	int c1 = getc(file1.fp);
+	int c2 = getc(file2.fp);
+	if (c1 != c2)
+	{
+	    warn("Additionally, the two files are different!");
+	    break;
+	}
+	if (c1 == EOF)
+	    break;
+    }
+    fileclose(&file1, NULL);
+    fileclose(&file2, NULL);
+}
+
+/* Produce warnings about all cases where seriesdir and seriesdatdir contain
+ * a mapfile of the same name.
+ */
+static void warnaboutdoublemapfiles(mfinfovector *v)
+{
+    for (int i = 0; i < v->count; ++i)
+    {
+	if (v->buf[i].locdirs == (LOC_SERIESDIR | LOC_SERIESDATDIR))
+	{
+	
+	    warn("The levelset \"%s\" is present in both \"%s\" and \"%s\"",
+	    	v->buf[i].filename, seriesdatdir, seriesdir);
+	    warnifversionsaredifferent(v->buf[i].filename);
+	}
+    }
 }
 
 /* Search the series directory and generate an array of gameseries
@@ -551,17 +841,20 @@ static int gameseriescmp(void const *a, void const *b)
  * (presuming it can be found). The program will be aborted if a
  * serious error occurs or if no series can be found.
  */
-static int getseriesfiles(char const *preferred, gameseries **list, int *count)
+static int getseriesfiles(char const *preferred, gameseries **list, int *count,
+			  mapfileinfo **mflist, int *mfcount)
 {
     seriesdata	s;
     int		n;
 
+    s.mfinfo.buf = NULL;
+    x_alloc(s.mfinfo.buf, sizeof *s.mfinfo.buf); /* Ensure buf not null */
+    s.mfinfo.count = 0;
     s.list = NULL;
     s.allocated = 0;
     s.count = 0;
-    s.usedatdir = FALSE;
     if (preferred && *preferred && haspathname(preferred)) {
-	if (getseriesfile((char*)preferred, &s) < 0)
+	if (getseriesfile(preferred, &s) < 0)
 	    return FALSE;
 	if (!s.count) {
 	    errmsg(preferred, "couldn't read data file");
@@ -572,8 +865,22 @@ static int getseriesfiles(char const *preferred, gameseries **list, int *count)
     } else {
 	if (!*seriesdir)
 	    return FALSE;
-	if (!findfiles(seriesdir, &s, getseriesfile) || !s.count) {
-	    errmsg(seriesdir, "directory contains no data files");
+	s.curdir = seriesdir;
+	findfiles(s.curdir, &s, getseriesfile);
+
+	/* Sort because we want to look files up during next phase */
+	qsort(s.mfinfo.buf, s.mfinfo.count,
+	    sizeof *s.mfinfo.buf, compare_mapfileinfo);
+	s.mfinfo.datdircount = s.mfinfo.count;
+
+	s.curdir = seriesdatdir;
+	findfiles(s.curdir, &s, getmapfile);
+
+	warnaboutdoublemapfiles(&s.mfinfo);
+
+	createallmissingseries(&s);
+	if (!s.count) {
+	    errmsg(NULL, "no series files found");
 	    return FALSE;
 	}
 	if (preferred && *preferred) {
@@ -590,37 +897,52 @@ static int getseriesfiles(char const *preferred, gameseries **list, int *count)
 		return FALSE;
 	    }
 	}
-	if (s.count > 1)
-	    qsort(s.list, s.count, sizeof *s.list, gameseriescmp);
+
+#ifndef TWPLUSPLUS
+	qsort(s.list, s.count, sizeof *s.list, gameseriescmp_name);
+#else
+	removefilenamesuffixes(&s.mfinfo);
+	qsort(s.mfinfo.buf, s.mfinfo.count,
+	    sizeof *s.mfinfo.buf, compare_mapfileinfo);
+#endif	
     }
     *list = s.list;
     *count = s.count;
+    *mflist = s.mfinfo.buf;
+    *mfcount = s.mfinfo.count;
+
     return TRUE;
 }
 
 /* Produce a list of the series that are available for play. An array
  * of gameseries structures is returned through pserieslist, the size
- * of the array is returned through pcount, and a table of the the
- * filenames is returned through table. preferredfile, if not NULL,
- * limits the results to just the series with that filename.
+ * of the array is returned through pcount. The list of levelsets is returned
+ * through pmflist and the number of levelsets through pmfcount. A table of
+ * the gameseries filenames is returned through table. preferredfile, if not
+ * NULL, limits the results to just the series with that filename.
  */
 int createserieslist(char const *preferredfile, gameseries **pserieslist,
-		     int *pcount, tablespec *table)
+		     int *pcount, mapfileinfo **pmflist, int *pmfcount,
+		     tablespec *table)
 {
     static char const  *rulesetname[Ruleset_Count];
     gameseries	       *serieslist;
     char const	      **ptrs;
     char	       *textheap;
     int			listsize;
+    mapfileinfo	       *mapfilelist;
+    int			mapfilelistsize;
     int			used, col, n, y;
 
-    if (!getseriesfiles(preferredfile, &serieslist, &listsize))
+    if (!getseriesfiles(preferredfile, &serieslist, &listsize, &mapfilelist, &mapfilelistsize))
 	return FALSE;
-    if (!table) {
-	*pserieslist = serieslist;
-	*pcount = listsize;
+    *pserieslist = serieslist;
+    *pcount = listsize;
+    *pmflist = mapfilelist;
+    *pmfcount = mapfilelistsize;
+
+    if (!table)
 	return TRUE;
-    }
 
     col = 8;
     for (n = 0 ; n < listsize ; ++n)
@@ -651,8 +973,6 @@ int createserieslist(char const *preferredfile, gameseries **pserieslist,
 			    "1.%s", rulesetname[serieslist[y].ruleset]);
     }
 
-    *pserieslist = serieslist;
-    *pcount = listsize;
     table->rows = listsize + 1;
     table->cols = 2;
     table->sep = 2;
@@ -676,7 +996,9 @@ void getseriesfromlist(gameseries *dest, gameseries const *list, int index)
 
 /* Free all memory allocated by the createserieslist() table.
  */
-void freeserieslist(gameseries *list, int count, tablespec *table)
+void freeserieslist(gameseries *list, int count,
+		    mapfileinfo *mflist, int mfcount,
+		    tablespec *table)
 {
     int	n;
 
@@ -684,6 +1006,14 @@ void freeserieslist(gameseries *list, int count, tablespec *table)
 	for (n = 0 ; n < count ; ++n)
 	    free(list[n].mapfilename);
 	free(list);
+    }
+    if (mfcount) {
+	for (n = 0; n < mfcount; ++n) {
+		free(mflist[n].filename);
+	    for (int m = 0; m < Ruleset_Count; ++m)
+		free(mflist[n].sfilelst[m].list);
+    	}
+	free(mflist);
     }
     if (table) {
 	free((void*)table->items[0]);

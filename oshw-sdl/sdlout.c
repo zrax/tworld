@@ -524,7 +524,7 @@ void setcolors(long bkgnd, long text, long bold, long dim)
 /* Create the game's display. state is a pointer to the gamestate
  * structure.
  */
-int displaygame(gamestate const *state, int timeleft, int besttime)
+int displaygame(gamestate const *state, int timeleft, int besttime, int showinitstate)
 {
     if (state->statusflags & SF_SHUTTERED) {
 	displayshutter();

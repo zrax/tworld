@@ -96,6 +96,9 @@ static keycmdmap const gamekeycmds[] = {
     { 'o',                        0,  0,  0,   CmdStepping,           FALSE },
     { 'o',                       +1,  0,  0,   CmdSubStepping,        FALSE },
     { 'f',                        0,  0,  0,   CmdRandomFF,           FALSE },
+    { 'd',                        0,  0,  0,   CmdShowInitState,      FALSE },
+    { 'e',                        0,  0,  0,   CmdAdvanceGame,        FALSE },
+    { 'e',                       +1,  0,  0,   CmdAdvanceMoveGame,    FALSE },
     { TWK_TAB,                    0, -1,  0,   CmdPlayback,           FALSE },
     { TWK_TAB,                   +1, -1,  0,   CmdCheckSolution,      FALSE },
     { 'i',                        0, +1,  0,   CmdPlayback,           FALSE },
@@ -110,8 +113,8 @@ static keycmdmap const gamekeycmds[] = {
     { TWK_KP_ENTER,              -1, -1,  0,   CmdProceed,            FALSE },
     { ' ',                       -1, -1,  0,   CmdProceed,            FALSE },
 #ifndef NDEBUG
-    { 'd',                        0,  0,  0,   CmdDebugCmd1,          FALSE },
-    { 'd',                       +1,  0,  0,   CmdDebugCmd2,          FALSE },
+    { 'd',                        0, +1,  0,   CmdDebugCmd1,          FALSE },
+    { 'd',                       +1, +1,  0,   CmdDebugCmd2,          FALSE },
     { TWK_UP,                    +1,  0,  0,   CmdCheatNorth,         TRUE },
     { TWK_LEFT,                  +1,  0,  0,   CmdCheatWest,          TRUE },
     { TWK_DOWN,                  +1,  0,  0,   CmdCheatSouth,         TRUE },
@@ -133,6 +136,7 @@ static keycmdmap const gamekeycmds[] = {
 /* "Virtual" keys */
     { TWC_SEESCORES,              0,  0,  0,   CmdSeeScores,          FALSE },
     { TWC_SEESOLUTIONFILES,       0,  0,  0,   CmdSeeSolutionFiles,   FALSE },
+    { TWC_TIMESCLIPBOARD,         0,  0,  0,   CmdTimesClipboard,     FALSE },
     { TWC_QUITLEVEL,              0,  0,  0,   CmdQuitLevel,          FALSE },
     { TWC_QUIT,                   0,  0,  0,   CmdQuit,               FALSE },
 
@@ -151,6 +155,7 @@ static keycmdmap const gamekeycmds[] = {
     { TWC_SEEK,                   0,  0,  0,   CmdSeek,               FALSE },
 
     { TWC_HELP,                   0,  0,  0,   CmdHelp,               FALSE },
+    { TWC_KEYS,                   0,  0,  0,   CmdKeys,               FALSE },
 #endif
     { 0, 0, 0, 0, 0, 0 }
 };
@@ -574,11 +579,51 @@ tablespec const *keyboardhelp(int which)
     };
     static tablespec const keyhelp_scroll = { 6, 2, 4, 1, scroll_items };
 
+    static char const *twplusplus_items[] = {
+        "1-Key", "1-Action",
+	"1-arrows", "1-move Chip",
+	"1-2 4 6 8 (keypad)", "1-also move Chip",
+	"1-Esc", "1-stop playing the current level",
+	"1-Bkspc", "1-pause the game",
+	"1-Ctrl-R", "1-restart the current level",
+	"1-Ctrl-P", "1-jump to the previous level",
+	"1-Ctrl-N", "1-jump to the next level",
+	"1-V", "1-decrease volume",
+	"1-Shift-V", "1-increase volume",
+	"2-Before level playing starts:",
+	"1-Esc", "1-Go back to list of levelsets",
+	"1-P", "1-jump to the previous level",
+	"1-N", "1-jump to the next level",
+	"1-PgUp", "1-skip back ten levels",
+	"1-PgDn", "1-skip ahead ten levels",
+	"1-G", "1-go to a level using a password",
+	"1-S", "1-see the scores for each level",
+	"1-Tab", "1-playback saved solution",
+	"1-Ctrl-I", "1-playback saved solution",
+	"1-Shift-Tab", "1-verify saved solution",
+	"1-Shift-Ctrl-I", "1-verify saved solution",
+	"1-Ctrl-X", "1-replace existing solution",
+	"1-Shift-Ctrl-X", "1-delete existing solution",
+	"1-Ctrl-S", "1-see the available solution files",
+	"1-O", "1-toggle between even-step and odd-step offset",
+	"1-Shift-O", "1-increment stepping offset (Lynx only)",
+	"1-F", "1-Change initial \"random\" force floor direction (Lynx only)",
+	"2-During solution playback:",
+	"1-PgUp", "1-Go back about 10 seconds",
+	"1-PgDn", "1-Go forward about 10 seconds",
+	"1-D", "1-Toggle display of stepping & initial random FF direction",
+	"1-E", "1-Advance a tick",
+	"1-Shift-E", "1-Advance a move"
+    };
+
+    static tablespec const keyhelp_twplusplus = { 34, 2, 4, 1, twplusplus_items };
+
     switch (which) {
       case KEYHELP_INGAME:	return &keyhelp_ingame;
       case KEYHELP_TWIXTGAMES:	return &keyhelp_twixtgame;
       case KEYHELP_SCORELIST:	return &keyhelp_scorelist;
       case KEYHELP_FILELIST:	return &keyhelp_scroll;
+      case KEYHELP_TWPLUSPLUS:  return &keyhelp_twplusplus;
     }
 
     return NULL;

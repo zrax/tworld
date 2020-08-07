@@ -14,6 +14,7 @@
 #include	"res.h"
 #include	"logic.h"
 #include	"random.h"
+#include	"settings.h"
 #include	"solution.h"
 #include	"unslist.h"
 #include	"play.h"
@@ -34,6 +35,11 @@ int			batchmode = FALSE;
  */
 static int		mudsucking = 1;
 
+/* Whether to show steppping and initial random force floor direction during
+ * solution playback.
+ */
+static int		showinitstate = FALSE;
+
 /* Turn on the pedantry.
  */
 void setpedanticmode(void)
@@ -49,6 +55,12 @@ int setmudsuckingfactor(int mud)
 	return FALSE;
     mudsucking = mud;
     return TRUE;
+}
+
+void toggleshowinitstate(void)
+{
+    showinitstate = !showinitstate;
+    setintsetting("showinitstate", showinitstate);
 }
 
 /* Configure the game logic, and some of the OS/hardware layer, as
@@ -163,25 +175,20 @@ int secondsplayed(void)
 void setgameplaymode(int mode)
 {
     switch (mode) {
-      case BeginInput:
-	setkeyboardinputmode(TRUE);
-	break;
-      case EndInput:
-	setkeyboardinputmode(FALSE);
-	break;
-      case BeginPlay:
+      case NormalPlay:
 	setkeyboardrepeat(FALSE);
 	settimer(+1);
+	setsoundeffects(+1);
+	state.statusflags &= ~SF_SHUTTERED;
 	break;
       case EndPlay:
 	setkeyboardrepeat(TRUE);
 	settimer(-1);
+	setsoundeffects(+1);
 	break;
-      case BeginVerify:
+      case NonrenderPlay:
 	settimer(+1);
-	break;
-      case EndVerify:
-	settimer(-1);
+	setsoundeffects(0);
 	break;
       case SuspendPlayShuttered:
 	if (state.ruleset == Ruleset_MS)
@@ -191,13 +198,19 @@ void setgameplaymode(int mode)
 	settimer(0);
 	setsoundeffects(0);
 	break;
-      case ResumePlay:
-	setkeyboardrepeat(FALSE);
-	settimer(+1);
-	setsoundeffects(+1);
-	state.statusflags &= ~SF_SHUTTERED;
-	break;
     }
+}
+
+/* Write a string representing the stepping to a buffer. Returns
+ * a pointer to the terminating null character.
+ */
+static char *writesteppingstring(char *buf, int stepping)
+{
+    char *p = buf;
+    p += sprintf(p, "%s-step", state.stepping & 4 ? "odd" : "even");
+    if (state.stepping & 3)
+	p += sprintf(p, " +%d", state.stepping & 3);
+    return p;
 }
 
 /* Alter the stepping. If display is true, update the screen to
@@ -205,15 +218,12 @@ void setgameplaymode(int mode)
  */
 int setstepping(int stepping, int display)
 {
-    char	msg[32], *p;
+    char	msg[32];
 
     state.stepping = stepping;
     if (display) {
-	p = msg;
-	p += sprintf(p, "%s-step", state.stepping & 4 ? "odd" : "even");
-	if (state.stepping & 3)
-	    p += sprintf(p, " +%d", state.stepping & 3);
-	setdisplaymsg(msg, 500, 500);
+	writesteppingstring(msg, stepping);
+	setdisplaymsg(msg, 1000, 1000);
     }
     return TRUE;
 }
@@ -235,6 +245,30 @@ int changestepping(int delta, int display)
     return TRUE;
 }
 
+/* Append a string literal and update pointer to refer to end. */
+#define APPEND(p, strliteral) do { \
+    strcpy(p, strliteral); \
+    p += strlen(strliteral); \
+    } while (0)
+
+/* Write a string representing the random force floor direction. Returns
+ * a pointer to the terminating null character.
+ */
+static char *writerandomffstring(char *buf, int rndslidedir)
+{
+    char *p = buf;
+    APPEND(p, "random FF ");
+    switch (rndslidedir)
+    {
+	/* The direction will be cycled again before being used */
+	case NORTH: APPEND(p, "east");  break;
+	case EAST:  APPEND(p, "south"); break;
+	case SOUTH: APPEND(p, "west");  break;
+	case WEST:  APPEND(p, "north"); break;
+    }
+    return p;
+}
+
 /* Advance initial random force floor direction (in Lynx mode) */
 void advanceinitrandomff(int display)
 {
@@ -243,18 +277,23 @@ void advanceinitrandomff(int display)
         state.initrndslidedir = right(state.initrndslidedir);
         if (display)
         {
-            char msg[32] = "random FF ";
-            switch (state.initrndslidedir)
-            {
-              /* The direction will be cycled again before being used */
-              case NORTH: strcat(msg, "east");  break;
-              case EAST:  strcat(msg, "south"); break;
-              case SOUTH: strcat(msg, "west");  break;
-              case WEST:  strcat(msg, "north"); break;
-            }
-	    setdisplaymsg(msg, 500, 500);
+            char msg[32];
+	    writerandomffstring(msg, state.initrndslidedir);
+	    setdisplaymsg(msg, 1000, 1000);
         }       
     }
+}
+
+char const *getinitstatestring(void)
+{
+    static char buf[64];
+    char *p = buf;
+    p = writesteppingstring(p, state.stepping);
+    if (state.ruleset == Ruleset_Lynx) {
+	*p++ = '\n';
+	p = writerandomffstring(p, state.initrndslidedir);
+    }
+    return buf;
 }
 
 /* Advance the game one tick and update the game state. cmd is the
@@ -316,27 +355,28 @@ int drawscreen(int showframe)
     int timeleft, besttime;
 
     playsoundeffects(state.soundeffects);
+    state.soundeffects &= ~((1 << SND_ONESHOT_COUNT) - 1);
 
     if (!showframe)
 	return TRUE;
 
     currenttime = state.currenttime + state.timeoffset;
+
+    int const starttime = (state.game->time ? state.game->time : 999);
     if (hassolution(state.game))
-	besttime = (state.game->time ? state.game->time : 999)
-				- state.game->besttime / TICKS_PER_SECOND;
+	besttime = starttime - state.game->besttime / TICKS_PER_SECOND;
     else
 	besttime = TIME_NIL;
 
-    timeleft = TIME_NIL;
-    if (state.game->time) {
-	timeleft = state.game->time - currenttime / TICKS_PER_SECOND;
-	if (timeleft <= 0) {
-	    timeleft = 0;
-	    setdisplaymsg("Out of time", 2, 2);
-	}
+    timeleft = starttime - currenttime / TICKS_PER_SECOND;
+    if (state.game->time && timeleft <= 0) {
+	timeleft = 0;
+#ifndef TWPLUSPLUS
+	setdisplaymsg("Out of time", 2, 2);
+#endif
     }
 
-    return displaygame(&state, timeleft, besttime);
+    return displaygame(&state, timeleft, besttime, showinitstate);
 }
 
 /* Stop game play and clean up.

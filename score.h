@@ -9,6 +9,10 @@
 
 #include	"defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Return the user's scores for a given level. The last three arguments
  * receive the base score for the level, the time bonus for the level,
  * and the total score for the series.
@@ -44,5 +48,17 @@ extern int createtimelist(gameseries const *series,
  */
 extern void freescorelist(int *plevellist, tablespec *table);
 #define freetimelist freescorelist
+
+/* Create a string representing the level time achieved for a level. */
+char const *timestring(int lvlnum, char const *lvltitle, int besttime,
+    int timed, int bad);
+
+/* Create a list of timestrings for all levels with solutions in the
+ * gameseries. */
+char const* leveltimes(gameseries const *series);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2014 by Madhav Shanbhag and Eric Schmidt,
+/* Copyright (C) 2001-2017 by Madhav Shanbhag and Eric Schmidt,
  * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -22,12 +22,7 @@
 
 #include <QLocale>
 
-#if OLD_TIMER_IMPL
-#include <QBasicTimer>
-#endif
-
 class QSortFilterProxyModel;
-
 
 class TileWorldMainWnd : public QMainWindow, protected Ui::TWMainWnd
 {
@@ -44,17 +39,9 @@ public:
 	TileWorldMainWnd(QWidget* pParent = 0, Qt::WindowFlags flags = 0);
 	~TileWorldMainWnd();
 
-	virtual bool eventFilter(QObject* pObject, QEvent* pEvent);
-	virtual void closeEvent(QCloseEvent* pCloseEvent);
-
-#if OLD_TIMER_IMPL
-	virtual void timerEvent(QTimerEvent* pTimerEvent);
-	void SetTimer(int action);
-	void SetTimerSecond(int nMS);
-	int GetTickCount();
-	bool WaitForTick();
-	int AdvanceTick();
-#endif
+	virtual bool eventFilter(QObject* pObject, QEvent* pEvent) override;
+	virtual void closeEvent(QCloseEvent* pCloseEvent) override;
+	virtual void timerEvent(QTimerEvent*) override;
 
 	bool SetKeyboardRepeat(bool bEnable);
 	uint8_t* GetKeyState(int* pnNumKeys);
@@ -62,24 +49,26 @@ public:
 	
 	bool CreateGameDisplay();
 	void ClearDisplay();
-	bool DisplayGame(const gamestate* pState, int nTimeLeft, int nBestTime);
+	bool DisplayGame(const gamestate* pState, int nTimeLeft, int nBestTime, bool showinitgamestate);
 	bool SetDisplayMsg(const char* szMsg, int nMSecs, int nBoldMSecs);
 	int DisplayEndMessage(int nBaseScore, int nTimeScore, long lTotalScore, int nCompleted);
 	int DisplayList(const char* szTitle, const tablespec* pTableSpec, int* pnIndex,
 			DisplayListType eListType, int (*pfnInputCallback)(int*));
 	int DisplayInputPrompt(const char* szPrompt, char* pInput, int nMaxLen,
 			InputPromptType eInputType, int (*pfnInputCallback)());
-
+	int GetSelectedRuleset();
 	void SetSubtitle(const char* szSubtitle);
 	
 	void ReadExtensions(gameseries* pSeries);
 	void Narrate(CCX::Text CCX::Level::*pmTxt, bool bForce = false);
 	
-	
+	void ShowAbout();
+
 private slots:
 	void OnListItemActivated(const QModelIndex& index);
 	void OnFindTextChanged(const QString& sText);
 	void OnFindReturnPressed();
+	void OnRulesetSwitched(bool mschecked);
 	void OnPlayback();
 	void OnSpeedValueChanged(int nValue);
 	void OnSpeedSliderReleased();	
@@ -97,10 +86,13 @@ private:
 	void DisplayMapView(const gamestate* pState);
 	void DisplayShutter();
 	void SetSpeed(int nValue);
-        void ReleaseAllKeys();
+	void ReleaseAllKeys();
 	void PulseKey(int nTWKey);
 	int GetTWKeyForAction(QAction* pAction) const;
 	
+	enum HintMode { HINT_EMPTY, HINT_TEXT, HINT_INITSTATE };
+	bool SetHintMode(HintMode newmode);
+
 	bool m_bSetupUi;
 	bool m_bWindowClosed;
 	
@@ -109,27 +101,20 @@ private:
 	TW_Rect m_disploc;
 	
 	uint8_t m_nKeyState[TWK_LAST];
-	
-#if OLD_TIMER_IMPL
-	QBasicTimer m_timer;
-	int m_nMSPerSecond;
-	bool m_bTimerStarted;
-	int m_nTickCount;
-#endif
 
-	uint32_t m_nMsgUntil, m_nMsgBoldUntil;
+	struct MessageData{ QString sMsg; uint32_t nMsgUntil, nMsgBoldUntil; };
+	QVector<MessageData> m_shortMessages;
 	
 	bool m_bKbdRepeatEnabled;
-	
-	int m_nNextCompletionMsg, m_nNextTimeoutMsg, m_nNextDeathMsg;
-	
+
 	int m_nRuleset;
 	int m_nLevelNum;
 	bool m_bProblematic;
 	bool m_bOFNT;
 	int m_nBestTime;
-	bool m_bHintShown;
+	HintMode m_hintMode;
 	int m_nTimeLeft;
+	bool m_bTimedLevel;
 	bool m_bReplay;
 	
 	QSortFilterProxyModel* m_pSortFilterProxyModel;

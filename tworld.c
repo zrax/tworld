@@ -1,6 +1,6 @@
 /* tworld.c: The top-level module.
  *
- * Copyright (C) 2001-2014 by Brian Raiter, Madhav Shanbhag, and Eric Schmidt,
+ * Copyright (C) 2001-2017 by Brian Raiter, Madhav Shanbhag, and Eric Schmidt,
  * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -55,7 +55,6 @@ typedef	struct startupdata {
 
 /* History of levelsets in order of last used date/time.
  */
-#define USEMAPFILENAME FALSE
 static history *historylist = NULL;
 static int	historycount = 0;
 
@@ -63,7 +62,9 @@ static int	historycount = 0;
  */
 typedef	struct seriesdata {
     gameseries *list;		/* the array of available series */
-    int		count;		/* size of arary */
+    int		count;		/* size of array */
+    mapfileinfo *mflist;	/* List of all levelset files */
+    int		mfcount;	/* Number of levelset files */
     tablespec	table;		/* table for displaying the array */
 } seriesdata;
 
@@ -732,10 +733,10 @@ static int selectlevelbypassword(gamespec *gs)
     char	passwd[5] = "";
     int		n;
 
-    setgameplaymode(BeginInput);
+    setkeyboardinputmode(TRUE);
     n = displayinputprompt("Enter Password", passwd, 4,
 			   INPUT_ALPHA, keyinputcallback);
-    setgameplaymode(EndInput);
+    setkeyboardinputmode(FALSE);
     if (!n)
 	return FALSE;
 
@@ -843,7 +844,7 @@ static void updatehistory(char const *name, char const *passwd, int number)
 
 /* Save the levelset history.
  */
-static int savehistory(void)
+static void savehistory(void)
 {
     fileinfo	file;
     history    *h;
@@ -851,7 +852,7 @@ static int savehistory(void)
     
     clearfileinfo(&file);
     if (!openfileindir(&file, savedir, "history", "w", NULL))
-	return FALSE;
+	return;
 
     h = historylist;
     for (i = 0; i < historycount; ++i, ++h) {
@@ -862,8 +863,6 @@ static int savehistory(void)
     }
     
     fileclose(&file, NULL);
-	
-    return TRUE;
 }
 
 /*
@@ -909,11 +908,19 @@ static int startinput(gamespec *gs)
 	  case CmdHelp:		dohelp(Help_KeysBetweenGames);	break;
 	  case CmdQuit:						exit(0);
 	  case CmdPlayback:
+	  case CmdAdvanceGame:
+	  case CmdAdvanceMoveGame:
 	    if (prepareplayback()) {
+		gs->playmode = Play_Back;
+		return cmd;
+	    }
+	    bell();
+	    break;
+	  case CmdSeek:
+	    if (getreplaysecondstoskip() > 0) {
 		gs->playmode = Play_Back;
 		return CmdProceed;
 	    }
-	    bell();
 	    break;
 	  case CmdCheckSolution:
 	    if (prepareplayback()) {
@@ -934,10 +941,10 @@ static int startinput(gamespec *gs)
 		break;
 	    }
 	    yn[0] = '\0';
-	    setgameplaymode(BeginInput);
+	    setkeyboardinputmode(TRUE);
 	    n = displayinputprompt("Really delete solution?",
 				   yn, 1, INPUT_YESNO, yninputcallback);
-	    setgameplaymode(EndInput);
+	    setkeyboardinputmode(FALSE);
 	    if (n && *yn == 'Y')
 		if (deletesolution())
 		    savesolutions(&gs->series);
@@ -950,10 +957,17 @@ static int startinput(gamespec *gs)
 	    if (showsolutionfiles(gs))
 		return CmdNone;
 	    break;
+	  case CmdTimesClipboard:
+	    copytoclipboard(leveltimes(&gs->series));
+	    break;
 	  case CmdGotoLevel:
 	    if (selectlevelbypassword(gs))
 		return CmdNone;
 	    break;
+	  case CmdKeys:
+	    n = 0;
+	    displaylist("", keyboardhelp(KEYHELP_TWPLUSPLUS), &n, LIST_HELP, NULL);
+	    return CmdNone;
 	  default:
 	    continue;
 	}
@@ -977,10 +991,10 @@ static int endinput(gamespec *gs)
 	    ++gs->melindacount;
 	    if (gs->melindacount >= 10) {
 		yn[0] = '\0';
-		setgameplaymode(BeginInput);
+		setkeyboardinputmode(TRUE);
 		n = displayinputprompt("Skip level?", yn, 1,
 				       INPUT_YESNO, yninputcallback);
-		setgameplaymode(EndInput);
+		setkeyboardinputmode(FALSE);
 		if (n && *yn == 'Y') {
 		    passwordseen(gs, gs->currentgame + 1);
 		    changecurrentgame(gs, +1);
@@ -1063,6 +1077,20 @@ static int finalinput(gamespec *gs)
     }
 }
 
+#define SETPAUSED(paused, shutter) do { \
+    if (paused) { \
+	setdisplaymsg("(paused)", FOREVER, FOREVER); \
+	setgameplaymode((shutter) ? SuspendPlayShuttered : SuspendPlay); \
+	if (shutter) drawscreen(TRUE); \
+	gamepaused = TRUE; \
+    } \
+    else { \
+	setdisplaymsg(NULL, 0, 0); \
+	setgameplaymode(NormalPlay); \
+	gamepaused = FALSE; \
+    } \
+} while (0)
+
 /* Play the current level, using firstcmd as the initial key command,
  * and returning when the level's play ends. The return value is FALSE
  * if play ended because the user restarted or changed the current
@@ -1084,19 +1112,26 @@ static int playgame(gamespec *gs, int firstcmd)
 	cmd = CmdNone;
 
     gs->status = 0;
-    setgameplaymode(BeginPlay);
+    setgameplaymode(NormalPlay);
     render = lastrendered = TRUE;
+
+    int gamepaused = FALSE;
     for (;;) {
-	n = doturn(cmd);
-	drawscreen(render);
-	lastrendered = render;
-	if (n)
-	    break;
-	render = waitfortick() || noframeskip;
-	cmd = input(FALSE);
+	if (gamepaused)
+	    cmd = input(TRUE);
+	else {
+	    n = doturn(cmd);
+	    drawscreen(render);
+	    lastrendered = render;
+	    if (n)
+	        break;
+	    render = waitfortick() || noframeskip;
+	    cmd = input(FALSE);
+	}
 	if (cmd == CmdQuitLevel) {
 	    quitgamestate();
 	    n = -2;
+	    setdisplaymsg(NULL, 0, 0);
 	    break;
 	}
 	if (!(cmd >= CmdMoveFirst && cmd <= CmdMoveLast)) {
@@ -1115,24 +1150,14 @@ static int playgame(gamespec *gs, int firstcmd)
 		cmd = CmdNone;
 		break;
 	      case CmdPauseGame:
-		setgameplaymode(SuspendPlayShuttered);
-		drawscreen(TRUE);
-		setdisplaymsg("(paused)", 1, 1);
-		for (;;) {
-		    switch (input(TRUE)) {
-		      case CmdQuit:		exit(0);
-		      case CmdPauseGame:	break;
-		      default:			continue;
-		    }
-		    break;
-		}
-		setgameplaymode(ResumePlay);
-		cmd = CmdNone;
+	        SETPAUSED(!gamepaused, TRUE);
+		if (!gamepaused)
+		    cmd = CmdNone;
 		break;
 	      case CmdHelp:
 		setgameplaymode(SuspendPlay);
 		dohelp(Help_KeysDuringGame);
-		setgameplaymode(ResumePlay);
+		if (!gamepaused) setgameplaymode(NormalPlay);
 		cmd = CmdNone;
 		break;
 #ifndef NDEBUG
@@ -1163,6 +1188,7 @@ static int playgame(gamespec *gs, int firstcmd)
     return TRUE;
 
   quitloop:
+    setdisplaymsg(NULL, 0, 0);
     if (!lastrendered)
 	drawscreen(TRUE);
     quitgamestate();
@@ -1172,39 +1198,103 @@ static int playgame(gamespec *gs, int firstcmd)
     return FALSE;
 }
 
+/* Skip past secondstoskip seconds from the beginning of the solution.
+ */
+static int hideandseek(gamespec *gs, int secondstoskip)
+{
+    int n = 0;
+
+    quitgamestate();
+    setgameplaymode(EndPlay);
+    gs->playmode = Play_None;
+    endgamestate();
+    initgamestate(gs->series.games + gs->currentgame,
+		  gs->series.ruleset);
+    prepareplayback();
+    gs->playmode = Play_Back;
+    gs->status = 0;
+    setgameplaymode(NonrenderPlay);
+
+    while (secondsplayed() < secondstoskip) {
+	n = doturn(CmdNone);
+	if (n)
+	    break;
+	advancetick();
+    }
+    drawscreen(TRUE);
+    setsoundeffects(-1);
+    setgameplaymode(NormalPlay);
+
+    return n;
+}
+
+/* Advance play by numticks ticks. */
+static int advancegame(gamespec *gs, int numticks)
+{
+    int n = 0;
+    setgameplaymode(NonrenderPlay);
+    while (numticks--) {
+	n = doturn(CmdNone);
+	if (n)
+	    break;
+	advancetick();
+    }
+    drawscreen(TRUE);
+    setsoundeffects(-1);
+    setgameplaymode(SuspendPlay);
+    return n;
+}
+
+#define ADVANCEGAME(cmd) do { \
+    int skipticks; \
+    if ((cmd) == CmdAdvanceMoveGame) \
+	skipticks = 4; \
+    else if (gs->series.ruleset == Ruleset_MS) \
+	skipticks = 2; \
+    else \
+	skipticks = 1; \
+    n = advancegame(gs, skipticks); \
+    lastrendered = TRUE; \
+    SETPAUSED(TRUE, FALSE); \
+} while (0)
+
 /* Play back the user's best solution for the current level in real
  * time. Other than the fact that this function runs from a
  * prerecorded series of moves, it has the same behavior as
  * playgame().
  */
-static int playbackgame(gamespec *gs)
+static int playbackgame(gamespec *gs, int initcmd)
 {
-    int	render, lastrendered, n, cmd;
-    int secondstoskip = -1, hideandseek = FALSE;
+    int	render, lastrendered, n = 0, cmd;
+    int secondstoskip;
+    int gamepaused = FALSE;
 
     secondstoskip = getreplaysecondstoskip();
-    
-    drawscreen(TRUE);
+    if (secondstoskip > 0) {
+	n = hideandseek(gs, secondstoskip);
+	SETPAUSED(TRUE, FALSE);
+    }
+    else if ((initcmd == CmdAdvanceGame) || (initcmd == CmdAdvanceMoveGame))
+	ADVANCEGAME(initcmd);
+    else {
+	drawscreen(TRUE);
+	gs->status = 0;
+	setgameplaymode(NormalPlay);
+    }
 
-    gs->status = 0;
-    setgameplaymode(BeginPlay);
     render = lastrendered = TRUE;
-    for (;;) {
-	n = doturn(CmdNone);
-	hideandseek = (secondstoskip > 0  &&  secondsplayed() < secondstoskip);
-	if (hideandseek) {
-	    lastrendered = FALSE;
-	} else {
+
+    while (!n) {
+    	if (gamepaused) {
+	    setgameplaymode(SuspendPlay);
+	    cmd = input(TRUE);
+	}
+	else {
+	    n = doturn(CmdNone);
 	    drawscreen(render);
 	    lastrendered = render;
-	}
-	if (n)
-	    break;
-	if (hideandseek) {
-	    advancetick();
-	    render = TRUE;
-	    cmd = CmdNone;
-	} else {
+	    if (n)
+	        break;
 	    render = waitfortick() || noframeskip;
 	    cmd = input(FALSE);
 	}
@@ -1217,17 +1307,8 @@ static int playbackgame(gamespec *gs)
 	    } else {
 	        secondstoskip = secondsplayed() + ((cmd == CmdNext10) ? +10 : -10);
 	    }
-	    quitgamestate();
-	    setgameplaymode(EndPlay);
-	    gs->playmode = Play_None;
-	    endgamestate();
-	    initgamestate(gs->series.games + gs->currentgame,
-			  gs->series.ruleset);
-	    prepareplayback();
-	    gs->playmode = Play_Back;
-	    gs->status = 0;
-	    setgameplaymode(BeginPlay);
-	    lastrendered = FALSE;
+	    n = hideandseek(gs, secondstoskip);
+	    lastrendered = TRUE;
 	    break;
 	  case CmdPrevLevel:	changecurrentgame(gs, -1);	goto quitloop;
 	  case CmdNextLevel:	changecurrentgame(gs, +1);	goto quitloop;
@@ -1242,25 +1323,24 @@ static int playbackgame(gamespec *gs)
 	    changevolume(-2, TRUE);
 	    break;
 	  case CmdPauseGame:
-	    setgameplaymode(SuspendPlay);
-	    setdisplaymsg("(paused)", 1, 1);
-	    for (;;) {
-		switch (input(TRUE)) {
-		  case CmdQuit:		exit(0);
-		  case CmdPauseGame:	break;
-		  default:		continue;
-		}
-		break;
-	    }
-	    setgameplaymode(ResumePlay);
+	    SETPAUSED(!gamepaused, FALSE);
+	    break;
+	  case CmdShowInitState:
+	    toggleshowinitstate();
+	    drawscreen(TRUE);
+	    break;
+	  case CmdAdvanceGame:
+	  case CmdAdvanceMoveGame:
+	    ADVANCEGAME(cmd);
 	    break;
 	  case CmdHelp:
 	    setgameplaymode(SuspendPlay);
 	    dohelp(Help_None);
-	    setgameplaymode(ResumePlay);
+	    if (!gamepaused) setgameplaymode(NormalPlay);
 	    break;
 	}
     }
+    setdisplaymsg(NULL, 0, 0);
     if (!lastrendered)
 	drawscreen(TRUE);
     setgameplaymode(EndPlay);
@@ -1275,6 +1355,7 @@ static int playbackgame(gamespec *gs)
     return TRUE;
 
   quitloop:
+    setdisplaymsg(NULL, 0, 0);
     if (!lastrendered)
 	drawscreen(TRUE);
     quitgamestate();
@@ -1282,6 +1363,9 @@ static int playbackgame(gamespec *gs)
     gs->playmode = Play_None;
     return FALSE;
 }
+
+#undef ADVANCEGAME
+#undef SETPAUSED
 
 /* Quickly play back the user's best solution for the current level
  * without rendering and without using the timer the keyboard. The
@@ -1293,8 +1377,8 @@ static int verifyplayback(gamespec *gs)
     int	n;
 
     gs->status = 0;
-    setdisplaymsg("Verifying ...", 1, 0);
-    setgameplaymode(BeginVerify);
+    setdisplaymsg("Verifying ...", FOREVER, 0);
+    setgameplaymode(NonrenderPlay);
     for (;;) {
 	n = doturn(CmdNone);
 	if (n)
@@ -1311,16 +1395,18 @@ static int verifyplayback(gamespec *gs)
     }
     gs->playmode = Play_None;
     quitgamestate();
+    setdisplaymsg(NULL, 0, 0);
     drawscreen(TRUE);
-    setgameplaymode(EndVerify);
+    setgameplaymode(EndPlay);
     if (n < 0) {
+#ifndef TWORLDPLUSPLUS
 	setdisplaymsg("Invalid solution!", 1, 1);
+#endif
 	replaceablesolution(gs, +1);
     }
     if (n > 0) {
 	if (checksolution())
 	    savesolutions(&gs->series);
-	setdisplaymsg(NULL, 0, 0);
     }
     gs->status = n;
     return TRUE;
@@ -1328,7 +1414,7 @@ static int verifyplayback(gamespec *gs)
   quitloop:
     setdisplaymsg(NULL, 0, 0);
     gs->playmode = Play_None;
-    setgameplaymode(EndVerify);
+    setgameplaymode(EndPlay);
     return FALSE;
 }
 
@@ -1344,7 +1430,7 @@ static int runcurrentlevel(gamespec *gs)
     int	valid, f;
     char const *name;
 
-    name = (USEMAPFILENAME ? gs->series.mapfilename : gs->series.filebase);
+    name = gs->series.filebase;
 
     updatehistory(skippathname(name),
 		  gs->series.games[gs->currentgame].passwd,
@@ -1377,7 +1463,7 @@ static int runcurrentlevel(gamespec *gs)
 	    if (valid) {
 		switch (gs->playmode) {
 		  case Play_Normal:	f = playgame(gs, cmd);		break;
-		  case Play_Back:	f = playbackgame(gs);		break;
+		  case Play_Back:	f = playbackgame(gs, cmd);	break;
 		  case Play_Verify:	f = verifyplayback(gs);		break;
 		  default:		f = FALSE;			break;
 		}
@@ -1404,10 +1490,10 @@ static int batchverify(gameseries *series, int display)
 	if (!hassolution(game))
 	    continue;
 	if (initgamestate(game, series->ruleset) && prepareplayback()) {
-	    setgameplaymode(BeginVerify);
+	    setgameplaymode(NonrenderPlay);
 	    while (!(f = doturn(CmdNone)))
 		advancetick();
-	    setgameplaymode(EndVerify);
+	    setgameplaymode(EndPlay);
 	    if (f > 0) {
 		++valid;
 		checksolution();
@@ -1461,16 +1547,118 @@ static void findlevelfromhistory(gamespec *gs, char const *name)
     }
 }
 
+#define PRODUCE_SINGLE_COLUMN_TABLE(table, heading, data, count, L, R) do { \
+    size_t _alloc = 0; \
+    _alloc += 3 + strlen(heading); \
+    for (int _n = 0; _n < (count); ++_n) \
+	_alloc += 3 + strlen(L(data)[_n] R); \
+    char const **_ptrs = malloc(((count) + 1) * sizeof *_ptrs); \
+    char *_textheap = malloc(_alloc); \
+    if (!_ptrs || !_textheap) memerrexit(); \
+    \
+    int _n = 0; \
+    int _used = 0; \
+    _ptrs[_n++] = _textheap + _used; \
+    _used += 1 + sprintf(_textheap + _used, "1-" heading); \
+    \
+    for (int _y = 0 ; _y < (count) ; ++_y) { \
+        _ptrs[_n++] = _textheap + _used; \
+	_used += 1 + sprintf(_textheap + _used, \
+			    "1-%s", L(data)[_y] R); \
+    } \
+    (table).rows = (count) + 1; \
+    (table).cols = 1; \
+    (table).sep = 0; \
+    (table).collapse = 0; \
+    (table).items = _ptrs; \
+} while (0)
+
+/* Free a table generated by the preceding macro */
+static void free_table(tablespec * table) {
+    free((void*)table->items[0]);
+    free(table->items);
+}
+
+/* Determine the index in series->mflist where the gameseries with index idx
+ * is found. Returns 0 if there is no such index. */
+static int findseries(seriesdata *series, int idx)
+{
+    for (int n = 0; n < series->mfcount; ++n) {
+	mapfileinfo *mfi = &series->mflist[n];
+	for (int i = Ruleset_First; i < Ruleset_Count; ++i)
+	{
+	    intlist *gsl = &mfi->sfilelst[i];
+	    for (int j = 0; j < gsl->count; ++j)
+	    {
+		if (gsl->list[j] == idx)
+		    return n;
+	    }
+	}
+    }
+    return 0;
+}
+
+/* Helper function for selectseriesandlevel */
+static int chooseseries(seriesdata *series, int *pn, int founddefault)
+{
+#ifndef TWPLUSPLUS
+    return displaylist("   Welcome to Tile World. Type ? or F1 for help.",
+		&series->table, pn, LIST_SERIES, scrollinputcallback);    
+#else
+    tablespec mftable;
+    PRODUCE_SINGLE_COLUMN_TABLE(mftable, "Levelset",
+	series->mflist, series->mfcount, , .filename);
+
+    /* Choose mapfile to be selected by default */
+    int n = (founddefault ? findseries(series, *pn) : 0);
+
+    int chosenseries = -1;
+    while (chosenseries < 0) {
+	int f = displaylist("", &mftable, &n, LIST_MAPFILES, scrollinputcallback);
+	if (f != CmdProceed) {
+	    free_table(&mftable);
+	    return f;
+	}
+	int ruleset = getselectedruleset();
+	intlist *chosengsl = &series->mflist[n].sfilelst[ruleset];
+
+	if (chosengsl->count < 1) /* Can happen if .dac name was taken */
+	    continue;
+	if (chosengsl->count == 1)
+	    chosenseries = chosengsl->list[0];
+	else {
+	    tablespec gstable;
+	    PRODUCE_SINGLE_COLUMN_TABLE(gstable, "Profile",
+		chosengsl->list, chosengsl->count, series->list[,].filebase);
+	    int m = 0;
+	    for (;;) {
+		f = displaylist("", &gstable, &m, LIST_SERIES, scrollinputcallback);
+		if (f == CmdProceed) {
+		    chosenseries = chosengsl->list[m];
+		    break;
+		}
+		else if (f == CmdQuitLevel)
+		    break;
+	    }
+	    free_table(&gstable);
+	}
+    }
+    free_table(&mftable);
+    *pn = chosenseries;
+    return CmdProceed;
+#endif
+}
+
 /* Display the full selection of available series to the user as a
  * scrolling list, and permit one to be selected. When one is chosen,
  * pick one of levels to be the current level. All fields of the
- * gamespec structure are initiailzed. If autosel is TRUE, then the
+ * gamespec structure are initialized. If autosel is TRUE, then the
  * function will skip the display if there is only one series
  * available. If defaultseries is not NULL, and matches the name of
  * one of the series in the array, then the scrolling list will be
  * initialized with that series selected. If defaultlevel is not zero,
  * and a level in the selected series that the user is permitted to
- * access matches it, then that level will be thhe initial current
+ * access matches it, then that level will be the initial current
  * level. The return value is zero if nothing was selected, negative
  * if an error occurred, or positive otherwise.
  */
@@ -1489,15 +1677,17 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	getseriesfromlist(&gs->series, series->list, 0);
     } else {
 	n = 0;
+	int founddefault = FALSE;
 	if (defaultseries) {
 	    n = series->count;
 	    while (n)
-		if (!strcmp(series->list[--n].filebase, defaultseries))
+		if (!strcmp(series->list[--n].filebase, defaultseries)) {
+		    founddefault = TRUE;
 		    break;
+		}
 	}
 	for (;;) {
-	    f = displaylist("   Welcome to Tile World. Type ? or F1 for help.",
-			    &series->table, &n, LIST_SERIES, scrollinputcallback);
+	    f = chooseseries(series, &n, founddefault);
 	    if (f == CmdProceed) {
 		getseriesfromlist(&gs->series, series->list, n);
 		okay = TRUE;
@@ -1512,9 +1702,12 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	    }
 	}
     }
-    freeserieslist(series->list, series->count, &series->table);
+    freeserieslist(series->list, series->count,
+	series->mflist, series->mfcount, &series->table);
     if (!okay)
 	return 0;
+
+    setstringsetting("selectedseries", gs->series.filebase);
 
     if (!readseriesfile(&gs->series)) {
 	errmsg(gs->series.filebase, "cannot read data file");
@@ -1543,8 +1736,6 @@ static int selectseriesandlevel(gamespec *gs, seriesdata *series, int autosel,
 	}
     }
 
-    if (USEMAPFILENAME && gs->currentgame < 0)
-        findlevelfromhistory(gs, gs->series.mapfilename);
     if (gs->currentgame < 0)
         findlevelfromhistory(gs, gs->series.filebase);
 
@@ -1570,7 +1761,8 @@ static int choosegame(gamespec *gs, char const *lastseries)
 {
     seriesdata	s;
 
-    if (!createserieslist(NULL, &s.list, &s.count, &s.table))
+    if (!createserieslist(NULL, &s.list, &s.count, &s.mflist, &s.mfcount,
+      &s.table))
 	return -1;
     return selectseriesandlevel(gs, &s, FALSE, lastseries, 0);
 }
@@ -1807,8 +1999,8 @@ static int initializesystem(void)
  */
 static void shutdownsystem(void)
 {
-    savehistory();
     savesettings();
+    savehistory();
     shutdowngamestate();
     freeallresources();
     free(resdir);
@@ -1829,14 +2021,17 @@ static void shutdownsystem(void)
  * the user returns to the series list later on, the choosegame()
  * function is called instead.
  */
-static int choosegameatstartup(gamespec *gs, startupdata const *start)
+static int choosegameatstartup(gamespec *gs, char const *lastseries,
+	startupdata const *start)
 {
     seriesdata	series;
     tablespec	table;
     int		n;
 
     if (!createserieslist(start->filename,
-			  &series.list, &series.count, &series.table))
+			  &series.list, &series.count,
+			  &series.mflist, &series.mfcount,
+			  &series.table))
 	return -1;
 
     free(start->filename);
@@ -1872,7 +2067,8 @@ static int choosegameatstartup(gamespec *gs, startupdata const *start)
 	    if (!createscorelist(series.list, usepasswds, '0',
 				 NULL, NULL, &table))
 		return -1;
-	    freeserieslist(series.list, series.count, &series.table);
+	    freeserieslist(series.list, series.count,
+		series.mflist, series.mfcount, &series.table);
 	    printtable(stdout, &table);
 	    freescorelist(NULL, &table);
 	    return 0;
@@ -1882,7 +2078,8 @@ static int choosegameatstartup(gamespec *gs, startupdata const *start)
 				series.list->ruleset == Ruleset_MS ? 10 : 100,
 				'0', NULL, NULL, &table))
 		return -1;
-	    freeserieslist(series.list, series.count, &series.table);
+	    freeserieslist(series.list, series.count,
+		series.mflist, series.mfcount, &series.table);
 	    printtable(stdout, &table);
 	    freetimelist(NULL, &table);
 	    return 0;
@@ -1898,7 +2095,7 @@ static int choosegameatstartup(gamespec *gs, startupdata const *start)
     if (series.count == 1)
     	readextensions(series.list);
 
-    return selectseriesandlevel(gs, &series, TRUE, NULL, start->levelnum);
+    return selectseriesandlevel(gs, &series, TRUE, lastseries, start->levelnum);
 }
 
 /*
@@ -1918,13 +2115,22 @@ int tworld(int argc, char *argv[])
     loadhistory();
     loadsettings();
 
-    f = choosegameatstartup(&spec, &start);
+    atexit(shutdownsystem);
+
+    char const *selectedseries = getstringsetting("selectedseries");
+    if (selectedseries && strlen(selectedseries) < sizeof lastseries)
+	strcpy(lastseries, selectedseries);
+    else
+	lastseries[0] = '\0';
+
+    if (getintsetting("showinitstate") > 0)
+	toggleshowinitstate();
+
+    f = choosegameatstartup(&spec, lastseries, &start);
     if (f < 0)
 	return EXIT_FAILURE;
     else if (f == 0)
 	return EXIT_SUCCESS;
-
-    atexit(shutdownsystem);
 
     while (f > 0) {
 	pushsubtitle(NULL);

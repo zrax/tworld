@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2014 by Madhav Shanbhag and Eric Schmidt
+/* Copyright (C) 2001-2017 by Madhav Shanbhag and Eric Schmidt
  * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -11,10 +11,12 @@
 #include "../defs.h"
 #include "../messages.h"
 #include "../settings.h"
+#include "../score.h"
 #include "../state.h"
 #include "../play.h"
 #include "../oshw.h"
 #include "../err.h"
+#include "../help.h"
 
 extern int pedanticmode;
 
@@ -37,7 +39,6 @@ extern int pedanticmode;
 #include <QSortFilterProxyModel>
 
 #include <QStyle>
-// #include <QMotifStyle>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItemV2>
 
@@ -202,21 +203,16 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_bWindowClosed(false),
 	m_pSurface(0),
 	m_pInvSurface(0),
-#if OLD_TIMER_IMPL
-	m_nMSPerSecond(1000),
-	m_bTimerStarted(false),
-	m_nTickCount(0),
-#endif
-	m_nMsgUntil(0), m_nMsgBoldUntil(0),
+	m_shortMessages(),
 	m_bKbdRepeatEnabled(true),
-	m_nNextCompletionMsg(0), m_nNextTimeoutMsg(0), m_nNextDeathMsg(0),
 	m_nRuleset(Ruleset_None),
 	m_nLevelNum(0),
 	m_bProblematic(false),
 	m_bOFNT(false),
 	m_nBestTime(TIME_NIL),
-	m_bHintShown(false),
+	m_hintMode(HINT_EMPTY),
 	m_nTimeLeft(TIME_NIL),
+	m_bTimedLevel(false),
 	m_bReplay(false),
 	m_pSortFilterProxyModel(0)
 {
@@ -245,15 +241,12 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 
 	m_pTblList->setItemDelegate( new TWStyledItemDelegate(m_pTblList) );
 	
-	// m_pGameWidget->setAttribute(Qt::WA_PaintOnScreen);
-	// m_pObjectsWidget->setAttribute(Qt::WA_PaintOnScreen);
-	
-	// m_pPrgTime->setStyleSheet("QProgressBar::chunk {margin: 0px;}");
-	// m_pPrgTime->setStyle(new QMotifStyle());
+	m_pTextBrowser->setSearchPaths(QStringList(seriesdatdir));
 	
 	g_pApp->installEventFilter(this);
-	
+
 	connect( m_pTblList, SIGNAL(activated(const QModelIndex&)), this, SLOT(OnListItemActivated(const QModelIndex&)) );
+	connect( m_pRadioMs, SIGNAL(toggled(bool)), this, SLOT(OnRulesetSwitched(bool)) );
 	connect( m_pTxtFind, SIGNAL(textChanged(const QString&)), this, SLOT(OnFindTextChanged(const QString&)) );
 	connect( m_pTxtFind, SIGNAL(returnPressed()), this, SLOT(OnFindReturnPressed()) );
 	connect( m_pBtnPlay, SIGNAL(clicked()), this, SLOT(OnPlayback()) );
@@ -263,7 +256,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	connect( m_pBtnTextNext, SIGNAL(clicked()), this, SLOT(OnTextNext()) );
 	connect( m_pBtnTextPrev, SIGNAL(clicked()), this, SLOT(OnTextPrev()) );
 	connect( m_pBtnTextReturn, SIGNAL(clicked()), this, SLOT(OnTextReturn()) );
-	
+
 	connect( new QShortcut(Qt::Key_Escape, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextReturn()) );
 	connect( new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextReturn()) );
 	connect( new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextNext()) );
@@ -273,7 +266,15 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	
 	connect( m_pMenuBar, SIGNAL(triggered(QAction*)), this, SLOT(OnMenuActionTriggered(QAction*)) );
 
-        action_displayCCX->setChecked(getintsetting("displayccx"));
+	action_displayCCX->setChecked(getintsetting("displayccx"));
+	action_forceShowTimer->setChecked(getintsetting("forceshowtimer") > 0);
+	if (getintsetting("selectedruleset") == Ruleset_Lynx)
+		m_pRadioLynx->setChecked(true);
+	else
+		m_pRadioMs->setChecked(true);
+
+	int const tickMS = 1000 / TICKS_PER_SECOND;
+	startTimer(tickMS / 2);
 }
 
 
@@ -289,35 +290,49 @@ TileWorldMainWnd::~TileWorldMainWnd()
 void TileWorldMainWnd::closeEvent(QCloseEvent* pCloseEvent)
 {
 	QMainWindow::closeEvent(pCloseEvent);
-	// pCloseEvent->ignore();
 	m_bWindowClosed = true;
 
-	/*
-	switch (m_pMainWidget->currentIndex())
-	{
-		case PAGE_GAME:
-			keyeventcallback(TWK_LALT, false);
-			keyeventcallback(TWK_LCTRL, false);
-			keyeventcallback(TWK_LSHIFT, true);
-			keyeventcallback('q', true);
-		break;
-	
-		case PAGE_TABLE:
-			g_pApp->exit(CmdQuitLevel);
-		break;
-		
-		case PAGE_TEXT:
-			g_pApp->exit(CmdQuit);
-		break;
-	}
-	*/
-	
 	if (m_pMainWidget->currentIndex() == PAGE_GAME)
 		g_pApp->ExitTWorld();
 	else
 		g_pApp->quit();
 }
 
+void TileWorldMainWnd::timerEvent(QTimerEvent*)
+{
+	if (m_shortMessages.empty())
+		return;
+
+	uint32_t nCurTime = TW_GetTicks();
+	QPalette::ColorRole style = QPalette::BrightText;
+	bool switchMessage = false;
+	while (!m_shortMessages.empty())
+	{
+		auto & mData = m_shortMessages.back();
+		if (nCurTime <= mData.nMsgUntil)
+		{
+			if (nCurTime > mData.nMsgBoldUntil)
+				style = QPalette::Text;
+			break;
+		}
+		else
+		{
+			m_shortMessages.pop_back();
+			switchMessage = true;
+		}
+	}
+	if (switchMessage)
+	{
+		if (m_shortMessages.empty())
+			m_pLblShortMsg->clear();
+		else
+		{
+			m_pLblShortMsg->setText(m_shortMessages.back().sMsg);
+		}
+	}
+	if (style != m_pLblShortMsg->foregroundRole())
+		m_pLblShortMsg->setForegroundRole(style);
+}
 
 bool TileWorldMainWnd::eventFilter(QObject* pObject, QEvent* pEvent)
 {
@@ -392,13 +407,26 @@ bool TileWorldMainWnd::HandleEvent(QObject* pObject, QEvent* pEvent)
 							(QApplication::activeModalWidget() == 0);
 			// Only consume keys for the game, not for the tables or the message boxes
 			//  with the exception of a few keys for the table
-			if (pObject == m_pTblList  &&  bPress  &&  pKeyEvent->modifiers() == Qt::NoModifier)
+			QObjectList const & tableWidgets = m_pTablePage->children();
+			if (bPress && tableWidgets.contains(pObject) &&  pKeyEvent->modifiers() == Qt::NoModifier)
 			{
 				bConsume = true;
+				int currentrow = m_pTblList->selectionModel()->currentIndex().row();
+				int maxrow = m_pSortFilterProxyModel->rowCount()-1;
 				if (nQtKey == Qt::Key_Home)
 					m_pTblList->selectRow(0);
 				else if (nQtKey == Qt::Key_End)
-					m_pTblList->selectRow(m_pSortFilterProxyModel->rowCount()-1);
+					m_pTblList->selectRow(maxrow);
+				else if (nQtKey == Qt::Key_Up)
+					m_pTblList->selectRow(currentrow - 1);
+				else if (nQtKey == Qt::Key_Down)
+					m_pTblList->selectRow(currentrow + 1);
+				else if ((nQtKey == Qt::Key_Return || nQtKey == Qt::Key_Enter) && currentrow >= 0)
+					g_pApp->exit(CmdProceed);
+				else if (nQtKey == Qt::Key_Right && m_pRadioMs->isVisible() && pObject != m_pTxtFind)
+					m_pRadioLynx->setChecked(true);
+				else if (nQtKey == Qt::Key_Left  && m_pRadioMs->isVisible() && pObject != m_pTxtFind)
+					m_pRadioMs->setChecked(true);
 				else if (nQtKey == Qt::Key_Escape)
 					g_pApp->exit(CmdQuitLevel);
 				else
@@ -477,115 +505,6 @@ void TileWorldMainWnd::OnPlayback()
 	PulseKey(nTWKey);
 }
 
-
-#if OLD_TIMER_IMPL
-
-/*
- * Timer functions.
- */
-
-void TileWorldMainWnd::timerEvent(QTimerEvent* pTimerEvent)
-{
-	if (!m_bTimerStarted)
-		return;
-		
-	++m_nTickCount;
-	m_timer.start(m_nMSPerSecond/TICKS_PER_SECOND, this);
-}
-
-
-/* Control the timer depending on the value of action. A negative
- * value turns off the timer if it is running and resets the counter
- * to zero. A zero value turns off the timer but does not reset the
- * counter. A positive value starts (or resumes) the timer.
- */
-void settimer(int action)
-{
-	g_pMainWnd->SetTimer(action);
-}
-
-void TileWorldMainWnd::SetTimer(int action)
-{
-	if (action > 0)
-	{
-		m_bTimerStarted = true;
-		m_timer.start(m_nMSPerSecond/TICKS_PER_SECOND, this);
-	}
-	else
-	{
-		m_bTimerStarted = false;
-		m_timer.stop();
-		if (action < 0)
-			m_nTickCount = 0;
-	}
-}
-
-
-/* Set the length (in real time) of a second of game time. A value of
- * zero selects the default of 1000 milliseconds.
- */
-void settimersecond(int ms)
-{
-	g_pMainWnd->SetTimerSecond(ms);
-}
-
-void TileWorldMainWnd::SetTimerSecond(int nMS)
-{
-	if (nMS <= 0)
-		m_nMSPerSecond = 1000;
-	else
-		m_nMSPerSecond = nMS;
-}
-
-
-/* Return the number of ticks since the timer was last reset.
- */
-int gettickcount(void)
-{
-	return g_pMainWnd->GetTickCount();
-}
-
-int TileWorldMainWnd::GetTickCount()
-{
-	return m_nTickCount;
-}
-
-
-/* Put the program to sleep until the next timer tick.
- */
-int waitfortick(void)
-{
-	return g_pMainWnd->WaitForTick();
-}
-
-bool TileWorldMainWnd::WaitForTick()
-{
-	if (!m_bTimerStarted) return false;
-	
-	int nTickCount = m_nTickCount;
-	do
-	{
-		QApplication::processEvents(QEventLoop::WaitForMoreEvents|QEventLoop::ExcludeUserInputEvents, 5);
-	} while (m_nTickCount == nTickCount);
-	return true;
-}
-
-
-/* Force the timer to advance to the next tick.
- */
-int advancetick(void)
-{
-	return g_pMainWnd->AdvanceTick();
-}
-
-int TileWorldMainWnd::AdvanceTick()
-{
-	return ++m_nTickCount;
-}
-
-#endif
-
-
 /*
  * Keyboard input functions.
  */
@@ -651,7 +570,11 @@ bool TileWorldMainWnd::CreateGameDisplay()
 void TileWorldMainWnd::SetCurrentPage(Page ePage)
 {
 	m_pMainWidget->setCurrentIndex(ePage);
-	m_pMenuBar->setVisible(ePage == PAGE_GAME);
+	bool const showMenus = (ePage == PAGE_GAME);
+	m_pMenuBar->setVisible(showMenus);
+
+	// Menus won't disappear on some systems. Do the next best thing.
+	m_pMenuBar->setEnabled(showMenus);
 }
 
 
@@ -682,19 +605,23 @@ void TileWorldMainWnd::ClearDisplay()
 
 /* Display the current game state. timeleft and besttime provide the
  * current time on the clock and the best time recorded for the level,
- * measured in seconds. All other data comes from the gamestate
- * structure.
+ * measured in seconds.
  */
-int displaygame(gamestate const *state, int timeleft, int besttime)
+int displaygame(gamestate const *state, int timeleft, int besttime, int showinitstate)
 {
-	return g_pMainWnd->DisplayGame(state, timeleft, besttime);
+	return g_pMainWnd->DisplayGame(state, timeleft, besttime, showinitstate);
 }
 
-bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int nBestTime)
+bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int nBestTime, bool bShowInitState)
 {
-	m_nTimeLeft = nTimeLeft;
+	bool const bInit = (pState->currenttime == -1);
+	bool const bTimedLevel = (pState->game->time > 0);
 
-	bool bInit = (pState->currenttime == -1);
+	m_nTimeLeft = nTimeLeft;
+	m_bTimedLevel = bTimedLevel;
+
+	bool const bForceShowTimer = action_forceShowTimer->isChecked();
+
 	if (bInit)
 	{
 		m_nRuleset = pState->ruleset;
@@ -703,15 +630,10 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		m_nBestTime = nBestTime;
 		m_bReplay = false;	// IMPORTANT for OnSpeedValueChanged
 		SetSpeed(0);	// IMPORTANT
-		
+
 		m_pGameWidget->setCursor(m_nRuleset==Ruleset_MS ? Qt::CrossCursor : Qt::ArrowCursor);
-		
-		/*
-		QString sNumber = QString::number(pState->game->number);
-		m_pLblNumber->setText(sNumber);
-		*/
+
 		m_pLCDNumber->display(pState->game->number);
-		// m_pLCDNumber->setVisible(true);
 
 		QString sTitle = pState->game->name;
 		m_pLblTitle->setText(sTitle);
@@ -728,34 +650,24 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		
 		menu_Game->setEnabled(true);
 		menu_Solution->setEnabled(bHasSolution);
+		menu_Help->setEnabled(true);
 		action_GoTo->setEnabled(true);
                 CCX::Level const & currLevel
 		    (m_ccxLevelset.vecLevels[m_nLevelNum]);
 		bool hasPrologue(!currLevel.txtPrologue.vecPages.empty());
 		bool hasEpilogue(!currLevel.txtEpilogue.vecPages.empty());
-                action_Prologue->setEnabled(hasPrologue);
-                action_Epilogue->setEnabled(hasEpilogue && bHasSolution);
+		action_Prologue->setEnabled(hasPrologue);
+		action_Epilogue->setEnabled(hasEpilogue && bHasSolution);
 
 		m_pPrgTime->setPar(-1);
 		
 		bool bParBad = (pState->game->sgflags & SGF_REPLACEABLE) != 0;
 		m_pPrgTime->setParBad(bParBad);
 		const char* a = bParBad ? " *" : "";
-		
-		if (nTimeLeft == TIME_NIL)
-		{
-			// m_pPrgTime->setTextVisible(false);
-			if (nBestTime == TIME_NIL)
-				m_pPrgTime->setFormat("---");
-			else
-			{
-				m_pPrgTime->setFormat("(" + QString::number(nBestTime) + a + ") / ---");
-				m_pSldSeek->setMaximum(999-nBestTime);
-			}
-			m_pPrgTime->setMaximum(999);
-			m_pPrgTime->setValue(999);
-		}
-		else
+
+		m_pPrgTime->setFullBar(!bTimedLevel);
+
+		if (bTimedLevel)
 		{
 			if (nBestTime == TIME_NIL)
 			{
@@ -769,11 +681,23 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 			}
 			m_pPrgTime->setMaximum(pState->game->time);
 			m_pPrgTime->setValue(nTimeLeft);
-			// m_pPrgTime->setTextVisible(true);
+		}
+		else
+		{
+			char const *noTime = (bForceShowTimer ? "[999]" : "---");
+			if (nBestTime == TIME_NIL)
+				m_pPrgTime->setFormat(noTime);
+			else
+			{
+				m_pPrgTime->setFormat("[" + QString::number(nBestTime) + a + "] / " + noTime);
+				m_pSldSeek->setMaximum(999-nBestTime);
+			}
+			m_pPrgTime->setMaximum(999);
+			m_pPrgTime->setValue(999);
 		}
 		
 		m_pLblHint->clear();
-		m_bHintShown = false;
+		SetHintMode(HINT_EMPTY);
 		
 		CheckForProblems(pState);
 		
@@ -786,11 +710,13 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		if (m_bProblematic)
 		{
 			m_pLblHint->clear();
+			SetHintMode(HINT_EMPTY);
 			m_bProblematic = false;
 		}
 
 		menu_Game->setEnabled(false);
 		menu_Solution->setEnabled(false);
+		menu_Help->setEnabled(false);
 		action_GoTo->setEnabled(false);
 		action_Prologue->setEnabled(false);
 		action_Epilogue->setEnabled(false);
@@ -816,18 +742,25 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 
 	m_pLCDChipsLeft->display(pState->chipsneeded);
 	
-	if (nTimeLeft != TIME_NIL)
+	m_pPrgTime->setValue(nTimeLeft);
+
+	if (!bInit)
 	{
-		m_pPrgTime->setValue(nTimeLeft);
-		if (nBestTime != TIME_NIL  &&  !bInit)
-		{
-			// QString sFormat = QString::number(nBestTime) + " / %v";
-			QString sFormat;
-			sFormat.sprintf("%%v (%+d)", nTimeLeft-nBestTime);
-			m_pPrgTime->setFormat(sFormat);
-		}
+		QString sFormat;
+		std::string sFormatString;
+		if (bTimedLevel)
+			sFormatString = "%%v";
+		else if (bForceShowTimer)
+			sFormatString = "[%%v]";
+		else
+			sFormatString = "---";
+
+		if ((bTimedLevel || bForceShowTimer) && nBestTime != TIME_NIL)
+			sFormatString += " (%+d)";
+		sFormat.sprintf(sFormatString.c_str(), nTimeLeft-nBestTime);
+		m_pPrgTime->setFormat(sFormat);
 	}
-	
+
 	if (m_bReplay && !m_pSldSeek->isSliderDown())
 	{
 		m_pSldSeek->blockSignals(true);
@@ -837,26 +770,21 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 
 	if (!m_bProblematic)
 	{
+		// Call setText / clear only when really required
+		// See comments about QLabel in TWDisplayWidget.h
 		bool bShowHint = (pState->statusflags & SF_SHOWHINT) != 0;
-		if (bShowHint != m_bHintShown)
+		if (bShowInitState && m_bReplay)
 		{
-			// Call setText / clear only when really required
-			// See comments about QLabel in TWDisplayWidget.h
-			if (bShowHint)
-				m_pLblHint->setText(pState->hinttext);
-			else
-				m_pLblHint->clear();
-			m_bHintShown = bShowHint;
+			if (SetHintMode(HINT_INITSTATE))
+				m_pLblHint->setText(getinitstatestring());
 		}
-	}
-
-	if (!m_pLblShortMsg->text().isEmpty())
-	{
-		uint32_t nCurTime = TW_GetTicks();
-		if (nCurTime > m_nMsgUntil)
-			m_pLblShortMsg->clear();
-		else if (nCurTime > m_nMsgBoldUntil)
-			m_pLblShortMsg->setForegroundRole(QPalette::Text);
+		else if (bShowHint)
+		{
+			if (SetHintMode(HINT_TEXT))
+				m_pLblHint->setText(pState->hinttext);
+		}
+		else if (SetHintMode(HINT_EMPTY))
+			m_pLblHint->clear();
 	}
 
 	return true;
@@ -1018,7 +946,6 @@ int TileWorldMainWnd::GetReplaySecondsToSkip() const
 
 void TileWorldMainWnd::OnSeekPosChanged(int nValue)
 {
-	if (!m_bReplay) return;
 	PulseKey(TWC_SEEK);
 }
 
@@ -1060,9 +987,6 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		return CmdNone;
 		
 	QMessageBox msgBox(this);
-	// msgBox.setFont(m_pLblTitle->font());
-	//? msgBox.setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-	//? msgBox.setMinimumWidth(320);
 	
 	if (nCompleted > 0)	// Success
 	{
@@ -1097,7 +1021,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 
 		if (!m_bReplay)
 		{
-		  if (m_nTimeLeft != TIME_NIL  &&  m_nBestTime != TIME_NIL)
+		  if (m_bTimedLevel  &&  m_nBestTime != TIME_NIL)
 		  {
 			strm << "<tr><td>";
 			if (m_nTimeLeft > m_nBestTime)
@@ -1138,12 +1062,12 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		TW_FreeSurface(pSurface);
 		
 		msgBox.setWindowTitle(m_bReplay ? "Replay Completed" : "Level Completed");
-		
-		m_sTextToCopy = "#" + QString::number(m_nLevelNum)
-			+ " (" + sTitle + "): "
-			+ (m_nTimeLeft == TIME_NIL ? "---" : QString::number(m_nTimeLeft))
-			+ "\n";
-		
+
+		m_sTextToCopy = timestring
+			(m_nLevelNum,
+			 sTitle.toLatin1().constData(),
+			 m_nTimeLeft, m_bTimedLevel, false);
+
 		msgBox.addButton("&Onward!", QMessageBox::AcceptRole);
 		QPushButton* pBtnRestart = msgBox.addButton("&Restart", QMessageBox::AcceptRole);
 		QPushButton* pBtnCopyScore = msgBox.addButton("&Copy Score", QMessageBox::ActionRole);
@@ -1159,7 +1083,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 	}
 	else	// Failure
 	{
-		bool bTimeout = (m_nTimeLeft != TIME_NIL  &&  m_nTimeLeft <= 0);
+		bool bTimeout = (m_bTimedLevel  &&  m_nTimeLeft <= 0);
 		if (m_bReplay)
 		{
 			QString sMsg = "Whoa!  Chip ";
@@ -1179,13 +1103,13 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 			if (bTimeout)
 			{
 				szMsg = getmessage(MessageTime);
-	                        if (!szMsg)
+				if (!szMsg)
 					szMsg = "You ran out of time.";
 			}
 			else
 			{
 				szMsg = getmessage(MessageDie);
-	                        if (!szMsg)
+				if (!szMsg)
 					szMsg = "You died.";
 			}
 			
@@ -1196,7 +1120,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 			QStyle* pStyle = QApplication::style();
 			if (pStyle != 0)
 			{
-      				QIcon icon = pStyle->standardIcon(QStyle::SP_MessageBoxWarning);
+				QIcon icon = pStyle->standardIcon(QStyle::SP_MessageBoxWarning);
 				msgBox.setIconPixmap(icon.pixmap(48));
 			}
 			msgBox.setWindowTitle("Oops.");
@@ -1221,13 +1145,20 @@ int setdisplaymsg(char const *msg, int msecs, int bold)
 
 bool TileWorldMainWnd::SetDisplayMsg(const char* szMsg, int nMSecs, int nBoldMSecs)
 {
+	if (szMsg == nullptr || *szMsg == '\0')
+	{
+		m_pLblShortMsg->clear();
+		m_shortMessages.clear();
+	}
+
 	uint32_t nCurTime = TW_GetTicks();
-	m_nMsgUntil = nCurTime + nMSecs;
-	m_nMsgBoldUntil = nCurTime + nBoldMSecs;
+	uint32_t msgUntil = nCurTime + nMSecs;
+	uint32_t boldUntil = nCurTime + nBoldMSecs;
 	
 	m_pLblShortMsg->setForegroundRole(QPalette::BrightText);
 	m_pLblShortMsg->setText(szMsg);
-	
+
+	m_shortMessages.push_back({szMsg, msgUntil, boldUntil});
 	return true;
 }
 
@@ -1276,9 +1207,14 @@ int TileWorldMainWnd::DisplayList(const char* szTitle, const tablespec* pTableSp
 	m_pTxtFind->clear();
 	SetCurrentPage(PAGE_TABLE);
 	m_pTblList->setFocus();
-	
+
+	bool const showRulesetOptions = (eListType == LIST_MAPFILES);
+	m_pRadioMs->setVisible(showRulesetOptions);
+	m_pRadioLynx->setVisible(showRulesetOptions);
+	m_pLblSpace->setVisible(showRulesetOptions);
+
 	nCmd = g_pApp->exec();
-	// if (m_bWindowClosed) g_pApp->ExitTWorld();
+
 	*pnIndex = proxyModel.mapToSource(m_pTblList->currentIndex()).row();
 
 	SetCurrentPage(PAGE_GAME);
@@ -1328,6 +1264,9 @@ void TileWorldMainWnd::OnFindReturnPressed()
 		g_pApp->exit(CmdProceed);
 }
 
+void TileWorldMainWnd::OnRulesetSwitched(bool mschecked) {
+	setintsetting("selectedruleset", mschecked ? Ruleset_MS : Ruleset_Lynx);
+}
 
 /* Display an input prompt to the user. prompt supplies the prompt to
  * display, and input points to a buffer to hold the user's input.
@@ -1380,65 +1319,6 @@ int TileWorldMainWnd::DisplayInputPrompt(const char* szPrompt, char* pInput, int
 		}
 	}
 }
-
-
-#if DUMMY_SFX_IMPL
-
-/*
- * Sound functions.
- */
-
-/* Activate or deactivate the sound system. The return value is TRUE
- * if the sound system is (or already was) active.
- */
-int setaudiosystem(int active)
-{
-	return false;
-}
-
-
-/* Specify the sounds effects to be played at this time. sfx is the
- * bitwise-or of any number of sound effects. If a non-continuous
- * sound effect in sfx is already playing, it will be restarted. Any
- * continuous sound effects that are currently playing that are not
- * set in sfx will stop playing.
- */
-void playsoundeffects(unsigned long sfx)
-{
-}
-
-
-/* Control sound-effect production depending on the value of action.
- * A negative value turns off all sound effects that are playing. A
- * zero value temporarily suspends the playing of sound effects. A
- * positive value continues the sound effects at the point at which
- * they were suspended.
- */
-void setsoundeffects(int action)
-{
-}
-
-
-/* Set the current volume level. Volume ranges from 0 (silence) to 10
- * (the default). Setting the sound to zero causes sound effects to be
- * displayed as textual onomatopoeia. If display is TRUE, the new
- * volume level will be displayed to the user. FALSE is returned if
- * the sound system is not currently active.
- */
-int setvolume(int volume, int display)
-{
-	return false;
-}
-
-/* Alters the current volume level by delta.
- */
-int changevolume(int delta, int display)
-{
-	return true;
-}
-
-#endif
-
 
 /*
  * Miscellaneous functions.
@@ -1529,6 +1409,15 @@ int displaytable(char const *title, tablespec const *table,
 	return true;
 }
 
+int getselectedruleset()
+{
+	return g_pMainWnd->GetSelectedRuleset();
+}
+
+int TileWorldMainWnd::GetSelectedRuleset()
+{
+	return m_pRadioMs->isChecked() ? Ruleset_MS : Ruleset_Lynx;
+}
 
 /* Read any additional data for the series.
  */
@@ -1627,6 +1516,20 @@ void TileWorldMainWnd::Narrate(CCX::Text CCX::Level::*pmTxt, bool bForce)
 	setWindowTitle(sWindowTitle);
 }
 
+void TileWorldMainWnd::ShowAbout()
+{
+	QString text;
+	int const numlines = vourzhon->rows;
+	for (int i = 0; i < numlines; ++i)
+	{
+		if (i > 0)
+			text += "\n\n";
+	    char const *item = vourzhon->items[2*i + 1];
+		text += (item + 2);  // skip over formatting chars
+	}
+	QMessageBox::about(this, "About", text);
+}
+
 void TileWorldMainWnd::OnTextNext()
 {
 	g_pApp->exit(+1);
@@ -1663,6 +1566,19 @@ void TileWorldMainWnd::OnMenuActionTriggered(QAction* pAction)
 	    return;
 	}
 
+	if (pAction == action_forceShowTimer)
+	{
+	    setintsetting("forceshowtimer", pAction->isChecked() ? 1 : 0);
+		drawscreen(TRUE);
+	    return;
+	}
+
+	if (pAction == action_About)
+	{
+		ShowAbout();
+		return;
+	}
+
 	int nTWKey = GetTWKeyForAction(pAction);
 	if (nTWKey == TWK_dummy) return;
 	PulseKey(nTWKey);
@@ -1672,6 +1588,7 @@ int TileWorldMainWnd::GetTWKeyForAction(QAction* pAction) const
 {
     if (pAction == action_Scores) return TWC_SEESCORES;
     if (pAction == action_SolutionFiles) return TWC_SEESOLUTIONFILES;
+    if (pAction == action_TimesClipboard) return TWC_TIMESCLIPBOARD;
     if (pAction == action_Levelsets) return TWC_QUITLEVEL;
     if (pAction == action_Exit) return TWC_QUIT;
 
@@ -1686,6 +1603,14 @@ int TileWorldMainWnd::GetTWKeyForAction(QAction* pAction) const
     if (pAction == action_Verify) return TWC_CHECKSOLUTION;
     if (pAction == action_Replace) return TWC_REPLSOLUTION;
     if (pAction == action_Delete) return TWC_KILLSOLUTION;
-    
+
+	if (pAction == action_Keys) return TWC_KEYS;
     return TWK_dummy;
+}
+
+bool TileWorldMainWnd::SetHintMode(HintMode newmode)
+{
+	bool changed = (newmode != m_hintMode);
+	m_hintMode = newmode;
+	return changed;
 }

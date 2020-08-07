@@ -30,6 +30,10 @@ public:
 	int isParBad() const
 		{return m_bParBad;}
 
+	void setFullBar(bool bFullBar);
+	int isFullBar() const
+		{return m_bFullBar;}
+
 	virtual QString text() const;
 
 protected:		
@@ -37,6 +41,7 @@ protected:
 
 	int m_nValue, m_nPar;
 	bool m_bParBad;
+	bool m_bFullBar;
 };
 
 

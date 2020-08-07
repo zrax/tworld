@@ -1,17 +1,24 @@
-/* score.c: Calculating scores and formatting the display of same.
+/* score.cpp: Calculating scores and formatting the display of same.
  *
- * Copyright (C) 2001-2006 by Brian Raiter, under the GNU General Public
- * License. No warranty. See COPYING for details.
+ * Copyright (C) 2001-2017 by Brian Raiter and Eric Schmidt, under the GNU
+ * General Public License. No warranty. See COPYING for details.
  */
 
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
 #include	<math.h>
+
+#include	<string>
+#include	<sstream>
+
 #include	"defs.h"
 #include	"err.h"
 #include	"play.h"
 #include	"score.h"
+
+using std::ostringstream;
+using std::string;
 
 /* Translate a number into a string. The second argument supplies the
  * character value to use for the zero digit.
@@ -114,12 +121,12 @@ int createscorelist(gameseries const *series, int usepasswds, char zchar,
     int		used, j, n;
 
     if (plevellist) {
-	levellist = malloc((series->count + 2) * sizeof *levellist);
+	    levellist = (int*)malloc((series->count + 2) * sizeof *levellist);
 	if (!levellist)
 	    memerrexit();
     }
-    ptrs = malloc((series->count + 2) * 5 * sizeof *ptrs);
-    textheap = malloc((series->count + 2) * 128);
+    ptrs = (char const **)malloc((series->count + 2) * 5 * sizeof *ptrs);
+    textheap = (char*)malloc((series->count + 2) * 128);
     if (!ptrs || !textheap)
 	memerrexit();
     totalscore = 0;
@@ -238,12 +245,12 @@ int createtimelist(gameseries const *series, int showpartial, char zchar,
     int			used, secs, j, n;
 
     if (plevellist) {
-	levellist = malloc((series->count + 1) * sizeof *levellist);
+	levellist = (int*)malloc((series->count + 1) * sizeof *levellist);
 	if (!levellist)
 	    memerrexit();
     }
-    ptrs = malloc((series->count + 1) * 4 * sizeof *ptrs);
-    textheap = malloc((series->count + 1) * 128);
+    ptrs = (char const **)malloc((series->count + 1) * 4 * sizeof *ptrs);
+    textheap = (char *)malloc((series->count + 1) * 128);
     if (!ptrs || !textheap)
 	memerrexit();
 
@@ -329,4 +336,41 @@ void freescorelist(int *levellist, tablespec *table)
 	free((void*)table->items[0]);
 	free(table->items);
     }
+}
+
+char const* timestring(int lvlnum, char const *lvltitle, int besttime,
+    int timed, int bad)
+{
+    static string result;
+
+    ostringstream oss;
+    oss << '#' << lvlnum << " (" << lvltitle << "): ";
+    if (!timed) oss << '[';
+    oss << besttime;
+    if (!timed) oss << ']';
+    if (bad) oss << " *bad*";
+    oss << '\n';
+
+    result = oss.str();
+    return result.c_str();
+}
+
+char const* leveltimes(gameseries const *series)
+{
+    static string result;
+    result.clear();
+
+    for (int i = 0; i < series->count; ++i) {
+	gamesetup const & game = series->games[i];
+	if (hassolution(&game)) {
+	    int const starttime = (game.time ? game.time : 999);
+	    int const besttime =
+		starttime - game.besttime / TICKS_PER_SECOND;
+	    bool const timed = (game.time > 0);
+	    bool const bad = (game.sgflags & SGF_REPLACEABLE);
+	    result += timestring(game.number, game.name, besttime, timed, bad);
+	}
+    }
+
+    return result.c_str();
 }

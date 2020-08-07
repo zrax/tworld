@@ -1,6 +1,6 @@
 /* fileio.c: Simple file/directory access functions with error-handling.
  *
- * Copyright (C) 2001-2014 by Brian Raiter and Eric Schmidt, under the
+ * Copyright (C) 2001-2017 by Brian Raiter and Eric Schmidt, under the
  * GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -71,12 +71,29 @@ void clearfileinfo(fileinfo *file)
     file->alloc = FALSE;
 }
 
-/* Determine whether a file exists */
-int fileexists(char const * name)
+/* Hack to get around MinGW (really msvcrt.dll) not supporting 'x' modifier
+ * for fopen.
+ */
+#if defined __linux
+#define FOPEN fopen
+#elif defined __MINGW32__
+#include <fcntl.h>
+static FILE *FOPEN(char const *name, char const *mode)
 {
-    struct stat buf;
-    return !stat(name, &buf);
+    FILE * file = NULL;
+    if (!strcmp(mode, "wx")) {
+        int fd = open(name, O_WRONLY | O_CREAT | O_EXCL);
+	if (fd != -1)
+	    file = fdopen(fd, "w");
+    }
+    else
+        file = fopen(name, mode);
+
+    return file;
 }
+#else
+#error Unknown platform
+#endif
 
 /* Open a file. If the fileinfo structure does not already have a
  * filename assigned to it, use name (after making an independent
@@ -98,7 +115,7 @@ int fileopen(fileinfo *file, char const *name, char const *mode,
 	}
     }
     errno = 0;
-    file->fp = fopen(name, mode);
+    file->fp = FOPEN(name, mode);
     if (file->fp)
 	return TRUE;
     return fileerr(file, msg);
@@ -111,7 +128,7 @@ void fileclose(fileinfo *file, char const *msg)
 {
     errno = 0;
     if (file->fp) {
-	if (!fclose(file->fp))
+	if (fclose(file->fp) == EOF)
 	    fileerr(file, msg);
 	file->fp = NULL;
     }
@@ -120,26 +137,6 @@ void fileclose(fileinfo *file, char const *msg)
 	file->name = NULL;
 	file->alloc = FALSE;
     }
-}
-
-/* fgetpos().
- */
-int filegetpos(fileinfo *file, fpos_t *pos, char const *msg)
-{
-    errno = 0;
-    if (!fgetpos(file->fp, pos))
-	return TRUE;
-    return fileerr(file, msg);
-}
-
-/* fsetpos().
- */
-int filesetpos(fileinfo *file, fpos_t *pos, char const *msg)
-{
-    errno = 0;
-    if (!fsetpos(file->fp, pos))
-	return TRUE;
-    return fileerr(file, msg);
 }
 
 /* rewind().
@@ -231,108 +228,6 @@ int filegetline(fileinfo *file, char *buf, int *len, char const *msg)
     } else
 	buf[n--] = '\0';
     *len = n;
-    return TRUE;
-}
-
-/* Read an integer value from a config file */
-int filegetconfiglineint(fileinfo *file, char const *name, int * value,
-			     char const *msg)
-{
-    char buf[512];
-    int len = sizeof buf;
-    int namelen = strlen(name);
-    long res;
-
-    if (namelen >= sizeof buf)
-        return FALSE;
-
-    while (filegetline(file, buf, &len, msg))
-    {
-        if (!strncmp(buf, name, namelen) && buf[namelen] == '=')
-        {
-             errno = 0;
-             res = strtol(buf + namelen + 1, NULL, 10);
-             if (errno || res > INT_MAX || res < INT_MIN)
-                 return FALSE;
-             *value = (int)res;
-             return TRUE;
-        }
-        len = sizeof buf;
-    }
-
-    return FALSE;
-}
-
-static int filedataomittingname
-    (fileinfo* file, char const * name, char **data)
-{
-    char buf[512];
-    int len = sizeof buf;
-    char *fdata = NULL;
-    int fdatasize = 0;
-    int const allocchunk = 1024;
-    int fdatalen = 0;
-
-    int const namelen = strlen(name);
-
-    if (namelen >= sizeof buf)
-        return FALSE;
-
-    while (filegetline(file, buf, &len, NULL))
-    {
-        if (buf[len] != '\n')
-        {
-            free(fdata);
-            return fileerr(file, "Long line");
-        }
-        len++; /* Include newline in length */
-
-        /* Save line if it isn't the one we need to update.
-           Otherwise discard it. */
-        if (strncmp(buf, name, namelen) || buf[namelen] != '=')
-        {
-             if (fdatalen + len >= fdatasize)
-             {
-                 fdatasize += allocchunk;
-                 x_alloc(fdata, fdatasize);
-             }
-             strcpy(fdata + fdatalen, buf);
-             fdatalen += len;
-        }
-
-        len = sizeof buf;
-    }
-    *data = fdata;
-    return TRUE;
-}
-
-/* Update an integer config line in a file */
-int updateconfiglineint(char const *fname, char const *name, int value)
-{
-    fileinfo file = {0};
-    char *fdata = NULL;
- 
-    if (fileexists(fname))
-    {
-        if (!fileopen(&file, fname, "r", NULL))
-            return FALSE;
-        if (!filedataomittingname(&file, name, &fdata))
-        {
-            fileclose(&file, NULL);
-            return FALSE;
-        }
-        fileclose(&file, NULL);
-    }
-
-    if (!fileopen(&file, fname, "w", NULL))
-        { free(fdata); return FALSE; }
-
-    fprintf(file.fp, "%s=%d\n", name, value);
-    if (fdata)
-        fputs(fdata, file.fp);
-
-    fileclose(&file, NULL);
-    free(fdata);
     return TRUE;
 }
 
@@ -582,7 +477,7 @@ int openfileindir(fileinfo *file, char const *dir, char const *filename,
  * contained in it.
  */
 int findfiles(char const *dir, void *data,
-	      int (*filecallback)(char*, void*))
+	      int (*filecallback)(char const*, void*))
 {
     char	       *filename = NULL;
     DIR		       *dp;

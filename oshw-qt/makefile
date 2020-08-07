@@ -35,7 +35,7 @@ CXXFLAGS += -I$(QTINCDIR) \
 ui_%.h: %.ui
 	@echo Compiling UI $<...
 	$(UIC) -o $@ $<
-	
+
 moc_%.cpp: %.h
 	@echo MOC-ing $<...
 	$(MOC) -o $@ $<
@@ -68,7 +68,7 @@ TWDisplayWidget.o: TWDisplayWidget.h
 TWProgressBar.o: TWProgressBar.h
 
 DEPS = TWApp.h TWMainWnd.h ui_TWMainWnd.h TWProgressBar.h TWDisplayWidget.h CCMetaData.h \
-	   generic.h oshwbind.h ../gen.h ../defs.h ../state.h ../play.h ../oshw.h ../settings.h ../messages.h
+	   generic.h oshwbind.h ../gen.h ../defs.h ../score.h ../state.h ../play.h ../oshw.h ../settings.h ../messages.h ../help.h
 
 TWMainWnd.o: TWMainWnd.cpp $(DEPS)
 

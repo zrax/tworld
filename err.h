@@ -26,7 +26,7 @@ extern void errmsg_(char const *prefix, char const *fmt, ...);
 
 /* Display an error message and abort.
  */
-extern void die_(char const *fmt, ...);
+extern void die_(char const *fmt, ...) __attribute__((noreturn));
 
 #ifdef __cplusplus
 }

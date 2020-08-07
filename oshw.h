@@ -1,6 +1,6 @@
 /* oshw.h: Platform-specific functions that talk with the OS/hardware.
  *
- * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * Copyright (C) 2001-2017 by Brian Raiter, Madhav Shanbhag, and Eric Schmidt
  * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -110,7 +110,8 @@ enum {
     KEYHELP_INGAME,
     KEYHELP_TWIXTGAMES,
     KEYHELP_FILELIST,
-    KEYHELP_SCORELIST
+    KEYHELP_SCORELIST,
+    KEYHELP_TWPLUSPLUS
 };
 
 /*
@@ -168,11 +169,10 @@ OSHW_EXTERN void cleardisplay(void);
 
 /* Display the current game state. timeleft and besttime provide the
  * current time on the clock and the best time recorded for the level,
- * measured in seconds. All other data comes from the gamestate
- * structure (referred to here as an opaque pointer).
+ * measured in seconds.
  */
 OSHW_EXTERN int displaygame(struct gamestate const *state,
-			    int timeleft, int besttime);
+			    int timeleft, int besttime, int showinitstate);
 
 /* Display a short message appropriate to the end of a level's game
  * play. If the level was completed successfully, completed is TRUE,
@@ -195,6 +195,7 @@ OSHW_EXTERN int setdisplaymsg(char const *msg, int msecs, int bold);
 /* Types of lists that can be displayed.
  */
 typedef enum {
+    LIST_MAPFILES,
     LIST_SERIES,
     LIST_SCORES,
     LIST_SOLUTIONFILES,
@@ -369,7 +370,11 @@ OSHW_EXTERN int displaytiletable(char const *title, tiletablerow const *rows,
  */
 OSHW_EXTERN int displaytable(char const *title, tablespec const *table,
 			int completed);
-			
+
+/* Get the selected ruleset.
+ */
+OSHW_EXTERN int getselectedruleset(void);
+
 /* Read any additional data for the series.
  */
 OSHW_EXTERN void readextensions(struct gameseries *series);
@@ -377,6 +382,10 @@ OSHW_EXTERN void readextensions(struct gameseries *series);
 /* Get number of seconds to skip at start of playback.
  */
 OSHW_EXTERN int getreplaysecondstoskip(void);
+
+/* Copy text to clipboard.
+ */
+OSHW_EXTERN void copytoclipboard(char const *text);
 
 #undef OSHW_EXTERN
 

@@ -868,9 +868,6 @@
              <property name="frameShadow">
               <enum>QFrame::Sunken</enum>
              </property>
-             <property name="text">
-              <string>&lt;message&gt;</string>
-             </property>
              <property name="textFormat">
               <enum>Qt::PlainText</enum>
              </property>
@@ -1771,7 +1768,42 @@
       </widget>
       <widget class="QWidget" name="m_pTablePage">
        <layout class="QGridLayout" name="gridLayout_2">
-        <item row="0" column="0" colspan="2">
+        <property name="horizontalSpacing">
+         <number>0</number>
+        </property>
+        <item row="2" column="2">
+         <widget class="QRadioButton" name="m_pRadioMs">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>MS</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="6">
+         <widget class="QLineEdit" name="m_pTxtFind"/>
+        </item>
+        <item row="2" column="5">
+         <widget class="QLabel" name="m_pLblFind">
+          <property name="text">
+           <string>Find:  </string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="6">
          <widget class="QTableView" name="m_pTblList">
           <property name="palette">
            <palette>
@@ -1834,15 +1866,31 @@
           </attribute>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="m_pLblFind">
+        <item row="2" column="3">
+         <widget class="QRadioButton" name="m_pRadioLynx">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="text">
-           <string>Find:</string>
+           <string>Lynx</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="m_pTxtFind"/>
+        <item row="2" column="4">
+         <widget class="QLabel" name="m_pLblSpace">
+          <property name="minimumSize">
+           <size>
+            <width>30</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -1873,6 +1921,9 @@
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Verdana'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;[text]&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="openLinks">
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -1949,6 +2000,7 @@ p, li { white-space: pre-wrap; }
     </property>
     <addaction name="action_Scores"/>
     <addaction name="action_SolutionFiles"/>
+    <addaction name="action_TimesClipboard"/>
     <addaction name="separator"/>
     <addaction name="action_Levelsets"/>
     <addaction name="action_Exit"/>
@@ -1983,11 +2035,20 @@ p, li { white-space: pre-wrap; }
      <string>Options</string>
     </property>
     <addaction name="action_displayCCX"/>
+    <addaction name="action_forceShowTimer"/>
+   </widget>
+   <widget class="QMenu" name="menu_Help">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="action_About"/>
+    <addaction name="action_Keys"/>
    </widget>
    <addaction name="menu_Game"/>
    <addaction name="menu_Level"/>
    <addaction name="menu_Options"/>
    <addaction name="menu_Solution"/>
+   <addaction name="menu_Help"/>
   </widget>
   <action name="action_Scores">
    <property name="text">
@@ -2080,6 +2141,29 @@ p, li { white-space: pre-wrap; }
     <string>&amp;Auto-display Level Text</string>
    </property>
   </action>
+  <action name="action_forceShowTimer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Show Timer on Untimed Levels</string>
+   </property>
+  </action>
+  <action name="action_TimesClipboard">
+   <property name="text">
+    <string>&amp;Copy Best Times to Clipboard</string>
+   </property>
+  </action>
+  <action name="action_About">
+   <property name="text">
+    <string>&amp;About...</string>
+   </property>
+  </action>
+  <action name="action_Keys">
+   <property name="text">
+    <string>&amp;Keys...</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -2096,6 +2180,8 @@ p, li { white-space: pre-wrap; }
  </customwidgets>
  <tabstops>
   <tabstop>m_pTblList</tabstop>
+  <tabstop>m_pRadioMs</tabstop>
+  <tabstop>m_pRadioLynx</tabstop>
   <tabstop>m_pTxtFind</tabstop>
   <tabstop>m_pTextBrowser</tabstop>
   <tabstop>m_pBtnTextReturn</tabstop>

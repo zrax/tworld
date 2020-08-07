@@ -16,6 +16,8 @@
 #include <QWindowsStyle>
 #endif
 
+#include <QClipboard>
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -128,24 +130,12 @@ void freefont(void)
 	// N/A
 }
 
-
-#if DUMMY_SFX_IMPL
-
-/* Load a wave file into memory. index indicates which sound effect to
- * associate the sound with. FALSE is returned if an error occurs.
- */
-int loadsfxfromfile(int index, char const *filename)
+void copytoclipboard(char const *text)
 {
-	return true;
+	QClipboard* pClipboard = QApplication::clipboard();
+	if (pClipboard == 0) return;
+	pClipboard->setText(text);
 }
-
-/* Release all memory used for the given sound effect's wave data.
- */
-void freesfx(int index)
-{
-}
-
-#endif
 
 int TileWorldApp::RunTWorld()
 {

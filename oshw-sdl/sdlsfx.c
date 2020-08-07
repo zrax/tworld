@@ -90,15 +90,10 @@ static void initonomatopoeia(void)
  * Only the first sound is used, since we can't display multiple
  * strings.
  */
-static void displaysoundeffects(unsigned long sfx, int display)
+static void displaysoundeffects(unsigned long sfx)
 {
     unsigned long	flag;
     int			i;
-
-    if (!display) {
-	setdisplaymsg(NULL, 0, 0);
-	return;
-    }
 
     for (flag = 1, i = 0 ; flag ; flag <<= 1, ++i) {
 	if (sfx & flag) {
@@ -267,7 +262,7 @@ void playsoundeffects(unsigned long sfx)
     int			i;
 
     if (!hasaudio || !volume) {
-	displaysoundeffects(sfx, TRUE);
+	displaysoundeffects(sfx);
 	return;
     }
 
@@ -334,8 +329,6 @@ int setvolume(int v, int display)
 	v = 0;
     else if (v > 10)
 	v = 10;
-    if (!volume && v)
-	displaysoundeffects(0, FALSE);
     volume = (SDL_MIX_MAXVOLUME * v + 9) / 10;
     setintsetting("volume", v);
     if (display) {

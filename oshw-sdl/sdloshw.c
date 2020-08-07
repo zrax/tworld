@@ -97,6 +97,11 @@ int getreplaysecondstoskip(void)
     return -1;
 }
 
+void copytoclipboard(char const *text)
+{
+    /* Not implemented. */
+}
+
 /* Shut down SDL.
  */
 static void shutdown(void)

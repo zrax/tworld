@@ -2122,7 +2122,6 @@ static int initgame(gamelogic *logic)
 			  = possession(Boots_Fire)
 			  = possession(Boots_Water) = 0;
 
-    xy = traplist();
     for (n = traplistsize(), xy = traplist() ; n ; --n, ++xy) {
 	if (xy->to == chippos() || cellat(xy->to)->top.id == Block_Static
 				|| istrapbuttondown(xy->from))

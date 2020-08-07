@@ -153,7 +153,8 @@ static int readunslist(fileinfo *file)
     char		buf[256], token[256];
     char const	       *p;
     unsigned long	hashval;
-    int			setid, size;
+    int			setid;
+    unsigned int	size;
     int			lineno, levelnum, n;
 
     setid = 0;

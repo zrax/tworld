@@ -1,6 +1,6 @@
 /* defs.h: Definitions used throughout the program.
  *
- * Copyright (C) 2001-2010 by Brian Raiter and Madhav Shanbhag,
+ * Copyright (C) 2001-2017 by Brian Raiter, Madhav Shanbhag, and Eric Schmidt
  * under the GNU General Public License. No warranty. See COPYING for details.
  */
 
@@ -21,7 +21,8 @@ enum {
     Ruleset_None = 0,
     Ruleset_Lynx = 1,
     Ruleset_MS = 2,
-    Ruleset_Count
+    Ruleset_Count,
+    Ruleset_First = Ruleset_Lynx
 };
 
 /* File I/O structure.
@@ -95,17 +96,22 @@ enum {
     CmdNext10,
     CmdPauseGame,
     CmdHelp,
+    CmdKeys,
     CmdPlayback,
     CmdCheckSolution,
     CmdReplSolution,
     CmdKillSolution,
     CmdSeeScores,
     CmdSeeSolutionFiles,
+    CmdTimesClipboard,
     CmdVolumeUp,
     CmdVolumeDown,
     CmdStepping,
     CmdSubStepping,
     CmdRandomFF,
+    CmdShowInitState,
+    CmdAdvanceGame,
+    CmdAdvanceMoveGame,
     CmdProceed,
 #ifndef NDEBUG
     CmdDebugCmd1,
@@ -228,12 +234,34 @@ typedef	struct gameseries {
     unsigned char	solheader[256];	/* extra solution header bytes */
 } gameseries;
 
+/* Just a list of ints */
+typedef struct intlist {
+    int 	*list;		/* intlist */
+    int		 count;		/* size of list */
+} intlist;
+
+/* The possible locations for a levelset.
+ */
+#define LOC_SERIESDIR		0x01
+#define LOC_SERIESDATDIR	0x02
+
+/* Information associated with a levelset. Contains the information about
+ * all gameseries that use the levelset.
+ */
+typedef struct mapfileinfo {
+    char *filename;
+    intlist sfilelst[Ruleset_Count]; /* indices for series files per ruleset */
+    int levelcount;
+    int locdirs;	   /* Flags indicating which dirs the set is in */
+} mapfileinfo;
+
 /* Flags associated with a series.
  */
 #define	GSF_ALLMAPSREAD		0x0001	/* finished reading the data file */
 #define	GSF_NOSAVING		0x0002	/* treat solution file as read-only */
 #define	GSF_NODEFAULTSAVE	0x0004	/* don't use default tws filename */
 #define	GSF_IGNOREPASSWDS	0x0008	/* don't require passwords */
-#define	GSF_LYNXFIXES		0x0010	/* change MS data into Lynx levels */
+#define	GSF_LYNXFIXES		0x0010	/* changes MS data into Lynx levels */
+#define GSF_DATFORDACSERIESDIR	0x0020	/* datfile for .dac is in seriesdir */
 
 #endif

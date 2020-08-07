@@ -7,6 +7,10 @@
 #ifndef	HEADER_help_h_
 #define	HEADER_help_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The available help topics.
  */
 enum {
@@ -37,5 +41,9 @@ extern void onlinemainhelp(int topic);
 /* Display a single online help screen for the given topic.
  */
 extern void onlinecontexthelp(int topic);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
