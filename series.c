@@ -230,7 +230,8 @@ static int readlevelmap(fileinfo *file, gamesetup *game)
  * to the original Lynx levels. A rather "ad hack" way to accomplish
  * this, but it permits this fixup to occur without requiring the user
  * to perform a special one-time task. Four passwords are repaired, a
- * (possibly) missing wall is restored, and level 145 is removed.
+ * (possibly) missing wall is restored, the beartrap wiring of level
+ * 99 is fixed, and level 145 is removed.
  */
 static int undomschanges(gameseries *series)
 {
@@ -245,6 +246,15 @@ static int undomschanges(gameseries *series)
     series->games[95].passwd[1] = 'V';
     series->games[95].passwd[2] = 'H';
     series->games[95].passwd[3] = 'Y';
+    series->games[98].traps[5].to = 14 * CXGRID + 8;
+    series->games[98].traps[6].to = 14 * CXGRID + 23;
+    series->games[98].traps[7].to = 16 * CXGRID + 8;
+    series->games[98].traps[8].to = 16 * CXGRID + 23;
+    series->games[98].traps[9].to = 18 * CXGRID + 16;
+    series->games[98].traps[10].to = 20 * CXGRID + 6;
+    series->games[98].traps[11].to = 20 * CXGRID + 16;
+    series->games[98].traps[12].to = 23 * CXGRID + 23;
+    series->games[98].traps[13].to = 25 * CXGRID + 23;
     memmove(series->games + 144, series->games + 145,
 	    4 * sizeof *series->games);
     --series->total;
@@ -266,8 +276,6 @@ static int readlevelinseries(gameseries *series, int level)
 {
     int	n;
 
-    if (level < 0)
-	return FALSE;
     if (series->count > level)
 	return TRUE;
 
@@ -298,7 +306,7 @@ static int readlevelinseries(gameseries *series, int level)
 	    }
 	}
     }
-    return series->count > level;
+    return TRUE;
 }
 
 /* Load all levels from the given data file, and all of the user's
@@ -308,6 +316,10 @@ int readseriesfile(gameseries *series)
 {
     if (series->gsflags & GSF_ALLMAPSREAD)
 	return TRUE;
+    if (series->total <= 0) {
+	errmsg(series->filebase, "cannot read from empty level set");
+	return FALSE;
+    }
     xalloc(series->games, series->total * sizeof *series->games);
     memset(series->games + series->allocated, 0,
 	   (series->total - series->allocated) * sizeof *series->games);
@@ -541,15 +553,21 @@ static int getseriesfiles(char const *preferred, gameseries **list, int *count)
     s.count = 0;
     s.usedatdir = FALSE;
     if (preferred && *preferred && haspathname(preferred)) {
-	if (getseriesfile((char*)preferred, &s) < 0 || !s.count)
-	    die("%s: couldn't read data file", preferred);
+	if (getseriesfile((char*)preferred, &s) < 0)
+	    return FALSE;
+	if (!s.count) {
+	    errmsg(preferred, "couldn't read data file");
+	    return FALSE;
+	}
 	*seriesdir = '\0';
 	*savedir = '\0';
     } else {
 	if (!*seriesdir)
 	    return FALSE;
-	if (!findfiles(seriesdir, &s, getseriesfile) || !s.count)
-	    die("%s: directory contains no data files", seriesdir);
+	if (!findfiles(seriesdir, &s, getseriesfile) || !s.count) {
+	    errmsg(seriesdir, "directory contains no data files");
+	    return FALSE;
+	}
 	if (preferred && *preferred) {
 	    for (n = 0 ; n < s.count ; ++n) {
 		if (!strcmp(s.list[n].name, preferred)) {
@@ -559,8 +577,10 @@ static int getseriesfiles(char const *preferred, gameseries **list, int *count)
 		    break;
 		}
 	    }
-	    if (n == s.count)
-		die("%s: no such data file", preferred);
+	    if (n == s.count) {
+		errmsg(preferred, "no such data file");
+		return FALSE;
+	    }
 	}
 	if (s.count > 1)
 	    qsort(s.list, s.count, sizeof *s.list, gameseriescmp);

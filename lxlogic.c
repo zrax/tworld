@@ -21,10 +21,13 @@
  */
 #define	WALKER_PRNG_SEED	105977040UL
 
-#undef assert
-#define	assert(test)	((test) || (die("internal error: failed sanity check" \
+#ifdef NDEBUG
+#define	_assert(test)
+#else
+#define	_assert(test)	((test) || (die("internal error: failed sanity check" \
 				        " (%s)\nPlease report this error to"  \
 				        " breadbox@muppetlabs.com", #test), 0))
+#endif
 
 /* A list of ways for Chip to lose.
  */
@@ -119,6 +122,11 @@ static int		xviewoffset, yviewoffset;
 
 #define	chipsneeded()		(state->chipsneeded)
 
+#define	clonerlist()		(state->game->cloners)
+#define	clonerlistsize()	(state->game->clonercount)
+#define	traplist()		(state->game->traps)
+#define	traplistsize()		(state->game->trapcount)
+
 #define	addsoundeffect(sfx)	(state->soundeffects |= 1 << (sfx))
 #define	stopsoundeffect(sfx)	(state->soundeffects &= ~(1 << (sfx)))
 
@@ -161,7 +169,7 @@ static short *_possession(int obj)
       case Water:		return &state->boots[3];
     }
     warn("Invalid object %d handed to possession()\n", obj);
-    assert(!"possession() called with an invalid object");
+    _assert(!"possession() called with an invalid object");
     return NULL;
 }
 
@@ -186,7 +194,7 @@ static int getslidedir(int floor, int advance)
 	return lastrndslidedir;
     }
     warn("Invalid floor %d handed to getslidedir()\n", floor);
-    assert(!"getslidedir() called with an invalid object");
+    _assert(!"getslidedir() called with an invalid object");
     return NIL;
 }
 
@@ -215,26 +223,33 @@ static void applyicewallturn(creature *cr)
     cr->dir = dir;
 }
 
-/* Find the location of a beartrap or cloner from one of its buttons.
+/* Find the location of a beartrap from one of its buttons.
  */
-static int floorfrombutton(int floor, int buttonpos)
+static int trapfrombutton(int pos)
 {
-    int	pos;
+    xyconn     *xy;
+    int		i;
 
-    pos = buttonpos;
-    do {
-	++pos;
-	if (pos >= CXGRID * CYGRID)
-	    pos -= CXGRID * CYGRID;
-	if (floorat(pos) == floor)
-	    return pos;
-    } while (pos != buttonpos);
-
+    for (xy = traplist(), i = traplistsize() ; i ; ++xy, --i)
+	if (xy->from == pos)
+	    return xy->to;
+    warn("unconnected trap button at (%d %d)", pos % CXGRID, pos / CXGRID);
     return -1;
 }
 
-#define	trapfrombutton(pos)	(floorfrombutton(Beartrap, (pos)))
-#define	clonerfrombutton(pos)	(floorfrombutton(CloneMachine, (pos)))
+/* Find the location of a clone machine from one of its buttons.
+ */
+static int clonerfrombutton(int pos)
+{
+    xyconn     *xy;
+    int		i;
+
+    for (xy = clonerlist(), i = clonerlistsize() ; i ; ++xy, --i)
+	if (xy->from == pos)
+	    return xy->to;
+    warn("unconnected cloner button at (%d %d)", pos % CXGRID, pos / CXGRID);
+    return -1;
+}
 
 /* Flip-flop the state of any and all toggle walls.
  */
@@ -610,9 +625,9 @@ static struct { unsigned char chip, block, creature; } const movelaws[] = {
  */
 static int canpushblock(creature *block, int dir, int flags)
 {
-    assert(block && block->id == Block);
-    assert(floorat(block->pos) != CloneMachine);
-    assert(dir != NIL);
+    _assert(block && block->id == Block);
+    _assert(floorat(block->pos) != CloneMachine);
+    _assert(dir != NIL);
 
     if (!canmakemove(block, dir, flags)) {
 	if (!block->moving && (flags & CMM_PUSHBLOCKS))
@@ -640,8 +655,8 @@ static int canmakemove(creature const *cr, int dir, int flags)
     int		floorfrom, floorto;
     int		to, y, x;
 
-    assert(cr);
-    assert(dir != NIL);
+    _assert(cr);
+    _assert(dir != NIL);
 
     y = cr->pos / CXGRID;
     x = cr->pos % CXGRID;
@@ -737,7 +752,7 @@ static void choosecreaturemove(creature *cr)
     dir = cr->dir;
     pdir = NIL;
 
-    assert(dir != NIL);
+    _assert(dir != NIL);
 
     switch (cr->id) {
       case Tank:
@@ -922,7 +937,7 @@ static int teleportcreature(creature *cr)
 {
     int pos, origpos, n;
 
-    assert(floorat(cr->pos) == Teleport);
+    _assert(floorat(cr->pos) == Teleport);
 
     origpos = pos = cr->pos;
 
@@ -962,8 +977,9 @@ static int activatecloner(int pos)
     creature   *cr;
     creature   *clone;
 
-    assert(pos >= 0);
-    assert(floorat(pos) == CloneMachine);
+    if (pos < 0)
+	return FALSE;
+    _assert(floorat(pos) == CloneMachine);
     cr = lookupcreature(pos, TRUE);
     if (!cr)
 	return FALSE;
@@ -984,6 +1000,8 @@ static void springtrap(int pos)
 {
     creature   *cr;
 
+    if (pos < 0)
+	return;
     cr = lookupcreature(pos, TRUE);
     if (cr && cr->dir != NIL)
 	advancecreature(cr, TRUE);
@@ -1004,7 +1022,7 @@ static int startmovement(creature *cr, int releasing)
     int	floorfrom;
     int	f1, f2;
 
-    assert(cr->moving <= 0);
+    _assert(cr->moving <= 0);
 
     if (cr->tdir != NIL)
 	dir = cr->tdir;
@@ -1014,7 +1032,7 @@ static int startmovement(creature *cr, int releasing)
 	return FALSE;
 
     if ((dir & (NORTH | SOUTH)) && (dir & (EAST | WEST))) {
-	assert(cr->id == Chip);
+	_assert(cr->id == Chip);
 	if (cr->dir & dir) {
 	    f1 = canmakemove(cr, cr->dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS);
 	    f2 = canmakemove(cr, dir ^ cr->dir,
@@ -1034,7 +1052,7 @@ static int startmovement(creature *cr, int releasing)
     floorfrom = floorat(cr->pos);
 
     if (cr->id == Chip) {
-	assert(!cr->hidden);
+	_assert(!cr->hidden);
 	resetpushing();
 	if (!possession(Boots_Slide)) {
 	    if (isslide(floorfrom) && cr->tdir == NIL)
@@ -1063,7 +1081,7 @@ static int startmovement(creature *cr, int releasing)
     }
 
     if (floorfrom == CloneMachine || floorfrom == Beartrap)
-	assert(releasing);
+	_assert(releasing);
 
     if (cr->id != Chip) {
 	removeclaim(cr->pos);
@@ -1108,7 +1126,7 @@ static int continuemovement(creature *cr)
     if (isanimation(cr->id))
 	return TRUE;
 
-    assert(cr->moving > 0);
+    _assert(cr->moving > 0);
 
     speed = cr->id == Blob ? 1 : 2;
     floor = floorat(cr->pos);
@@ -1128,7 +1146,7 @@ static int endmovement(creature *cr)
 {
     int	floor;
 
-    assert(cr->moving <= 0);
+    _assert(cr->moving <= 0);
 
     if (isanimation(cr->id))
 	return TRUE;
@@ -1161,7 +1179,7 @@ static int endmovement(creature *cr)
 	  case Door_Blue:
 	  case Door_Yellow:
 	  case Door_Green:
-	    assert(possession(floor));
+	    _assert(possession(floor));
 	    if (floor != Door_Green)
 		--possession(floor);
 	    floorat(cr->pos) = Empty;
@@ -1193,7 +1211,7 @@ static int endmovement(creature *cr)
 	    addsoundeffect(SND_IC_COLLECTED);
 	    break;
 	  case Socket:
-	    assert(chipsneeded() == 0);
+	    _assert(chipsneeded() == 0);
 	    floorat(cr->pos) = Empty;
 	    addsoundeffect(SND_SOCKET_OPENED);
 	    break;
@@ -1282,7 +1300,7 @@ static int advancecreature(creature *cr, int releasing)
 
     if (cr->moving <= 0) {
 	if (releasing) {
-	    assert(cr->dir != NIL);
+	    _assert(cr->dir != NIL);
 	    tdir = cr->tdir;
 	    cr->tdir = cr->dir;
 	} else if (cr->tdir == NIL && cr->fdir == NIL)
@@ -1298,6 +1316,8 @@ static int advancecreature(creature *cr, int releasing)
 	endmovement(cr);
     return TRUE;
 }
+
+#ifndef NDEBUG
 
 /*
  * Debugging functions.
@@ -1337,48 +1357,50 @@ static void verifymap(void)
 
     for (pos = 0 ; pos < CXGRID * CYGRID ; ++pos) {
 	if (state->map[pos].top.id >= 0x40)
-	    die("%d: Undefined floor %d at (%d %d)",
-		currenttime(), state->map[pos].top.id,
-		pos % CXGRID, pos / CXGRID);
+	    warn("%d: Undefined floor %d at (%d %d)",
+		 currenttime(), state->map[pos].top.id,
+		 pos % CXGRID, pos / CXGRID);
 	if (state->map[pos].top.state & 0x80)
-	    die("%d: Undefined floor state %02X at (%d %d)",
-		currenttime(), state->map[pos].top.id,
-		pos % CXGRID, pos / CXGRID);
+	    warn("%d: Undefined floor state %02X at (%d %d)",
+		 currenttime(), state->map[pos].top.id,
+		 pos % CXGRID, pos / CXGRID);
     }
 
     for (cr = creaturelist() ; cr->id ; ++cr) {
 	if (isanimation(state->map[pos].top.id)) {
 	    if (cr->moving > 12)
-		die("%d: Too-large animation frame %02X at (%d %d)",
-		    currenttime(), cr->moving, pos % CXGRID, pos / CXGRID);
+		warn("%d: Too-large animation frame %02X at (%d %d)",
+		     currenttime(), cr->moving, pos % CXGRID, pos / CXGRID);
 	    continue;
 	}
 	if (cr->id < 0x40 || cr->id >= 0x80)
-	    die("%d: Undefined creature %d:%d at (%d %d)",
-		currenttime(), cr - creaturelist(), cr->id,
-		cr->pos % CXGRID, cr->pos / CXGRID);
+	    warn("%d: Undefined creature %d:%d at (%d %d)",
+		 currenttime(), cr - creaturelist(), cr->id,
+		 cr->pos % CXGRID, cr->pos / CXGRID);
 	if (cr->pos < 0 || cr->pos >= CXGRID * CYGRID)
-	    die("%d: Creature %d:%d has left the map: %04X",
-		currenttime(), cr - creaturelist(), cr->id, cr->pos);
+	    warn("%d: Creature %d:%d has left the map: %04X",
+		 currenttime(), cr - creaturelist(), cr->id, cr->pos);
 	if (isanimation(cr->id))
 	    continue;
 	if (cr->dir > EAST && (cr->dir != NIL || cr->id != Block))
-	    die("%d: Creature %d:%d moving in illegal direction (%d)",
-		currenttime(), cr - creaturelist(), cr->id, cr->dir);
+	    warn("%d: Creature %d:%d moving in illegal direction (%d)",
+		 currenttime(), cr - creaturelist(), cr->id, cr->dir);
 	if (cr->dir == NIL && cr->id != Block)
-	    die("%d: Creature %d:%d lacks direction",
-		currenttime(), cr - creaturelist(), cr->id);
+	    warn("%d: Creature %d:%d lacks direction",
+		 currenttime(), cr - creaturelist(), cr->id);
 	if (cr->state & 0xF0)
-	    die("%d: Creature %d:%d in an illegal state %X",
-		currenttime(), cr - creaturelist(), cr->id, cr->state);
+	    warn("%d: Creature %d:%d in an illegal state %X",
+		 currenttime(), cr - creaturelist(), cr->id, cr->state);
 	if (cr->moving > 8)
-	    die("%d: Creature %d:%d has a moving time of %d",
-		currenttime(), cr - creaturelist(), cr->id, cr->moving);
+	    warn("%d: Creature %d:%d has a moving time of %d",
+		 currenttime(), cr - creaturelist(), cr->id, cr->moving);
 	if (cr->moving < 0)
 	    warn("%d: Creature %d:%d has a negative moving time: %d",
 		 currenttime(), cr - creaturelist(), cr->id, cr->moving);
     }
 }
+
+#endif
 
 /*
  * Per-tick maintenance functions.
@@ -1391,7 +1413,9 @@ static void initialhousekeeping(void)
     creature   *chip;
     creature   *cr;
 
+#ifndef NDEBUG
     verifymap();
+#endif
 
     if (currenttime() == 0) {
 	if (state->initrndslidedir == NIL)
@@ -1437,6 +1461,7 @@ static void initialhousekeeping(void)
 	}
     }
 
+#ifndef NDEBUG
     if (currentinput() == CmdDebugCmd2) {
 	dumpmap();
 	exit(0);
@@ -1466,6 +1491,7 @@ static void initialhousekeeping(void)
 	currentinput() = NIL;
 	setnosaving();
     }
+#endif
 
     pos_chipmovingto = -1;
     cr_chipmovingto = NULL;
@@ -1668,6 +1694,7 @@ static int initgame(gamelogic *logic)
     creature		crtemp;
     creature	       *cr;
     gamesetup	       *game;
+    xyconn	       *xy;
     int			pos, n;
 
     setstate(logic);
@@ -1736,7 +1763,7 @@ static int initgame(gamelogic *logic)
 	    cr->hidden = FALSE;
 	    if (cr->id == Chip) {
 		if (n >= 0) {
-		    warn("Multiple Chips on the map!");
+		    warn("Level %d: multiple Chips on the map!", game->number);
 		    markinvalid();
 		}
 		n = cr - creaturelist();
@@ -1752,23 +1779,42 @@ static int initgame(gamelogic *logic)
 	}
     }
     if (n < 0) {
-	warn("Chip isn't on the map!");
+	warn("Level %d: Chip isn't on the map!", game->number);
 	markinvalid();
 	n = cr - creaturelist();
 	cr->pos = 0;
 	cr->hidden = TRUE;
 	++cr;
     }
-
     cr->pos = -1;
     cr->id = Nothing;
     cr->dir = NIL;
-
     if (n) {
 	cr = creaturelist();
 	crtemp = cr[0];
 	cr[0] = cr[n];
 	cr[n] = crtemp;
+    }
+
+    for (xy = traplist(), n = traplistsize() ; n ; --n, ++xy) {
+	if (floorat(xy->from) != Button_Brown) {
+	    warn("Level %d: invalid beartrap wiring: no button at (%d %d)",
+		 game->number, xy->from % CXGRID, xy->to / CXGRID);
+	} else if (floorat(xy->to) != Beartrap) {
+	    warn("Level %d: disabling miswired beartrap button at (%d %d)",
+		 game->number, xy->to % CXGRID, xy->to / CXGRID);
+	    xy->from = -1;
+	}
+    }
+    for (xy = clonerlist(), n = clonerlistsize() ; n ; --n, ++xy) {
+	if (floorat(xy->from) != Button_Red) {
+	    warn("Level %d: invalid cloner wiring: no button at (%d %d)",
+		 game->number, xy->from % CXGRID, xy->to / CXGRID);
+	} else if (floorat(xy->to) != CloneMachine) {
+	    warn("Level %d: disabling miswired cloner button at (%d %d)",
+		 game->number, xy->to % CXGRID, xy->to / CXGRID);
+	    xy->from = -1;
+	}
     }
 
     chipsneeded() = game->chips;

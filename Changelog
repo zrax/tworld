@@ -1,4 +1,17 @@
 
+2002 Feb 25: version 0.10.5
+
+* Amended the Lynx ruleset to follow the button-wiring lists in the dat
+  file, instead of using the original Lynx method of implicit wiring.
+* Fixed uninitialized variable in password-entry function (reported by
+  Ruben Spaans).
+* Fixed moving-block behavior so that they will always enter a square that
+  Chip occupies, regardless of what Chip is standing on (MS).
+* Fixed force-floor behavior so that Chip gets to make a voluntary move
+  immediately after stepping on a force floor if his forced move failed.
+  (Hopefully this is an accurate coverage of the case that TW was getting
+  wrong, and only of that.)
+
 2002 Feb 04: version 0.10.4
 
 * Separated out the two kinds of splashes.
