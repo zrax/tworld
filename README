@@ -79,11 +79,56 @@ Running "make install" as root will do the following:
 * Create the directories /usr/local/share/tworld/data and
   /usr/local/share/tworld/sets.
 
-The sets directory is where you will store the .dat files that you want to
-use. However, if you want to make use of a configuration file with a
-particular data file, then you will need to store the data file in the data
-directory, and the configuration file goes into the sets directory instead.
-See the documentation for more information.
+The sets directory is where you will generally store the .dat files that
+you want to use. However, if you want to make use of a configuration file
+with a particular data file, then you will need to store the data file in
+the data directory, and the configuration file goes into the sets directory
+instead. See the documentation for more information.
+
+  Level Sets
+
+As mentioned above, the original "Chip's Challenge" level set does not come
+with Tile World, for reasons of copyright. If you do not already have a
+copy of Microsoft's Windows version of "Chip's Challenge", you might still
+be able to find a copy. Search the links listed below, under "Resources on
+the Internet", for helpful hints on finding the game online.
+
+If and when you do, you can copy the chips.dat file from there into Tile
+World's data directory. You will then be able to play the levels of the
+original set (both in MS mode and in Lynx mode).
+
+There are also many "user-created" level sets. These are sets of levels
+which have been invented by fans of the game. These sets are freely
+available for downloading. If you have a .dat file that contains a level
+set and you wish to use it, just copy it to Tile World's sets directory.
+The next time you start Tile World, the new .dat should appear in the list
+of available level sets.
+
+At http://groups.yahoo.com/group/chips_challenge/files/ is a repository of
+the available level sets that have been created. The biggest fans of the
+game try to provide a copy of every known user-created level set at this
+place.
+
+I have not included any user-created level sets in this distribution, as
+the authors continue to add new levels to their sets over time. Instead,
+look under "Resources on the Internet" for a link to the repository of
+user-created levels.
+
+Actually, this distribution does contain one small level set. This is
+included so that even if you don't have the original level set, you can
+still get a brief glimpse of how the game works, and what some of the most
+basic challenges are. Also, the same set of levels can be played with both
+the MS and Lynx ruleset, so you can see how they differ.
+
+Finally, there is one level set that is special and deserves particular
+mention. That is CCLP2.dat, or "Chip's Challenge Level Pack 2". This set
+was assembled by the fans, who voted on all of the user-created levels that
+existed at the time. The levels that were voted as being the most fun were
+then all put together to become CCLP2. It is the closest thing we have to a
+sequel for the original game. (But be careful: CCLP2 is much harder than
+the original!) When you download this set, you will want to store it in
+your data directory instead of your sets directory. (This is because Tile
+World comes with a special configuration file for CCLP2.)
 
   The Complete Documentation
 
@@ -91,21 +136,22 @@ The full documentation for Tile World is included with the distribution, in
 the file tworld.html. There you will find information on how to play the
 game, adding new level sets, customizing Tile World, and more.
 
-  Creating new level sets for the Lynx ruleset
-
-At the time of this writing, there do not exist any user-created level sets
-for the Lynx ruleset. The reason for this is very simple; there has not
-been any way to play such levels before. Hopefully, now that Tile World
-exists, that will change in the near future.
+  Creating New Level Sets
 
 If you yourself would like to create new level sets, then get a copy of
-ChipEdit, if you haven't already. ChipEdit can be obtained from
-http://www.stage62.com/chipedit/chipedit.htm. This Windows program will
-permit you to create new level sets of your own design. Naturally, ChipEdit
-will default to creating levels for the MS ruleset. To make levels for the
-Lynx ruleset, you have a few options:
+ChipEdit, if you haven't already. This Windows program will permit you to
+create new level sets of your own design. ChipEdit comes with excellent
+documentation, and you should have little trouble learning how to use it.
 
-* ChipEdit has a special feature which allows you to control the signature
+Note that, at the time of this writing, there do not exist any user-created
+level sets for the Lynx ruleset. The reason for this is very simple; there
+has not been any way to play such levels before. Hopefully, now that Tile
+World exists, that will change in the near future.
+
+Naturally, ChipEdit will normally create levels for the MS ruleset. If you
+wish to make a level set for the Lynx ruleset, you have a few options:
+
+* ChipEdit has an obscure feature which allows you to control the signature
   of the data file. This is done by adding a SIGNATURE entry to the
   chipedit.ini file. The default signature value is 0x0002AAAC, which
   indicates a data file that uses the MS ruleset. If you set the SIGNATURE
@@ -124,8 +170,8 @@ Lynx ruleset, you have a few options:
 
 There is quite a bit of information about "Chip's Challenge" available on
 the internet. Much of it is focused on maximizing your score on the
-"original" level set for the MS game, but you will also find lots of
-general help and useful information as well.
+original level set for the MS game, but you will also find lots of general
+help and useful information as well.
 
 Richard Field and Jimmy Vermeer both maintain a page of links to nearly
 everything on the net related to "Chip's Challenge". Between the two of
@@ -134,10 +180,14 @@ them you can probably find what you're looking for, if it's out there:
   http://www.agt.net/public/nfield/ChipChallenge/chip.htm
   http://www.geocities.com/purpletentacle1977ca/links.html
 
-Most if not all user-created level sets can be found at the chips_challenge
-Yahoo group:
+The grand repository of user-created level sets can be found at the
+chips_challenge Yahoo group:
 
   http://groups.yahoo.com/group/chips_challenge/files/
+
+ChipEdit's home page is at:
+
+  http://www.stage62.com/chipedit/chipedit.htm
 
 Finally, Tile World's home page is at:
 
@@ -145,14 +195,15 @@ Finally, Tile World's home page is at:
 
   License
 
-Tile World is copyright (C) 2001,2002 by Brian Raiter. This program is free
-software; you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by the Free Software Foundation;
-either version 2 of the License, or (at your option) any later version.
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License,
-included in this distribution in the file COPYING, for more details.
+Tile World is copyright (C) 2001, 2002 by Brian Raiter. This program is
+free software; you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version. This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License, included in this distribution in the file COPYING, for more
+details.
 
   Bugs
 
@@ -198,4 +249,4 @@ written without the information they made freely available.
 Last but not least, a tip of the hat to John K. Elion for writing ChipEdit.
 
 Brian Raiter
-March 2002
+May 2002

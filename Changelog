@@ -1,4 +1,12 @@
 
+2002 May 06: version 1.0
+
+* Added "(paused)" message when game is paused.
+* Minor bugfix in behavior when the creature count maxes out (Lynx).
+* Added intro-ms.dat and intro-lynx.dat.
+* Fleshed out the README file.
+* First official release to the general public.
+
 2002 Apr 06: version 0.10.6
 
 * Fixed off-by-one timing bug (MS logic) when last move of a level is
