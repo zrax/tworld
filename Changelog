@@ -1,4 +1,11 @@
 
+2002 Apr 06: version 0.10.6
+
+* Fixed off-by-one timing bug (MS logic) when last move of a level is
+  involuntary (discovered by Anders Kaseorg).
+* Changed pause button to work as a toggle (i.e., no other keys will exit
+  pause mode), as requested by Hallgeir Flø.
+
 2002 Feb 25: version 0.10.5
 
 * Amended the Lynx ruleset to follow the button-wiring lists in the dat

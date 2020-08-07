@@ -9,15 +9,12 @@ Microsoft (among other ports).
 
 Tile World is an emulation of the "Chip's Challenge" game engines only. It
 does not come with the chips.dat file that contains the original level set.
-This file is copyrighted and cannot be freely distributed.
-
-The chips.dat file was originally distributed with the MS version of
-"Chip's Challenge". If you have a copy of this version of the game, you can
-use that file to play the original games in Tile World.
-
-If you do not have a copy of this file, however, you can still play Tile
-World with the many freely available level files created by fans of the
-original game.
+That file, which is copyrighted and cannot be freely distributed, was
+originally distributed with the MS version of "Chip's Challenge". If you
+have a copy of this version of the game, you can use that file to play the
+original games in Tile World. If you do not have a copy of this file,
+however, you can still play Tile World with the many freely available level
+files created by fans of the original game.
 
   Installing Tile World under Windows
 
@@ -130,16 +127,21 @@ the internet. Much of it is focused on maximizing your score on the
 "original" level set for the MS game, but you will also find lots of
 general help and useful information as well.
 
+Richard Field and Jimmy Vermeer both maintain a page of links to nearly
+everything on the net related to "Chip's Challenge". Between the two of
+them you can probably find what you're looking for, if it's out there:
+
+  http://www.agt.net/public/nfield/ChipChallenge/chip.htm
+  http://www.geocities.com/purpletentacle1977ca/links.html
+
 Most if not all user-created level sets can be found at the chips_challenge
 Yahoo group:
-http://groups.yahoo.com/group/chips_challenge/files/
 
-Richard Field maintains a web page that supplies links to almost everything
-on the net related to "Chip's Challenge":
-http://www.agt.net/public/nfield/ChipChallenge/chip.htm
+  http://groups.yahoo.com/group/chips_challenge/files/
 
 Finally, Tile World's home page is at:
-http://www.muppetlabs.com/~breadbox/software/tworld/
+
+  http://www.muppetlabs.com/~breadbox/software/tworld/
 
   License
 
@@ -165,14 +167,12 @@ been documented.
 Tile World was written by Brian Raiter.
 
 The sound effects included in this distribution were created by Brian
-Raiter, with assistance from SoX. They are in the public domain.
+Raiter, with assistance from SoX. Brian Raiter has explictly placed these
+files in the public domain.
 
-The tile images included in this distribution were created by Brian Raiter,
-with assistance from The GIMP and pixmap. They are in the public domain.
-
-The tile images that are not included in this distribution were created by
-Anders Kaesorg, with assistance from POV. Anders Kaseorg retains all rights
-to these images, unless he has explicitly put them in the public domain.
+The tile images included in this distribution were created by Anders
+Kaseorg, with assistance from POV-Ray. Anders Kaseorg has explicitly placed
+these files in the public domain.
 
 "Chip's Challenge" was designed by Chuck Sommerville, who is also the
 author of the original Lynx program.
@@ -181,7 +181,7 @@ author of the original Lynx program.
 
 Creating this program would have been flatly impossible without the help of
 several fans of "Chip's Challenge". The author would particularly like to
-acknowledge Anders Kaesorg for sharing the fruits of his investigations
+acknowledge Anders Kaseorg for sharing the fruits of his investigations
 into the game logic of the MS version and for being an effective bug
 hunter, and Chuck Sommerville for his pointers regarding the game logic of
 the Lynx version and his unfailing support of this project.
@@ -192,10 +192,10 @@ gratefully acknowledged.
 
 The anonymous author of the document describing the .dat file format, Don
 Gregory, the "Charter Chipsters", and the contributors to the CC AVI
-library all deserve mention: this program would never have been written
-without the information they made freely available.
+library all deserve mention as well -- this program would never have been
+written without the information they made freely available.
 
 Last but not least, a tip of the hat to John K. Elion for writing ChipEdit.
 
 Brian Raiter
-February 2002
+March 2002
