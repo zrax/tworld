@@ -12,10 +12,6 @@
 #include "../defs.h"
 #include "../oshw.h"
 
-#ifdef WIN32
-#include <QWindowsStyle>
-#endif
-
 #include <QClipboard>
 
 #include <string.h>
@@ -34,7 +30,9 @@ TileWorldApp::TileWorldApp(int& argc, char** argv)
 	QApplication(argc, argv),
 	m_bSilence(false),
 	m_bShowHistogram(false),
-	m_bFullScreen(false)
+	m_bFullScreen(false),
+	m_argc(argc),
+	m_argv(argv)
 {
 	g_pApp = this;
 }
@@ -139,7 +137,7 @@ void copytoclipboard(char const *text)
 
 int TileWorldApp::RunTWorld()
 {
-    return tworld(argc(), argv());
+    return tworld(m_argc, m_argv);
 }
 
 
@@ -170,7 +168,7 @@ int main(int argc, char *argv[])
 	
 	TileWorldApp app(argc, argv);
 #ifdef WIN32
-	QApplication::setStyle(new QWindowsStyle());	// Vista / XP styles may mess up colors
+	QApplication::setStyle(QStringLiteral("windows"));	// Vista / XP styles may mess up colors
 #endif
 
 	return app.RunTWorld();

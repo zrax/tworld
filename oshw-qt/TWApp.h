@@ -25,6 +25,8 @@ public:
 	
 private:
 	bool m_bSilence, m_bShowHistogram, m_bFullScreen;
+	int& m_argc;
+	char** m_argv;
 };
 
 

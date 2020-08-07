@@ -6,6 +6,7 @@
 
 #include <QPainter>
 #include <QPalette>
+#include <qdrawutil.h>
 
 
 TWProgressBar::TWProgressBar(QWidget* pParent)

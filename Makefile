@@ -17,11 +17,8 @@ else
 	LOADLIBES += -L$(shell qmake -query QT_INSTALL_LIBS)
 endif
 
-QTMODULES := Core Gui Xml
-QTMODULES := $(addprefix -lQt,$(QTMODULES))
-ifeq ($(OSTYPE),windows)
-	QTMODULES := $(addsuffix 4,$(QTMODULES))
-endif
+QTMODULES := Core Gui Widgets Xml
+QTMODULES := $(addprefix -lQt5,$(QTMODULES))
 LOADLIBES += $(QTMODULES)
 
 # else

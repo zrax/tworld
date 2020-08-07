@@ -30,6 +30,7 @@ endif
 CXXFLAGS += -I$(QTINCDIR) \
             -I$(QTINCDIR)/QtCore \
             -I$(QTINCDIR)/QtGui \
+            -I$(QTINCDIR)/QtWidgets \
             -I$(QTINCDIR)/QtXml
 
 ui_%.h: %.ui
