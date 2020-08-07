@@ -1,3 +1,11 @@
+2001 Nov 10: version 0.8.3
+
+* MS logic bug fix (clone machine would get stuck if clone died while
+  exiting).
+* Mixed improvement of display code. (The really cool revamping of the
+  display code wound out performing horribly on 24-bit displays, and so had
+  to be tossed out.)
+
 2001 Nov 08: version 0.8.2
 
 * Found problem with teleports: creatures provide their own teleport

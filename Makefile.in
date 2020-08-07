@@ -1,22 +1,21 @@
-# Generated automatically from Makefile.in by configure.
 #
-# Useful ./configure options with respect to this Makefile:
+# Useful standard ./configure options with respect to this Makefile:
 # --prefix
 # --exec_prefix
 # --bindir
 # --datadir
 
-prefix = /usr/local
-exec_prefix = ${prefix}
-bindir = ${exec_prefix}/bin
-datadir = ${prefix}/share/tworld
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@/tworld
 #win32: datadir = .
 
-CC = gcc
+CC = @CC@
 
-CFLAGS = -Wall -W -O2 -fomit-frame-pointer '-DROOTDIR="$(datadir)"'
-LDFLAGS = -Wall -W -s
-LOADLIBES = $(shell sdl-config --libs)
+CFLAGS =@cflags@ '-DROOTDIR="$(datadir)"'
+LDFLAGS =@ldflags@
+LOADLIBES =@loadlibes@
 
 #
 # End of configure section

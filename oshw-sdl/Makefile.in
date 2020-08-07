@@ -1,8 +1,7 @@
-# Generated automatically from Makefile.in by configure.
 
-CC = gcc
+CC = @CC@
 
-CFLAGS = -Wall -W -O2 -fomit-frame-pointer $(shell sdl-config --cflags)
+CFLAGS =@oshwcflags@
 
 OBJS = sdloshw.o sdltimer.o sdlerr.o sdlin.o sdlout.o sdlres.o sdltext.o \
        sdlerr.o

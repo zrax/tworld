@@ -1,31 +1,41 @@
 
   Installing Tile World for Linux
 
-Before compiling Tile World, ensure that you have SDL installed on your
-machine. (If you don't have SDL, you can get it by visiting
+Before proceeding, ensure that you have SDL installed on your machine. (If
+you don't have SDL, you can get it by visiting
 http://www.libsdl.org/download.html. If you download a precompiled version
 -- i.e., an .rpm or .deb file -- note that you will need the development
 runtime, as opposed to the binary runtime.)
 
-By default, the program is set up so that it will look for globally shared
-files under /usr/local/share/tworld. If you would rather have it look
-somewhere else, edit the Makefile and change the definition of ROOTDIR.
-(You can also specify a different directory at runtime, either on the
-command line or via the TWORLDDIR environment variable; however, setting an
-appropriate default value is easier in the long run.)
+Installing Tile World involves the usual three-step invocation:
 
-Now, run make and build the binary. There shouldn't be any serious warnings
-from the compiler.
+  ./configure
+
+By default, the program is set up so that it will keep its shared files in
+a directory, called tworld, under /usr/local/share. If you would prefer the
+shared directory to be somewhere else, use the --datadir option to change
+it when you run ./configure. (You can also specify a different directory at
+runtime, either on the command line or via the TWORLDDIR environment
+variable; however, setting an appropriate default value is easier in the
+long run.)
+
+  make
+
+There shouldn't be any serious warnings from the compiler.
+
+  make install
 
 Running "make install" as root will do the following:
 
 * Copy the tworld binary to /usr/local/games.
-* Copy the tile bitmap(s) to /usr/local/share/tworld.
+* Create /usr/local/share/tworld if it does not exist. (Or whatever
+  directory you specified to ./configure.)
+* Copy the external resources (i.e., the tile bitmaps) to
+  /usr/local/share/tworld.
 * Create an empty directory /usr/local/share/tworld/data.
 
-The latter directory is where you will need to copy the .dat files that you
-want to use. (Remember that the first part of the directory will be
-different if you changed the Makefile.)
+This empty directory is where you will store the .dat files that you want
+to use.
 
 N.B.: With every alpha release, there is the possibility that one or more
 of your saved games from a previous release will no longer work correctly.

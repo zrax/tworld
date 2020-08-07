@@ -60,3 +60,6 @@ Other bugs and misfeatures
 
 * There ought to be a way to return to the file list, instead of having to
   shut down and restart the program. That drives me crazy.
+* The display code needs to be revamped to run more efficiently across the
+  various display resolutions (right now it runs well on 32-bit displays
+  and poorly on 8-bit displays).
