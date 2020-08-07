@@ -61,6 +61,10 @@ typedef	struct seriesdata {
  */
 static int	silence = FALSE;
 
+/* TRUE means the program should attempt to run in fullscreen mode.
+ */
+static int	fullscreen = FALSE;
+
 /* FALSE suppresses all password checking.
  */
 static int	usepasswds = TRUE;
@@ -540,7 +544,7 @@ static int startinput(gamespec *gs)
 {
     int	cmd;
 
-    drawscreen();
+    drawscreen(TRUE);
     for (;;) {
 	cmd = input(TRUE);
 	if (cmd >= CmdMoveFirst && cmd <= CmdMoveLast)
@@ -577,7 +581,7 @@ static int startinput(gamespec *gs)
 	  default:
 	    continue;
 	}
-	drawscreen();
+	drawscreen(TRUE);
     }
 }
 
@@ -681,7 +685,7 @@ static int finalinput(gamespec *gs)
  */
 static int playgame(gamespec *gs, int firstcmd)
 {
-    int	render;
+    int	render, lastrendered;
     int	cmd, n;
 
     cmd = firstcmd;
@@ -690,11 +694,11 @@ static int playgame(gamespec *gs, int firstcmd)
 
     gs->status = 0;
     setgameplaymode(BeginPlay);
-    render = TRUE;
+    render = lastrendered = TRUE;
     for (;;) {
 	n = doturn(cmd);
-	if (render)
-	    drawscreen();
+	drawscreen(render);
+	lastrendered = render;
 	if (n)
 	    break;
 	render = waitfortick();
@@ -756,6 +760,8 @@ static int playgame(gamespec *gs, int firstcmd)
     return TRUE;
 
   quitloop:
+    if (!lastrendered)
+	drawscreen(TRUE);
     quitgamestate();
     setgameplaymode(EndPlay);
     if (n)
@@ -769,18 +775,17 @@ static int playgame(gamespec *gs, int firstcmd)
  */
 static int playbackgame(gamespec *gs)
 {
-    int	render;
-    int	n;
+    int	render, lastrendered, n;
 
-    drawscreen();
+    drawscreen(TRUE);
 
     gs->status = 0;
     setgameplaymode(BeginPlay);
-    render = TRUE;
+    render = lastrendered = TRUE;
     for (;;) {
 	n = doturn(CmdNone);
-	if (render)
-	    drawscreen();
+	drawscreen(render);
+	lastrendered = render;
 	if (n)
 	    break;
 	render = waitfortick();
@@ -824,6 +829,8 @@ static int playbackgame(gamespec *gs)
     return TRUE;
 
   quitloop:
+    if (!lastrendered)
+	drawscreen(TRUE);
     quitgamestate();
     setgameplaymode(EndPlay);
     gs->playback = FALSE;
@@ -845,7 +852,7 @@ static int runcurrentlevel(gamespec *gs)
 	gs->enddisplay = FALSE;
 	initgamestate(enddisplaylevel(), gs->series.ruleset);
 	changesubtitle(NULL);
-	drawscreen();
+	drawscreen(TRUE);
 	displayendmessage(0, 0, 0, 0);
 	endgamestate();
 	return finalinput(gs);
@@ -1103,7 +1110,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
     mudsucking = 1;
     soundbufsize = 0;
 
-    initoptions(&opts, argc - 1, argv + 1, "aD:dHhL:lm:pqR:S:stVv");
+    initoptions(&opts, argc - 1, argv + 1, "aD:dfHhL:lm:pqR:S:stVv");
     while ((ch = readoption(&opts)) >= 0) {
 	switch (ch) {
 	  case 0:
@@ -1122,6 +1129,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 	  case 'R':	optresdir = opts.val;				break;
 	  case 'S':	optsavedir = opts.val;				break;
 	  case 'H':	showhistogram = !showhistogram;			break;
+	  case 'f':	fullscreen = !fullscreen;			break;
 	  case 'p':	usepasswds = !usepasswds;			break;
 	  case 'q':	silence = !silence;				break;
 	  case 'a':	++soundbufsize;					break;
@@ -1166,7 +1174,7 @@ static int initoptionswithcmdline(int argc, char *argv[], startupdata *start)
 static int initializesystem(void)
 {
     setmudsuckingfactor(mudsucking);
-    if (!oshwinitialize(silence, soundbufsize, showhistogram))
+    if (!oshwinitialize(silence, soundbufsize, showhistogram, fullscreen))
 	return FALSE;
     if (!initresources())
 	return FALSE;
@@ -1237,7 +1245,7 @@ static int choosegameatstartup(gamespec *gs, startupdata const *start)
 	}
 	if (start->listtimes) {
 	    if (!createtimelist(series.list,
-				series.list->ruleset == Ruleset_Lynx,
+				series.list->ruleset == Ruleset_Lynx ? 2 : 1,
 				NULL, NULL, &table))
 		return -1;
 	    freeserieslist(series.list, series.count, &series.table);

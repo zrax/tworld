@@ -405,8 +405,25 @@ static int stopanimationat(int pos)
  */
 static void removecreature(creature *cr, int animationid)
 {
+#if 1
     addanimation(cr, animationid);
     killcreature(cr);
+#else
+    if (cr->id != Chip)
+	removeclaim(cr->pos);
+    cr->id = animationid;
+    cr->frame = 12;
+    cr->hidden = FALSE;
+    if (cr->state & CS_NOISYMOVEMENT)
+	stopsoundeffect(SND_BLOCK_MOVING);
+    cr->state = 0;
+    cr->tdir = NIL;
+    if (cr->moving == 8) {
+	cr->pos -= delta[cr->dir];
+	cr->moving = 0;
+    }
+    markanimated(cr->pos);
+#endif
 }
 
 /* What happens when Chip dies.
@@ -1055,7 +1072,7 @@ static int startmovement(creature *cr, int releasing)
 	_assert(cr->id == Chip);
 	if (cr->dir & dir) {
 	    f1 = canmakemove(cr, cr->dir, CMM_EXPOSEWALLS | CMM_PUSHBLOCKS);
-	    f2 = canmakemove(cr, dir ^ cr->dir,
+	    f2 = canmakemove(cr, cr->dir ^ dir,
 			     CMM_EXPOSEWALLS | CMM_PUSHBLOCKS);
 	    dir = !f1 && f2 ? dir ^ cr->dir : cr->dir;
 	} else {
@@ -1425,9 +1442,6 @@ static void verifymap(void)
 	if (cr->dir == NIL && cr->id != Block)
 	    warn("%d: Creature %d:%d lacks direction",
 		 currenttime(), cr - creaturelist(), cr->id);
-	if (cr->state & 0x80)
-	    warn("%d: Creature %d:%d in an illegal state %X",
-		 currenttime(), cr - creaturelist(), cr->id, cr->state);
 	if (cr->moving > 8)
 	    warn("%d: Creature %d:%d has a moving time of %d",
 		 currenttime(), cr - creaturelist(), cr->id, cr->moving);
