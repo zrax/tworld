@@ -3,11 +3,7 @@ default_goal: ../lib$(OSHW).a
 include ../common.mak
 include ../generic/generic.mak
 
-ifeq ($(OSTYPE),windows)
-	CFLAGS += -I$(SDLDIR)/include/SDL
-else
-	CFLAGS += $(shell sdl-config --cflags)
-endif
+CFLAGS += $(shell sdl-config --cflags)
 
 
 OBJS += sdloshw.o sdlerr.o sdlin.o sdlout.o sdltext.o sdlsfx.o \

@@ -25,11 +25,7 @@ LOADLIBES += $(QTMODULES)
 endif
 # SDL still used partially by Qt OSHW layer
 
-ifeq ($(OSTYPE),windows)
-	LOADLIBES += -L$(SDLDIR)/lib -lmingw32 -lSDLmain -lSDL
-else
-	LOADLIBES += $(shell sdl-config --libs)
-endif
+LOADLIBES += $(shell sdl-config --libs)
 
 # endif
 
@@ -90,11 +86,7 @@ err.o      : err.c oshw.h err.h
 
 comptime.h:
 	@echo Generating $@...
-ifeq ($(OSTYPE),windows)
-	echo #define COMPILE_TIME "%DATE% %TIME%" > comptime.h
-else
 	echo \#define COMPILE_TIME \"`date '+%Y %b %e %T %Z'`\" > comptime.h
-endif
 
 #
 # Libraries

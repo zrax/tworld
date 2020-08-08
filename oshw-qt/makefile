@@ -6,11 +6,7 @@ include ../generic/generic.mak
 
 # SDL setup
 
-ifeq ($(OSTYPE),windows)
-	CFLAGS += -I$(SDLDIR)/include/SDL
-else
-	CFLAGS += $(shell sdl-config --cflags)
-endif
+CFLAGS += $(shell sdl-config --cflags)
 
 
 #
