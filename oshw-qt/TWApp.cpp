@@ -167,9 +167,7 @@ int main(int argc, char *argv[])
 	}
 	
 	TileWorldApp app(argc, argv);
-#ifdef WIN32
-	QApplication::setStyle(QStringLiteral("windows"));	// Vista / XP styles may mess up colors
-#endif
+	QApplication::setStyle(QStringLiteral("fusion"));	// Other styles may mess up colors
 
 	return app.RunTWorld();
 }
