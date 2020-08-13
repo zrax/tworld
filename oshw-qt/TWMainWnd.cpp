@@ -40,7 +40,7 @@ extern int pedanticmode;
 
 #include <QStyle>
 #include <QStyledItemDelegate>
-#include <QStyleOptionViewItemV2>
+#include <QStyleOptionViewItem>
 
 #include <QPainter>
 #include <QPalette>
@@ -68,15 +68,15 @@ public:
 	TWStyledItemDelegate(QObject* pParent = 0)
 		: QStyledItemDelegate(pParent) {}
 		
-	virtual void paint(QPainter* pPainter, const QStyleOptionViewItem& option,
-		const QModelIndex& index) const;
+	void paint(QPainter* pPainter, const QStyleOptionViewItem& option,
+		const QModelIndex& index) const override;
 };
 
 
 void TWStyledItemDelegate::paint(QPainter* pPainter, const QStyleOptionViewItem& _option,
 	const QModelIndex& index) const
 {
-	QStyleOptionViewItemV2 option = _option;
+	QStyleOptionViewItem option = _option;
 	option.state &= ~QStyle::State_HasFocus;
 	QStyledItemDelegate::paint(pPainter, option, index);
 }
@@ -90,10 +90,10 @@ public:
 	TWTableModel(QObject* pParent = 0);
 	void SetTableSpec(const tablespec* pSpec);
 	
-	virtual int rowCount(const QModelIndex& parent = QModelIndex()) const;
-	virtual int columnCount(const QModelIndex& parent = QModelIndex()) const;
-	virtual QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const;
-	virtual QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
+	int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+	int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 	
 protected:
 	struct ItemInfo
@@ -749,17 +749,15 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 	if (!bInit)
 	{
 		QString sFormat;
-		std::string sFormatString;
 		if (bTimedLevel)
-			sFormatString = "%%v";
+			sFormat = QStringLiteral("%v");
 		else if (bForceShowTimer)
-			sFormatString = "[%%v]";
+			sFormat = QStringLiteral("[%v]");
 		else
-			sFormatString = "---";
+			sFormat = QStringLiteral("---");
 
 		if ((bTimedLevel || bForceShowTimer) && nBestTime != TIME_NIL)
-			sFormatString += " (%+d)";
-		sFormat.sprintf(sFormatString.c_str(), nTimeLeft-nBestTime);
+			sFormat += QStringLiteral(" (%1)").arg(nTimeLeft-nBestTime);
 		m_pPrgTime->setFormat(sFormat);
 	}
 
