@@ -168,6 +168,7 @@ int main(int argc, char *argv[])
 	
 	TileWorldApp app(argc, argv);
 	QApplication::setStyle(QStringLiteral("fusion"));	// Other styles may mess up colors
+	QApplication::setWindowIcon(QIcon(":/tworld2.ico"));
 
 	return app.RunTWorld();
 }

@@ -25,6 +25,7 @@ find_package(SDL REQUIRED)
 if(OSHW STREQUAL "qt")
     set(CMAKE_AUTOUIC TRUE)
     set(CMAKE_AUTOMOC TRUE)
+    set(CMAKE_AUTORCC TRUE)
     find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Xml)
     add_definitions(-DTWPLUSPLUS)
 endif()
@@ -94,6 +95,10 @@ target_sources(${TWORLD_EXE} PRIVATE
 
 if(WIN32)
     target_sources(${TWORLD_EXE} PRIVATE ${TWORLD_EXE}.rc)
+endif()
+
+if(OSHW STREQUAL "qt")
+    target_sources(${TWORLD_EXE} PRIVATE tworld2.qrc)
 endif()
 
 target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW})
