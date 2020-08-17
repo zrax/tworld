@@ -29,6 +29,26 @@ if(OSHW STREQUAL "qt")
     add_definitions(-DTWPLUSPLUS)
 endif()
 
+if(NOT WIN32)
+    set(SHARE_DIR "${CMAKE_INSTALL_PREFIX}/share/tworld" CACHE STRING
+        "Directory for shared files")
+    add_definitions(-DROOTDIR="${SHARE_DIR}")
+    add_definitions(-Dstricmp=strcasecmp)
+
+    file(GLOB TW_SETS "${CMAKE_CURRENT_SOURCE_DIR}/sets/*.dac")
+    file(GLOB TW_DATA "${CMAKE_CURRENT_SOURCE_DIR}/data/*.dat")
+    file(GLOB TW_RES  "${CMAKE_CURRENT_SOURCE_DIR}/res/rc"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/res/*.bmp"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/res/*.txt"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/res/*.wav")
+    file(GLOB TW_MAN6 "${CMAKE_CURRENT_SOURCE_DIR}/docs/*.6")
+
+    install(FILES ${TW_SETS} DESTINATION "${SHARE_DIR}/sets")
+    install(FILES ${TW_DATA} DESTINATION "${SHARE_DIR}/data")
+    install(FILES ${TW_RES}  DESTINATION "${SHARE_DIR}/res")
+    install(FILES ${TW_MAN6} DESTINATION "${CMAKE_INSTALL_PREFIX}/man/man6")
+endif()
+
 add_subdirectory(oshw-${OSHW})
 
 add_executable(${TWORLD_EXE} WIN32 tworld.c)
@@ -94,3 +114,9 @@ endif()
 
 set_property(SOURCE comptime.h PROPERTY SKIP_AUTOGEN ON)
 target_include_directories(${TWORLD_EXE} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+if(WIN32)
+    install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION .)
+else()
+    install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION bin)
+endif()
