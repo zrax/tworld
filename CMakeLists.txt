@@ -92,6 +92,10 @@ target_sources(${TWORLD_EXE} PRIVATE
     ver.h
 )
 
+if(WIN32)
+    target_sources(${TWORLD_EXE} PRIVATE ${TWORLD_EXE}.rc)
+endif()
+
 target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW})
 
 # Generate the current compile time
