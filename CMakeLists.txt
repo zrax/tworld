@@ -124,3 +124,5 @@ if(WIN32)
 else()
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION bin)
 endif()
+
+add_executable(mklynxcc EXCLUDE_FROM_ALL mklynxcc.c)
