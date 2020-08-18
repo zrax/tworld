@@ -469,7 +469,12 @@ bool TileWorldMainWnd::HandleEvent(QObject* pObject, QEvent* pEvent)
 			const int scrollDelta = pWheelEvent->angleDelta().y();
 			if (scrollDelta != 0)
 			{
-				mouseeventcallback(pWheelEvent->x(), pWheelEvent->y(),
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+				const QPointF eventPos(pWheelEvent->position());
+#else
+				const QPoint eventPos(pWheelEvent->x(), pWheelEvent->y());
+#endif
+				mouseeventcallback(int(eventPos.x()), int(eventPos.y()),
 					(scrollDelta > 0 ? TW_BUTTON_WHEELUP : TW_BUTTON_WHEELDOWN),
 					true);
 			}
