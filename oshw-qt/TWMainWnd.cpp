@@ -466,9 +466,13 @@ bool TileWorldMainWnd::HandleEvent(QObject* pObject, QEvent* pEvent)
 			if (pObject != m_pGameWidget)
 				return false;
 			QWheelEvent* pWheelEvent = static_cast<QWheelEvent*>(pEvent);
-			mouseeventcallback(pWheelEvent->x(), pWheelEvent->y(),
-				(pWheelEvent->delta() > 0 ? TW_BUTTON_WHEELUP : TW_BUTTON_WHEELDOWN),
-				true);
+			const int scrollDelta = pWheelEvent->angleDelta().y();
+			if (scrollDelta != 0)
+			{
+				mouseeventcallback(pWheelEvent->x(), pWheelEvent->y(),
+					(scrollDelta > 0 ? TW_BUTTON_WHEELUP : TW_BUTTON_WHEELDOWN),
+					true);
+			}
 			return true;
 		}
 		break;
