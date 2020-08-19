@@ -241,32 +241,32 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	pal.setBrush(QPalette::Window, QBrush(gradient));
 	m_pMainWidget->setPalette(pal);
 
-	m_pTblList->setItemDelegate( new TWStyledItemDelegate(m_pTblList) );
+	m_pTblList->setItemDelegate(new TWStyledItemDelegate(m_pTblList));
 	
 	m_pTextBrowser->setSearchPaths(QStringList(seriesdatdir));
 	
 	g_pApp->installEventFilter(this);
 
-	connect( m_pTblList, SIGNAL(activated(const QModelIndex&)), this, SLOT(OnListItemActivated(const QModelIndex&)) );
-	connect( m_pRadioMs, SIGNAL(toggled(bool)), this, SLOT(OnRulesetSwitched(bool)) );
-	connect( m_pTxtFind, SIGNAL(textChanged(const QString&)), this, SLOT(OnFindTextChanged(const QString&)) );
-	connect( m_pTxtFind, SIGNAL(returnPressed()), this, SLOT(OnFindReturnPressed()) );
-	connect( m_pBtnPlay, SIGNAL(clicked()), this, SLOT(OnPlayback()) );
-	connect( m_pSldSpeed, SIGNAL(valueChanged(int)), this, SLOT(OnSpeedValueChanged(int)) );
-	connect( m_pSldSpeed, SIGNAL(sliderReleased()), this, SLOT(OnSpeedSliderReleased()) );
-	connect( m_pSldSeek, SIGNAL(valueChanged(int)), this, SLOT(OnSeekPosChanged(int)) );
-	connect( m_pBtnTextNext, SIGNAL(clicked()), this, SLOT(OnTextNext()) );
-	connect( m_pBtnTextPrev, SIGNAL(clicked()), this, SLOT(OnTextPrev()) );
-	connect( m_pBtnTextReturn, SIGNAL(clicked()), this, SLOT(OnTextReturn()) );
+	connect(m_pTblList, &QTableView::activated, this, &OnListItemActivated);
+	connect(m_pRadioMs, &QRadioButton::toggled, this, &OnRulesetSwitched);
+	connect(m_pTxtFind, &QLineEdit::textChanged, this, &OnFindTextChanged);
+	connect(m_pTxtFind, &QLineEdit::returnPressed, this, &OnFindReturnPressed);
+	connect(m_pBtnPlay, &QToolButton::clicked, this, &OnPlayback);
+	connect(m_pSldSpeed, &QSlider::valueChanged, this, &OnSpeedValueChanged);
+	connect(m_pSldSpeed, &QSlider::sliderReleased, this, &OnSpeedSliderReleased);
+	connect(m_pSldSeek, &QSlider::valueChanged, this, &OnSeekPosChanged);
+	connect(m_pBtnTextNext, &QToolButton::clicked, this, &OnTextNext);
+	connect(m_pBtnTextPrev, &QToolButton::clicked, this, &OnTextPrev);
+	connect(m_pBtnTextReturn, &QToolButton::clicked, this, &OnTextReturn);
 
-	connect( new QShortcut(Qt::Key_Escape, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextReturn()) );
-	connect( new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextReturn()) );
-	connect( new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextNext()) );
-	connect( new QShortcut(Qt::CTRL+Qt::Key_P, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextPrev()) );
-	connect( new QShortcut(Qt::Key_N, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextNext()) );
-	connect( new QShortcut(Qt::Key_P, m_pTextPage), SIGNAL(activated()), this, SLOT(OnTextPrev()) );
+	connect(new QShortcut(Qt::Key_Escape, m_pTextPage), &QShortcut::activated, this, &OnTextReturn);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), &QShortcut::activated, this, &OnTextReturn);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &OnTextNext);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &OnTextPrev);
+	connect(new QShortcut(Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &OnTextNext);
+	connect(new QShortcut(Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &OnTextPrev);
 	
-	connect( m_pMenuBar, SIGNAL(triggered(QAction*)), this, SLOT(OnMenuActionTriggered(QAction*)) );
+	connect(m_pMenuBar, &QMenuBar::triggered, this, &OnMenuActionTriggered);
 
 	action_displayCCX->setChecked(getintsetting("displayccx"));
 	action_forceShowTimer->setChecked(getintsetting("forceshowtimer") > 0);
@@ -1080,7 +1080,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		msgBox.addButton("&Onward!", QMessageBox::AcceptRole);
 		QPushButton* pBtnRestart = msgBox.addButton("&Restart", QMessageBox::AcceptRole);
 		QPushButton* pBtnCopyScore = msgBox.addButton("&Copy Score", QMessageBox::ActionRole);
-		connect( pBtnCopyScore, SIGNAL(clicked()), this, SLOT(OnCopyText()) );
+		connect(pBtnCopyScore, &QPushButton::clicked, this, &OnCopyText);
 		
 		msgBox.exec();
 		ReleaseAllKeys();
