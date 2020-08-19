@@ -647,8 +647,9 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		
 		m_pLblPassword->setText(QString::fromLatin1(pState->game->passwd));
 		
-		m_bOFNT = (sTitle.toUpper() == "YOU CAN'T TEACH AN OLD FROG NEW TRICKS");
-			
+		m_bOFNT = (sTitle.compare(QStringLiteral("YOU CAN'T TEACH AN OLD FROG NEW TRICKS"),
+			Qt::CaseInsensitive) == 0);
+
 		m_pSldSeek->setValue(0);
 		bool bHasSolution = hassolution(pState->game);
 		m_pControlsFrame->setVisible(bHasSolution);
@@ -657,7 +658,7 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		menu_Solution->setEnabled(bHasSolution);
 		menu_Help->setEnabled(true);
 		action_GoTo->setEnabled(true);
-                CCX::Level const & currLevel
+		CCX::Level const & currLevel
 		    (m_ccxLevelset.vecLevels[m_nLevelNum]);
 		bool hasPrologue(!currLevel.txtPrologue.vecPages.empty());
 		bool hasEpilogue(!currLevel.txtEpilogue.vecPages.empty());
@@ -668,7 +669,7 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		
 		bool bParBad = (pState->game->sgflags & SGF_REPLACEABLE) != 0;
 		m_pPrgTime->setParBad(bParBad);
-		const char* a = bParBad ? " *" : "";
+		QString a = bParBad ? QStringLiteral(" *") : QString();
 
 		m_pPrgTime->setFullBar(!bTimedLevel);
 
@@ -676,11 +677,11 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		{
 			if (nBestTime == TIME_NIL)
 			{
-				m_pPrgTime->setFormat("%v");
+				m_pPrgTime->setFormat(QStringLiteral("%v"));
 			}
 			else
 			{
-				m_pPrgTime->setFormat(QString::number(nBestTime) + a + " / %v");
+				m_pPrgTime->setFormat(QString::number(nBestTime) + a + QStringLiteral(" / %v"));
 				m_pPrgTime->setPar(nBestTime);
 				m_pSldSeek->setMaximum(nTimeLeft-nBestTime);
 			}
@@ -689,12 +690,13 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		}
 		else
 		{
-			char const *noTime = (bForceShowTimer ? "[999]" : "---");
+			const QString noTime = (bForceShowTimer ? QStringLiteral("[999]") : QStringLiteral("---"));
 			if (nBestTime == TIME_NIL)
 				m_pPrgTime->setFormat(noTime);
 			else
 			{
-				m_pPrgTime->setFormat("[" + QString::number(nBestTime) + a + "] / " + noTime);
+				m_pPrgTime->setFormat(QLatin1Char('[') + QString::number(nBestTime) + a
+					+ QStringLiteral("] / ") + noTime);
 				m_pSldSeek->setMaximum(999-nBestTime);
 			}
 			m_pPrgTime->setMaximum(999);
@@ -799,14 +801,14 @@ void TileWorldMainWnd::CheckForProblems(const gamestate* pState)
 
 	if (pState->statusflags & SF_INVALID)
 	{
-		s = "This level cannot be played.";
+		s = tr("This level cannot be played.");
 	}
 	else if (pState->game->unsolvable)
 	{
-		s = "This level is reported to be unsolvable";
+		s = tr("This level is reported to be unsolvable");
 		if (*pState->game->unsolvable)
 			s += QStringLiteral(": ") + QString::fromLatin1(pState->game->unsolvable);
-		s += ".";
+		s += QLatin1Char('.');
 	}
 	else
 	{
@@ -825,7 +827,7 @@ void TileWorldMainWnd::CheckForProblems(const gamestate* pState)
 		}
 		if (compat == CCX::COMPAT_NO)
 		{
-			s = "This level is flagged as being incompatible with the current ruleset.";
+			s = tr("This level is flagged as being incompatible with the current ruleset.");
 		}
 	}
 
@@ -902,7 +904,7 @@ void TileWorldMainWnd::DisplayShutter()
 	QFont font;
 	font.setPixelSize(geng.htile);
 	painter.setFont(font);
-	painter.drawText(pixmap.rect(), Qt::AlignCenter, "Paused");
+	painter.drawText(pixmap.rect(), Qt::AlignCenter, tr("Paused"));
 	painter.end();
 
 	m_pGameWidget->setPixmap(pixmap);
@@ -999,9 +1001,9 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		if (m_bReplay)
 			szMsg = "Alright!";
 		else
-                {
+		{
 			szMsg = getmessage(MessageWin);
-                        if (!szMsg)
+			if (!szMsg)
 				szMsg = "You won!";
 		}
 
@@ -1064,16 +1066,16 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		msgBox.setIconPixmap(pSurface->GetPixmap());
 		TW_FreeSurface(pSurface);
 		
-		msgBox.setWindowTitle(m_bReplay ? "Replay Completed" : "Level Completed");
+		msgBox.setWindowTitle(m_bReplay ? tr("Replay Completed") : tr("Level Completed"));
 
 		m_sTextToCopy = QString::fromLatin1(
 			timestring(m_nLevelNum,
 				sTitle.toLatin1().constData(),
 				m_nTimeLeft, m_bTimedLevel, false));
 
-		msgBox.addButton("&Onward!", QMessageBox::AcceptRole);
-		QPushButton* pBtnRestart = msgBox.addButton("&Restart", QMessageBox::AcceptRole);
-		QPushButton* pBtnCopyScore = msgBox.addButton("&Copy Score", QMessageBox::ActionRole);
+		msgBox.addButton(tr("&Onward!"), QMessageBox::AcceptRole);
+		QPushButton* pBtnRestart = msgBox.addButton(tr("&Restart"), QMessageBox::AcceptRole);
+		QPushButton* pBtnCopyScore = msgBox.addButton(tr("&Copy Score"), QMessageBox::ActionRole);
 		connect(pBtnCopyScore, &QPushButton::clicked, this, &OnCopyText);
 		
 		msgBox.exec();
@@ -1089,20 +1091,21 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		bool bTimeout = (m_bTimedLevel  &&  m_nTimeLeft <= 0);
 		if (m_bReplay)
 		{
-			QString sMsg = "Whoa!  Chip ";
+			QString sMsg = QStringLiteral("Whoa!  Chip ");
 			if (bTimeout)
-				sMsg += "ran out of time";
+				sMsg += QStringLiteral("ran out of time");
 			else
-				sMsg += "ran into some trouble";
+				sMsg += QStringLiteral("ran into some trouble");
 			// TODO: What about when Chip just doesn't reach the exit or reaches the exit too early?
-			sMsg += " there.\nIt looks like the level has changed after that solution was recorded.";
+			sMsg += QStringLiteral(" there.\nIt looks like the level has changed after that solution"
+				" was recorded.");
 			msgBox.setText(sMsg);
 			msgBox.setIcon(QMessageBox::Warning);
-			msgBox.setWindowTitle("Replay Failed");
+			msgBox.setWindowTitle(tr("Replay Failed"));
 		}
 		else
 		{
-			const char* szMsg = 0;
+			const char* szMsg = nullptr;
 			if (bTimeout)
 			{
 				szMsg = getmessage(MessageTime);
@@ -1121,12 +1124,12 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 			// setIcon also causes the corresponding system sound to play
 			// setIconPixmap does not
 			QStyle* pStyle = QApplication::style();
-			if (pStyle != 0)
+			if (pStyle)
 			{
 				QIcon icon = pStyle->standardIcon(QStyle::SP_MessageBoxWarning);
 				msgBox.setIconPixmap(icon.pixmap(48));
 			}
-			msgBox.setWindowTitle("Oops.");
+			msgBox.setWindowTitle(tr("Oops."));
 		}
 		msgBox.exec();
 		ReleaseAllKeys();
@@ -1240,11 +1243,9 @@ void TileWorldMainWnd::OnFindTextChanged(const QString& sText)
 {
 	if (!m_pSortFilterProxyModel) return;
 	
-	QString sWildcard;
-	if (sText.isEmpty())
-		sWildcard = "*";
-	else
-		sWildcard = '*' + sText + '*';
+	QString sWildcard = QStringLiteral("*");
+	if (!sText.isEmpty())
+		sWildcard += sText + QLatin1Char('*');
 	m_pSortFilterProxyModel->setFilterWildcard(sWildcard);
 }
 
@@ -1437,7 +1438,7 @@ void TileWorldMainWnd::ReadExtensions(gameseries* pSeries)
 {
 	QDir dataDir(QString::fromLocal8Bit(seriesdatdir));
 	QString sSetName = QFileInfo(QString::fromLocal8Bit(pSeries->mapfilename)).completeBaseName();
-	QString sFilePath = dataDir.filePath(sSetName + ".ccx");
+	QString sFilePath = dataDir.filePath(sSetName + QStringLiteral(".ccx"));
 	
 	m_ccxLevelset.Clear();
 	if (!m_ccxLevelset.ReadFile(sFilePath, pSeries->count))
@@ -1529,11 +1530,11 @@ void TileWorldMainWnd::ShowAbout()
 	for (int i = 0; i < numlines; ++i)
 	{
 		if (i > 0)
-			text += "\n\n";
+			text += QStringLiteral("\n\n");
 		char const *item = vourzhon->items[2*i + 1];
 		text += QString::fromLatin1(item + 2);  // skip over formatting chars
 	}
-	QMessageBox::about(this, "About", text);
+	QMessageBox::about(this, tr("About"), text);
 }
 
 void TileWorldMainWnd::OnTextNext()
