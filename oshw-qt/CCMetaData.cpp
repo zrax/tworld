@@ -8,8 +8,6 @@
 #include <QDomDocument>
 #include <QDomElement>
 
-using namespace std;
-
 
 namespace CCX
 {

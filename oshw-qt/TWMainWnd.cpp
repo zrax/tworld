@@ -58,10 +58,6 @@ extern int pedanticmode;
 #include <string.h>
 #include <ctype.h>
 
-using namespace std;
-
-#define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
-
 class TWStyledItemDelegate : public QStyledItemDelegate
 {
 public:
@@ -104,7 +100,7 @@ protected:
 	};
 	
 	int m_nRows, m_nCols;
-	vector<ItemInfo> m_vecItems;
+	std::vector<ItemInfo> m_vecItems;
 	
 	QVariant GetData(int row, int col, int role) const;
 };
@@ -203,8 +199,9 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	QMainWindow(pParent, flags/*|Qt::FramelessWindowHint*/),
 	m_bSetupUi(false),
 	m_bWindowClosed(false),
-	m_pSurface(0),
-	m_pInvSurface(0),
+	m_pSurface(),
+	m_pInvSurface(),
+	m_nKeyState(),
 	m_shortMessages(),
 	m_bKbdRepeatEnabled(true),
 	m_nRuleset(Ruleset_None),
@@ -216,10 +213,8 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_nTimeLeft(TIME_NIL),
 	m_bTimedLevel(false),
 	m_bReplay(false),
-	m_pSortFilterProxyModel(0)
+	m_pSortFilterProxyModel()
 {
-	memset(m_nKeyState, 0, TWK_LAST*sizeof(uint8_t));
-	
 	setupUi(this);
 	m_bSetupUi = true;
 	
@@ -391,9 +386,8 @@ bool TileWorldMainWnd::HandleEvent(QObject* pObject, QEvent* pEvent)
 
 			// Handle modifier keys falling out of sync due to some events never being received
 			// E.g., Windows 7 never sends Alt key-up after Alt+Tab
-			for (size_t m = 0; m < COUNTOF(g_modKeys); ++m)
+			for (const QtModifier_TWKey& mod : g_modKeys)
 			{
-				const QtModifier_TWKey& mod = g_modKeys[m];
 				if (mod.nTWKey == nTWKey)
 					continue;
 				bool bModPressed = ((pKeyEvent->modifiers() & mod.nQtMod) != 0);
