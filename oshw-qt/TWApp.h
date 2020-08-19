@@ -12,7 +12,7 @@ class TileWorldMainWnd;
 class TileWorldApp : public QApplication
 {
 public:
-	static const char s_szTitle[];
+	static const QString s_sTitle;
 
 	TileWorldApp(int& argc, char** argv);
 	~TileWorldApp();

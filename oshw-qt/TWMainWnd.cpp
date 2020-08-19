@@ -132,7 +132,7 @@ void TWTableModel::SetTableSpec(const tablespec* pSpec)
 		const char* p = *pp;
 		ItemInfo ii;
 
-		ii.sText = p + 2;
+		ii.sText = QString::fromLatin1(p + 2);
 		
 		char c = p[1];
 		Qt::Alignment ha = (c=='+' ? Qt::AlignRight : c=='.' ? Qt::AlignHCenter : Qt::AlignLeft);
@@ -238,7 +238,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 
 	m_pTblList->setItemDelegate(new TWStyledItemDelegate(m_pTblList));
 	
-	m_pTextBrowser->setSearchPaths(QStringList(seriesdatdir));
+	m_pTextBrowser->setSearchPaths(QStringList{ QString::fromLocal8Bit(seriesdatdir) });
 	
 	g_pApp->installEventFilter(this);
 
@@ -640,12 +640,12 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 
 		m_pLCDNumber->display(pState->game->number);
 
-		QString sTitle = pState->game->name;
+		QString sTitle = QString::fromLatin1(pState->game->name);
 		m_pLblTitle->setText(sTitle);
 		Qt::AlignmentFlag halign = (m_pLblTitle->sizeHint().width() <= m_pLblTitle->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
 		m_pLblTitle->setAlignment(halign | Qt::AlignVCenter);
 		
-		m_pLblPassword->setText(pState->game->passwd);
+		m_pLblPassword->setText(QString::fromLatin1(pState->game->passwd));
 		
 		m_bOFNT = (sTitle.toUpper() == "YOU CAN'T TEACH AN OLD FROG NEW TRICKS");
 			
@@ -779,12 +779,12 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		if (bShowInitState && m_bReplay)
 		{
 			if (SetHintMode(HINT_INITSTATE))
-				m_pLblHint->setText(getinitstatestring());
+				m_pLblHint->setText(QString::fromLatin1(getinitstatestring()));
 		}
 		else if (bShowHint)
 		{
 			if (SetHintMode(HINT_TEXT))
-				m_pLblHint->setText(pState->hinttext);
+				m_pLblHint->setText(QString::fromLatin1(pState->hinttext));
 		}
 		else if (SetHintMode(HINT_EMPTY))
 			m_pLblHint->clear();
@@ -805,7 +805,7 @@ void TileWorldMainWnd::CheckForProblems(const gamestate* pState)
 	{
 		s = "This level is reported to be unsolvable";
 		if (*pState->game->unsolvable)
-			s += ": " + QString(pState->game->unsolvable);
+			s += QStringLiteral(": ") + QString::fromLatin1(pState->game->unsolvable);
 		s += ".";
 	}
 	else
@@ -1066,10 +1066,10 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		
 		msgBox.setWindowTitle(m_bReplay ? "Replay Completed" : "Level Completed");
 
-		m_sTextToCopy = timestring
-			(m_nLevelNum,
-			 sTitle.toLatin1().constData(),
-			 m_nTimeLeft, m_bTimedLevel, false);
+		m_sTextToCopy = QString::fromLatin1(
+			timestring(m_nLevelNum,
+				sTitle.toLatin1().constData(),
+				m_nTimeLeft, m_bTimedLevel, false));
 
 		msgBox.addButton("&Onward!", QMessageBox::AcceptRole);
 		QPushButton* pBtnRestart = msgBox.addButton("&Restart", QMessageBox::AcceptRole);
@@ -1117,7 +1117,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 			}
 			
 			msgBox.setTextFormat(Qt::PlainText);
-			msgBox.setText(szMsg);
+			msgBox.setText(QString::fromLatin1(szMsg));
 			// setIcon also causes the corresponding system sound to play
 			// setIconPixmap does not
 			QStyle* pStyle = QApplication::style();
@@ -1157,11 +1157,12 @@ bool TileWorldMainWnd::SetDisplayMsg(const char* szMsg, int nMSecs, int nBoldMSe
 	uint32_t nCurTime = TW_GetTicks();
 	uint32_t msgUntil = nCurTime + nMSecs;
 	uint32_t boldUntil = nCurTime + nBoldMSecs;
-	
-	m_pLblShortMsg->setForegroundRole(QPalette::BrightText);
-	m_pLblShortMsg->setText(szMsg);
+	const QString sMsg = QString::fromLatin1(szMsg);
 
-	m_shortMessages.push_back({szMsg, msgUntil, boldUntil});
+	m_pLblShortMsg->setForegroundRole(QPalette::BrightText);
+	m_pLblShortMsg->setText(sMsg);
+
+	m_shortMessages.push_back({sMsg, msgUntil, boldUntil});
 	return true;
 }
 
@@ -1301,7 +1302,8 @@ int TileWorldMainWnd::DisplayInputPrompt(const char* szPrompt, char* pInput, int
 		case INPUT_YESNO:
 		{
 			QMessageBox::StandardButton eBtn = QMessageBox::question(
-				this, TileWorldApp::s_szTitle, szPrompt, QMessageBox::Yes|QMessageBox::No);
+				this, TileWorldApp::s_sTitle, QString::fromLatin1(szPrompt),
+				QMessageBox::Yes|QMessageBox::No);
 			pInput[0] = (eBtn==QMessageBox::Yes) ? 'Y' : 'N';
 			pInput[1] = '\0';
 			return true;
@@ -1311,7 +1313,8 @@ int TileWorldMainWnd::DisplayInputPrompt(const char* szPrompt, char* pInput, int
 		default:
 		{
 			// TODO: proper validation, maybe embedded prompt
-			QString sText = QInputDialog::getText(this, TileWorldApp::s_szTitle, szPrompt);
+			QString sText = QInputDialog::getText(this, TileWorldApp::s_sTitle,
+				QString::fromLatin1(szPrompt));
 			if (sText.isEmpty())
 				return false;
 			sText.truncate(nMaxLen);
@@ -1346,9 +1349,9 @@ void setsubtitle(char const *subtitle)
 
 void TileWorldMainWnd::SetSubtitle(const char* szSubtitle)
 {
-	QString sTitle = TileWorldApp::s_szTitle;
+	QString sTitle = TileWorldApp::s_sTitle;
 	if (szSubtitle && *szSubtitle)
-		sTitle += " - " + QString(szSubtitle);
+		sTitle += QStringLiteral(" - ") + QString::fromLatin1(szSubtitle);
 	setWindowTitle(sTitle);
 }
 
@@ -1432,8 +1435,8 @@ void readextensions(gameseries *series)
 
 void TileWorldMainWnd::ReadExtensions(gameseries* pSeries)
 {
-	QDir dataDir(seriesdatdir);
-	QString sSetName = QFileInfo(pSeries->mapfilename).completeBaseName();
+	QDir dataDir(QString::fromLocal8Bit(seriesdatdir));
+	QString sSetName = QFileInfo(QString::fromLocal8Bit(pSeries->mapfilename)).completeBaseName();
 	QString sFilePath = dataDir.filePath(sSetName + ".ccx");
 	
 	m_ccxLevelset.Clear();
@@ -1527,8 +1530,8 @@ void TileWorldMainWnd::ShowAbout()
 	{
 		if (i > 0)
 			text += "\n\n";
-	    char const *item = vourzhon->items[2*i + 1];
-		text += (item + 2);  // skip over formatting chars
+		char const *item = vourzhon->items[2*i + 1];
+		text += QString::fromLatin1(item + 2);  // skip over formatting chars
 	}
 	QMessageBox::about(this, "About", text);
 }
