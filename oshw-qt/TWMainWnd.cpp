@@ -133,7 +133,10 @@ void TWTableModel::SetTableSpec(const tablespec* pSpec)
 		ItemInfo ii;
 
 		ii.sText = QString::fromLatin1(p + 2);
-		
+		// The "center dot" character (U+00B7) isn't very visible in
+		// some fonts, so we use U+25CF instead.
+		ii.sText.replace(QChar(0x00B7), QChar(0x25CF));
+
 		char c = p[1];
 		Qt::Alignment ha = (c=='+' ? Qt::AlignRight : c=='.' ? Qt::AlignHCenter : Qt::AlignLeft);
 		ii.align = (ha | Qt::AlignVCenter);
