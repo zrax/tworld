@@ -1614,7 +1614,7 @@ int TileWorldMainWnd::GetTWKeyForAction(QAction* pAction) const
     if (pAction == action_Replace) return TWC_REPLSOLUTION;
     if (pAction == action_Delete) return TWC_KILLSOLUTION;
 
-	if (pAction == action_Keys) return TWC_KEYS;
+    if (pAction == action_Keys) return TWC_KEYS;
     return TWK_dummy;
 }
 
