@@ -245,26 +245,26 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	
 	g_pApp->installEventFilter(this);
 
-	connect(m_pTblList, &QTableView::activated, this, &OnListItemActivated);
-	connect(m_pRadioMs, &QRadioButton::toggled, this, &OnRulesetSwitched);
-	connect(m_pTxtFind, &QLineEdit::textChanged, this, &OnFindTextChanged);
-	connect(m_pTxtFind, &QLineEdit::returnPressed, this, &OnFindReturnPressed);
-	connect(m_pBtnPlay, &QToolButton::clicked, this, &OnPlayback);
-	connect(m_pSldSpeed, &QSlider::valueChanged, this, &OnSpeedValueChanged);
-	connect(m_pSldSpeed, &QSlider::sliderReleased, this, &OnSpeedSliderReleased);
-	connect(m_pSldSeek, &QSlider::valueChanged, this, &OnSeekPosChanged);
-	connect(m_pBtnTextNext, &QToolButton::clicked, this, &OnTextNext);
-	connect(m_pBtnTextPrev, &QToolButton::clicked, this, &OnTextPrev);
-	connect(m_pBtnTextReturn, &QToolButton::clicked, this, &OnTextReturn);
+	connect(m_pTblList, &QTableView::activated, this, &TileWorldMainWnd::OnListItemActivated);
+	connect(m_pRadioMs, &QRadioButton::toggled, this, &TileWorldMainWnd::OnRulesetSwitched);
+	connect(m_pTxtFind, &QLineEdit::textChanged, this, &TileWorldMainWnd::OnFindTextChanged);
+	connect(m_pTxtFind, &QLineEdit::returnPressed, this, &TileWorldMainWnd::OnFindReturnPressed);
+	connect(m_pBtnPlay, &QToolButton::clicked, this, &TileWorldMainWnd::OnPlayback);
+	connect(m_pSldSpeed, &QSlider::valueChanged, this, &TileWorldMainWnd::OnSpeedValueChanged);
+	connect(m_pSldSpeed, &QSlider::sliderReleased, this, &TileWorldMainWnd::OnSpeedSliderReleased);
+	connect(m_pSldSeek, &QSlider::valueChanged, this, &TileWorldMainWnd::OnSeekPosChanged);
+	connect(m_pBtnTextNext, &QToolButton::clicked, this, &TileWorldMainWnd::OnTextNext);
+	connect(m_pBtnTextPrev, &QToolButton::clicked, this, &TileWorldMainWnd::OnTextPrev);
+	connect(m_pBtnTextReturn, &QToolButton::clicked, this, &TileWorldMainWnd::OnTextReturn);
 
-	connect(new QShortcut(Qt::Key_Escape, m_pTextPage), &QShortcut::activated, this, &OnTextReturn);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), &QShortcut::activated, this, &OnTextReturn);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &OnTextNext);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &OnTextPrev);
-	connect(new QShortcut(Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &OnTextNext);
-	connect(new QShortcut(Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &OnTextPrev);
+	connect(new QShortcut(Qt::Key_Escape, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextReturn);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextReturn);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextNext);
+	connect(new QShortcut(Qt::CTRL+Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextPrev);
+	connect(new QShortcut(Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextNext);
+	connect(new QShortcut(Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextPrev);
 	
-	connect(m_pMenuBar, &QMenuBar::triggered, this, &OnMenuActionTriggered);
+	connect(m_pMenuBar, &QMenuBar::triggered, this, &TileWorldMainWnd::OnMenuActionTriggered);
 
 	action_displayCCX->setChecked(getintsetting("displayccx"));
 	action_forceShowTimer->setChecked(getintsetting("forceshowtimer") > 0);
@@ -1079,7 +1079,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		msgBox.addButton(tr("&Onward!"), QMessageBox::AcceptRole);
 		QPushButton* pBtnRestart = msgBox.addButton(tr("&Restart"), QMessageBox::AcceptRole);
 		QPushButton* pBtnCopyScore = msgBox.addButton(tr("&Copy Score"), QMessageBox::ActionRole);
-		connect(pBtnCopyScore, &QPushButton::clicked, this, &OnCopyText);
+		connect(pBtnCopyScore, &QPushButton::clicked, this, &TileWorldMainWnd::OnCopyText);
 		
 		msgBox.exec();
 		ReleaseAllKeys();
