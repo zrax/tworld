@@ -580,7 +580,7 @@ tablespec const *keyboardhelp(int which)
     static tablespec const keyhelp_scroll = { 6, 2, 4, 1, scroll_items };
 
     static char const *twplusplus_items[] = {
-        "1-Key", "1-Action",
+	"1-Key", "1-Action",
 	"1-arrows", "1-move Chip",
 	"1-2 4 6 8 (keypad)", "1-also move Chip",
 	"1-Esc", "1-stop playing the current level",
@@ -590,6 +590,7 @@ tablespec const *keyboardhelp(int which)
 	"1-Ctrl-N", "1-jump to the next level",
 	"1-V", "1-decrease volume",
 	"1-Shift-V", "1-increase volume",
+	"2-",
 	"2-Before level playing starts:",
 	"1-Esc", "1-Go back to list of levelsets",
 	"1-P", "1-jump to the previous level",
@@ -608,6 +609,7 @@ tablespec const *keyboardhelp(int which)
 	"1-O", "1-toggle between even-step and odd-step offset",
 	"1-Shift-O", "1-increment stepping offset (Lynx only)",
 	"1-F", "1-Change initial \"random\" force floor direction (Lynx only)",
+	"2-",
 	"2-During solution playback:",
 	"1-PgUp", "1-Go back about 10 seconds",
 	"1-PgDn", "1-Go forward about 10 seconds",

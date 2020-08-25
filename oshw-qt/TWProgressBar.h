@@ -15,7 +15,7 @@
 class TWProgressBar : public QProgressBar
 {
 public:
-	TWProgressBar(QWidget* pParent = 0);
+	TWProgressBar(QWidget* pParent = nullptr);
 	
 	// These aren't virtual, but we can still get by...
 	void setValue(int nValue);
@@ -34,10 +34,10 @@ public:
 	int isFullBar() const
 		{return m_bFullBar;}
 
-	virtual QString text() const;
+	QString text() const override;
 
-protected:		
-	virtual void paintEvent(QPaintEvent* pPaintEvent);
+protected:
+	void paintEvent(QPaintEvent* pPaintEvent) override;
 
 	int m_nValue, m_nPar;
 	bool m_bParBad;

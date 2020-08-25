@@ -17,16 +17,16 @@
 class TWDisplayWidget : public QWidget
 {
 public:
-	TWDisplayWidget(QWidget* pParent = 0);
+	TWDisplayWidget(QWidget* pParent = nullptr);
 	
 	void setPixmap(const QPixmap& pixmap);
 	const QPixmap* pixmap() const
 		{return &m_pixmap;}
 		
-	virtual QSize sizeHint() const;
+	QSize sizeHint() const override;
 		
 protected:		
-	virtual void paintEvent(QPaintEvent* pPaintEvent);
+	void paintEvent(QPaintEvent* pPaintEvent) override;
 
 	QPixmap m_pixmap;
 };

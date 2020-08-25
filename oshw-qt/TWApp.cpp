@@ -22,7 +22,7 @@ TileWorldApp* g_pApp = 0;
 TileWorldMainWnd* g_pMainWnd = 0;
 
 
-const char TileWorldApp::s_szTitle[] = "Tile World";
+const QString TileWorldApp::s_sTitle = QStringLiteral("Tile World");
 
 
 TileWorldApp::TileWorldApp(int& argc, char** argv)
@@ -83,7 +83,7 @@ bool TileWorldApp::Initialize(bool bSilence, int nSoundBufSize,
 	m_bFullScreen = bFullScreen;
 	
 	g_pMainWnd = new TileWorldMainWnd;
-	g_pMainWnd->setWindowTitle(s_szTitle);
+	g_pMainWnd->setWindowTitle(s_sTitle);
 
 	if ( ! (
 		_generictimerinitialize(bShowHistogram) &&
@@ -132,7 +132,7 @@ void copytoclipboard(char const *text)
 {
 	QClipboard* pClipboard = QApplication::clipboard();
 	if (pClipboard == 0) return;
-	pClipboard->setText(text);
+	pClipboard->setText(QString::fromLatin1(text));
 }
 
 int TileWorldApp::RunTWorld()
@@ -167,9 +167,8 @@ int main(int argc, char *argv[])
 	}
 	
 	TileWorldApp app(argc, argv);
-#ifdef WIN32
-	QApplication::setStyle(QStringLiteral("windows"));	// Vista / XP styles may mess up colors
-#endif
+	QApplication::setStyle(QStringLiteral("fusion"));	// Other styles may mess up colors
+	QApplication::setWindowIcon(QIcon(QStringLiteral(":/tworld2.ico")));
 
 	return app.RunTWorld();
 }

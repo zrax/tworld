@@ -308,7 +308,7 @@ extern "C" uint32_t TW_MapRGBA(const TW_Surface* pSurface, uint8_t r, uint8_t g,
  */
 extern "C" TW_Surface* TW_LoadBMP(const char* szFilename, int bSetScreenPalette)
 {
-	QImage image(szFilename);
+	QImage image(QString::fromLocal8Bit(szFilename));
 	if (image.isNull())
 		return 0;
 	
@@ -331,7 +331,7 @@ extern "C" void TW_DebugSurface(TW_Surface* s, const char* szFilename)
 	++n;
 	
 	Qt_Surface* pSurface = static_cast<Qt_Surface*>(s);
-	QString sNFilename = QString::number(n) + szFilename;
+	QString sNFilename = QString::number(n) + QString::fromLocal8Bit(szFilename);
 	pSurface->GetImage().save(sNFilename);
 	// pSurface->GetImage().createAlphaMask().save(sNFilename);
 }

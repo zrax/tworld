@@ -65,6 +65,7 @@ static int compare_mapfileinfo(void const *a, void const *b)
     return stricmp(((mapfileinfo*)a)->filename, ((mapfileinfo*)b)->filename);
 }
 
+#ifdef TWPLUSPLUS
 /* Remove .dat and .ccl suffixes from the mapfilenames */
 static void removefilenamesuffixes(mfinfovector *v)
 {
@@ -79,6 +80,7 @@ static void removefilenamesuffixes(mfinfovector *v)
 	}
     }
 }
+#endif
 
 /* Mini-structure for finding/generating the series files.
  */

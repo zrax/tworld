@@ -1973,22 +1973,22 @@ static void initialhousekeeping(void)
     }
     verifymap();
 
-    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatStuff) {
+    if (currentinput() >= CmdCheatNorth && currentinput() <= CmdCheatICChip) {
 	switch (currentinput()) {
 	  case CmdCheatNorth:		--yviewoffset();		break;
 	  case CmdCheatWest:		--xviewoffset();		break;
 	  case CmdCheatSouth:		++yviewoffset();		break;
 	  case CmdCheatEast:		++xviewoffset();		break;
 	  case CmdCheatHome:		xviewoffset()=yviewoffset()=0;	break;
-	  case CmdCheatStuff:
-	    possession(Key_Red) = 127;
-	    possession(Key_Blue) = 127;
-	    possession(Key_Yellow) = 127;
-	    possession(Key_Green) = 127;
-	    possession(Boots_Ice) = 127;
-	    possession(Boots_Slide) = 127;
-	    possession(Boots_Fire) = 127;
-	    possession(Boots_Water) = 127;
+	  case CmdCheatKeyRed:		possession(Key_Red) = 127;	break;
+	  case CmdCheatKeyBlue:		possession(Key_Blue) = 127;	break;
+	  case CmdCheatKeyYellow:	possession(Key_Yellow) = 127;	break;
+	  case CmdCheatKeyGreen:	possession(Key_Green) = 127;	break;
+	  case CmdCheatBootsIce:	possession(Boots_Ice) = 127;	break;
+	  case CmdCheatBootsSlide:	possession(Boots_Slide) = 127;	break;
+	  case CmdCheatBootsFire:	possession(Boots_Fire) = 127;	break;
+	  case CmdCheatBootsWater:	possession(Boots_Water) = 127;	break;
+	  case CmdCheatICChip:
 	    chipsneeded() = chipsneeded() ? 0 : 1;
 	    break;
 	}
