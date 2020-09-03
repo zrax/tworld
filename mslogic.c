@@ -1196,13 +1196,6 @@ static int chipmovetogoalpos(void)
 	d1 = d2;
 	d2 = dir;
     }
-    if (cr->state & CS_SLIDE) {
-	if (d1 == cr->dir)
-	    d1 = NIL;
-	if (d2 == cr->dir)
-	    d2 = NIL;
-    } else if (cr->state & CS_SLIP)
-	return NIL;
     if (d1 != NIL && d2 != NIL)
 	dir = canmakemove(cr, d1, 0) ? d1 : d2;
     else
@@ -1248,6 +1241,8 @@ static void choosechipmove(creature *cr, int discard)
     if (cr->hidden)
 	return;
 
+    if (!(currenttime() & 3))
+	cr->state &= ~CS_HASMOVED;
     if (cr->state & CS_HASMOVED) {
 	if (currentinput() != NIL && hasgoal()) {
 	    cancelgoal();
@@ -1258,20 +1253,30 @@ static void choosechipmove(creature *cr, int discard)
 
     dir = currentinput();
     currentinput() = NIL;
+    if (discard || ((cr->state & CS_SLIDE) && dir == cr->dir)) {
+	if (currenttime() && !(currenttime() & 1))
+	    cancelgoal();
+	return;
+    }
+
     if (dir >= CmdAbsMouseMoveFirst && dir <= CmdAbsMouseMoveLast) {
 	goalpos() = dir - CmdAbsMouseMoveFirst;
 	lastmove() = CmdMouseMoveFirst + makemouserelative(goalpos());
+	dir = NIL;
     } else if (dir >= CmdMouseMoveFirst && dir <= CmdMouseMoveLast) {
 	lastmove() = dir;
 	goalpos() = makemouseabsolute(dir - CmdMouseMoveFirst);
+	dir = NIL;
     } else {
 	if ((dir & (NORTH | SOUTH)) && (dir & (EAST | WEST)))
 	    dir &= NORTH | SOUTH;
-	if (discard || ((cr->state & CS_SLIDE) && dir == cr->dir))
-	    return;
 	lastmove() = dir;
-	cr->tdir = dir;
     }
+
+    if (dir == NIL && hasgoal() && (currenttime() & 3) == 2)
+	dir = chipmovetogoalpos();
+
+    cr->tdir = dir;
 }
 
 /* Teleport the given creature instantaneously from the teleport tile
@@ -1752,6 +1757,7 @@ static int advancecreature(creature *cr, int dir)
 	if (cr->id == Chip) {
 	    addsoundeffect(SND_CANT_MOVE);
 	    resetbuttons();
+	    cancelgoal();
 	}
 	return FALSE;
     }
@@ -1761,20 +1767,6 @@ static int advancecreature(creature *cr, int dir)
 	handlebuttons();
 
     return TRUE;
-}
-
-static void domousemove(creature *cr)
-{
-     if (cr->state & CS_HASMOVED) {
-	 cr->state &= ~CS_HASMOVED;
-	 return;
-     }
-     cr->tdir = chipmovetogoalpos();
-     if (cr->tdir) {
-	 if (!advancecreature(cr, cr->tdir))
-	     cancelgoal();
-	 cr->state |= CS_HASMOVED;
-     }
 }
 
 /* Return TRUE if gameplay is over.
@@ -1802,63 +1794,52 @@ static int checkforending(void)
  */
 static void floormovements(void)
 {
-    creature    *cr;
-    int         floor, slipdir;
-    int         savedcount, n, advance;
+    creature   *cr;
+    int		floor, slipdir;
+    int		savedcount, n;
 
-    advance = 0;
-    for (n = 0 ; n < slipcount ; ) {
-        savedcount = slipcount;
-        cr = slips[n].cr;
-        if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE))) {
-            ++n;
-            continue;
-        }
-        slipdir = slips[n].dir;
-        if (slipdir == NIL) {
-            ++n;
-            continue;
-        }
-        if (advance) {
-            --advance;
-            ++n;
-            continue;
-        }
-        if (cr->id == Chip)
-            lastslipdir() = slipdir;
-        if (!advancecreature(cr, slipdir)) {
-            floor = cellat(cr->pos)->bot.id;
-            if (isslide(floor)) {
-                /* nothing */
-            } else if (isice(floor)) {
-                slipdir = icewallturn(floor, back(slipdir));
-                if (cr->id == Chip)
-                    lastslipdir() = slipdir;
-                advancecreature(cr, slipdir);
-            } else if (cr->id == Chip) {
-                if (floor == Teleport || floor == Block_Static) {
-                    lastslipdir() = slipdir = back(slipdir);
-                    advancecreature(cr, slipdir);
-                }
-            }
-            if (cr->state & (CS_SLIP | CS_SLIDE)) {
-                endfloormovement(cr);
-                startfloormovement(cr, cellat(cr->pos)->bot.id);
-            }
-        }
-        if (cr->id == Chip) {
-            /* TSG */
-            domousemove(cr);
-        }
-        if (checkforending())
-            return;
-        if (!(cr->state & (CS_SLIP | CS_SLIDE)) || cr->id == Chip)
-            ++n;
-        else
-            ++advance;
-        if (!(cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip
-                                                && slipcount == savedcount + 1)
-            ++advance;
+    for (n = 0 ; n < slipcount ; ++n) {
+	savedcount = slipcount;
+	cr = slips[n].cr;
+	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
+	    continue;
+	slipdir = slips[n].dir;
+	if (slipdir == NIL)
+	    continue;
+	if (cr->id == Chip)
+	    lastslipdir() = slipdir;
+	if (advancecreature(cr, slipdir)) {
+	    if (cr->id == Chip)
+		cr->state &= ~CS_HASMOVED;
+	} else {
+	    floor = cellat(cr->pos)->bot.id;
+	    if (isslide(floor)) {
+		if (cr->id == Chip)
+		    cr->state &= ~CS_HASMOVED;
+	    } else if (isice(floor)) {
+		slipdir = icewallturn(floor, back(slipdir));
+		if (cr->id == Chip)
+		    lastslipdir() = slipdir;
+		if (advancecreature(cr, slipdir))
+		    if (cr->id == Chip)
+			cr->state &= ~CS_HASMOVED;
+	    } else if (cr->id == Chip) {
+		if (floor == Teleport || floor == Block_Static) {
+		    lastslipdir() = slipdir = back(slipdir);
+		    if (advancecreature(cr, slipdir))
+			cr->state &= ~CS_HASMOVED;
+		}
+	    }
+	    if (cr->state & (CS_SLIP | CS_SLIDE)) {
+		endfloormovement(cr);
+		startfloormovement(cr, cellat(cr->pos)->bot.id);
+	    }
+	}
+	if (checkforending())
+	    return;
+	if (!(cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip
+						&& slipcount == savedcount + 1)
+	    ++n;
     }
 }
 
@@ -2178,16 +2159,8 @@ static int advancegame(gamelogic *logic)
 	controllerdir() = NIL;
 	for (n = 0 ; n < creaturecount ; ++n) {
 	    cr = creatures[n];
-	    if (cr->hidden || (cr->state & CS_CLONING))
+	    if (cr->hidden || (cr->state & CS_CLONING) || cr->id == Chip)
 		continue;
-	    if (cr->id == Chip) {
-		if (!(currenttime() & 3)
-			&& !(cr->state & (CS_SLIP | CS_SLIDE))) {
-		    domousemove(cr);
-		    cr->state &= ~CS_HASMOVED;
-		}
-		continue;
-	    }
 	    choosemove(cr);
 	    if (cr->tdir != NIL)
 		advancecreature(cr, cr->tdir);
@@ -2195,6 +2168,7 @@ static int advancegame(gamelogic *logic)
 	if ((r = checkforending()))
 	    goto done;
     }
+
     if (currenttime() && !(currenttime() & 1)) {
 	floormovements();
 	if ((r = checkforending()))
@@ -2216,11 +2190,9 @@ static int advancegame(gamelogic *logic)
     cr = getchip();
     choosemove(cr);
     if (cr->tdir != NIL) {
-	if (advancecreature(cr, cr->tdir)) {
+	if (advancecreature(cr, cr->tdir))
 	    if ((r = checkforending()))
 		goto done;
-	} else
-	    cancelgoal();
 	cr->state |= CS_HASMOVED;
     }
     updatesliplist();
