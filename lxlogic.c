@@ -1458,6 +1458,7 @@ static int endmovement(creature *cr, int stationary)
 	break;
       case Socket:
         _assert(stationary || chipsneeded() == 0);
+        /* Intentional fall-through */
       case Dirt:
       case BlueWall_Fake:
 	floorat(cr->pos) = Empty; /* No sound effect */
