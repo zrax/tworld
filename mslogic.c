@@ -1804,18 +1804,18 @@ static void floormovements(void)
 	cr = slips[n].cr;
 	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE))) {
 	    ++n;
-            continue;
-        }
+	    continue;
+	}
 	slipdir = slips[n].dir;
-        if (slipdir == NIL) {
-            ++n;
-            continue;
-        }
-        if (advance) {
-            --advance;
-            ++n;
-            continue;
-        }
+	if (slipdir == NIL) {
+	    ++n;
+	    continue;
+	}
+	if (advance) {
+	    --advance;
+	    ++n;
+	    continue;
+	}
 	if (cr->id == Chip)
 	    lastslipdir() = slipdir;
 	if (advancecreature(cr, slipdir)) {
@@ -1847,10 +1847,10 @@ static void floormovements(void)
 	}
 	if (checkforending())
 	    return;
-        if (!(cr->state & (CS_SLIP | CS_SLIDE)) || cr->id == Chip)
-            ++n;
-        else
-            ++advance;
+	if (!(cr->state & (CS_SLIP | CS_SLIDE)) || cr->id == Chip)
+	    ++n;
+	else
+	    ++advance;
 	if (!(cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip
 						&& slipcount == savedcount + 1)
 	    ++advance;

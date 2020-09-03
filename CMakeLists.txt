@@ -128,7 +128,7 @@ endif()
 set_property(SOURCE comptime.h PROPERTY SKIP_AUTOGEN ON)
 target_include_directories(${TWORLD_EXE} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
-        if(WIN32)
+if(WIN32)
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION .)
 else()
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION bin)
