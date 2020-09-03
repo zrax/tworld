@@ -52,7 +52,7 @@ endif()
 
 add_subdirectory(oshw-${OSHW})
 
-add_executable(${TWORLD_EXE} tworld.c)
+add_executable(${TWORLD_EXE} WIN32 tworld.c)
 target_sources(${TWORLD_EXE} PRIVATE
     cmdline.h
     cmdline.c
@@ -101,7 +101,11 @@ if(OSHW STREQUAL "qt")
     target_sources(${TWORLD_EXE} PRIVATE tworld2.qrc)
 endif()
 
-target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW} -mconsole)
+
+target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW})
+if(WIN32)
+    target_link_libraries(${TWORLD_EXE} PRIVATE -mconsole)
+endif()
 
 # Generate the current compile time
 if(WIN32)
@@ -124,7 +128,7 @@ endif()
 set_property(SOURCE comptime.h PROPERTY SKIP_AUTOGEN ON)
 target_include_directories(${TWORLD_EXE} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
-if(WIN32)
+        if(WIN32)
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION .)
 else()
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION bin)
