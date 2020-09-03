@@ -1796,16 +1796,26 @@ static void floormovements(void)
 {
     creature   *cr;
     int		floor, slipdir;
-    int		savedcount, n;
+    int		savedcount, n, advance;
 
-    for (n = 0 ; n < slipcount ; ++n) {
+    advance = 0;
+    for (n = 0 ; n < slipcount ; ) {
 	savedcount = slipcount;
 	cr = slips[n].cr;
-	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE)))
-	    continue;
+	if (!(slips[n].cr->state & (CS_SLIP | CS_SLIDE))) {
+	    ++n;
+            continue;
+        }
 	slipdir = slips[n].dir;
-	if (slipdir == NIL)
-	    continue;
+        if (slipdir == NIL) {
+            ++n;
+            continue;
+        }
+        if (advance) {
+            --advance;
+            ++n;
+            continue;
+        }
 	if (cr->id == Chip)
 	    lastslipdir() = slipdir;
 	if (advancecreature(cr, slipdir)) {
@@ -1837,9 +1847,13 @@ static void floormovements(void)
 	}
 	if (checkforending())
 	    return;
+        if (!(cr->state & (CS_SLIP | CS_SLIDE)) || cr->id == Chip)
+            ++n;
+        else
+            ++advance;
 	if (!(cr->state & (CS_SLIP | CS_SLIDE)) && cr->id != Chip
 						&& slipcount == savedcount + 1)
-	    ++n;
+	    ++advance;
     }
 }
 

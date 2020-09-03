@@ -297,7 +297,7 @@ static void resetkeystates(void)
 	/* KS_DOWN        => */	KS_DOWN,
 	/* KS_STRUCK      => */	KS_OFF,
 	/* KS_PRESSED     => */	KS_DOWNBUTOFF1,
-	/* KS_DOWNBUTOFF1 => */	KS_DOWNBUTOFF2,
+	/* KS_DOWNBUTOFF1 => */	KS_DOWN,
 	/* KS_DOWNBUTOFF2 => */	KS_DOWN,
 	/* KS_DOWNBUTOFF3 => */	KS_DOWN,
 	/* KS_REPEATING   => */	KS_DOWN
