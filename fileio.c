@@ -9,6 +9,7 @@
 #include	<string.h>
 #include	<errno.h>
 #include	<dirent.h>
+#include	<fcntl.h>
 #include	<sys/types.h>
 #include	<sys/stat.h>
 #include	"err.h"
@@ -71,29 +72,22 @@ void clearfileinfo(fileinfo *file)
     file->alloc = FALSE;
 }
 
-/* Hack to get around MinGW (really msvcrt.dll) not supporting 'x' modifier
- * for fopen.
+/* The 'x' modifier (C11) in fopen() is not widely supported as of 2020.
+ * This hack enables its use regardless of the underlying libc.
  */
-#if defined __linux
-#define FOPEN fopen
-#elif defined __MINGW32__
-#include <fcntl.h>
 static FILE *FOPEN(char const *name, char const *mode)
 {
     FILE * file = NULL;
     if (!strcmp(mode, "wx")) {
-        int fd = open(name, O_WRONLY | O_CREAT | O_EXCL);
+	int fd = open(name, O_WRONLY | O_CREAT | O_EXCL);
 	if (fd != -1)
 	    file = fdopen(fd, "w");
     }
     else
-        file = fopen(name, mode);
+	file = fopen(name, mode);
 
     return file;
 }
-#else
-#error Unknown platform
-#endif
 
 /* Open a file. If the fileinfo structure does not already have a
  * filename assigned to it, use name (after making an independent
