@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 
+genericglobals	geng;
 
 Qt_Surface::Qt_Surface()
 {

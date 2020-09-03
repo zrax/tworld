@@ -9,6 +9,8 @@
 #include	"../gen.h"
 #include	"../err.h"
 
+genericglobals	geng;
+
 /* Create a fresh surface. If transparency is true, the surface is
  * created with 32-bit pixels, so as to ensure a complete alpha
  * channel. Otherwise, the surface is created with the same format as

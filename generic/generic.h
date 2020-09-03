@@ -88,7 +88,7 @@ typedef	struct genericglobals
 
 /* generic module's structure of globals.
  */
-extern genericglobals geng;
+OSHW_EXTERN genericglobals geng;
 
 /* Some convenience macros for the above functions.
  */

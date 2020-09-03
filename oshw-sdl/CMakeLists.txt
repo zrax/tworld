@@ -1,7 +1,6 @@
 add_library(oshw-sdl STATIC "")
 target_sources(oshw-sdl PRIVATE
     ../generic/generic.h
-    ../generic/generic.c
     ../generic/in.c
     ../generic/tile.c
     ../generic/timer.c

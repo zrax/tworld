@@ -1,7 +1,6 @@
 add_library(oshw-qt STATIC "")
 target_sources(oshw-qt PRIVATE
     ../generic/generic.h
-    ../generic/generic.c
     ../generic/_in.cpp
     ../generic/tile.c
     ../generic/timer.c
