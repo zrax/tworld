@@ -113,7 +113,6 @@ private:
 	//QAudioOutput* m_pAudioOut;
 	bool m_bEnableAudio;
 	qreal m_fVolume;
-	QThread* m_pSoundThread;
 	QVector<QSoundEffect*> m_sounds;
 
 	uint8_t m_nKeyState[TWK_LAST];

@@ -256,8 +256,6 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	
 	m_pTextBrowser->setSearchPaths(QStringList{ QString::fromLocal8Bit(seriesdatdir) });
 
-	m_pSoundThread = new QThread(this);
-	m_pSoundThread->start();
 	m_sounds.resize(SND_COUNT);
 	/*QAudioFormat audioFormat;
 	audioFormat.setSampleRate(DEFAULT_SND_FREQ);
@@ -303,13 +301,10 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 
 TileWorldMainWnd::~TileWorldMainWnd()
 {
-	m_pSoundThread->quit();
 	g_pApp->removeEventFilter(this);
 
 	TW_FreeSurface(m_pInvSurface);
 	TW_FreeSurface(m_pSurface);
-
-	m_pSoundThread->wait(1000);
 }
 
 
@@ -1419,9 +1414,6 @@ bool TileWorldMainWnd::LoadSoundEffect(int index, const char* szFilename)
 		QSoundEffect* pSoundEffect = new QSoundEffect(this);
 		pSoundEffect->setSource(QUrl::fromLocalFile(QString::fromLocal8Bit(szFilename)));
 		pSoundEffect->setVolume(m_fVolume);
-		if (index >= SND_ONESHOT_COUNT)
-			pSoundEffect->setLoopCount(QSoundEffect::Infinite);
-		pSoundEffect->moveToThread(m_pSoundThread);
 		m_sounds[index] = pSoundEffect;
 	}
 
@@ -1531,8 +1523,10 @@ void TileWorldMainWnd::PlaySoundEffect(int index)
 	QSoundEffect* pSoundEffect = m_sounds[index];
 	if (pSoundEffect)
 	{
+		if (index >= SND_ONESHOT_COUNT)
+			pSoundEffect->setLoopCount(QSoundEffect::Infinite);
 		if (index < SND_ONESHOT_COUNT || !pSoundEffect->isPlaying())
-			QMetaObject::invokeMethod(pSoundEffect, &QSoundEffect::play);
+			pSoundEffect->play();
 	}
 }
 
@@ -1543,7 +1537,7 @@ void TileWorldMainWnd::StopSoundEffect(int index)
 
 	QSoundEffect* pSoundEffect = m_sounds[index];
 	if (pSoundEffect && pSoundEffect->isPlaying())
-		QMetaObject::invokeMethod(pSoundEffect, &QSoundEffect::stop);
+		pSoundEffect->setLoopCount(0);
 }
 
 
