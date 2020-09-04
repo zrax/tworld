@@ -104,7 +104,7 @@ endif()
 
 target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW})
 if(WIN32)
-    target_link_libraries(${TWORLD_EXE} PRIVATE -mconsole)
+    target_link_libraries(${TWORLD_EXE} PRIVATE $<$<CONFIG:Debug>:-mconsole>)
 endif()
 
 # Generate the current compile time
