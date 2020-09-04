@@ -10,23 +10,8 @@
 #include <QBitmap>
 #include <QPainter>
 
-// #include <QTime>
-/*
-#include <QWaitCondition>
-#include <QMutex>
-*/
-
-#ifdef WIN32
-	#include <windows.h>
-#else
-	#include <unistd.h>
-#endif
-
-#include <time.h>
-#include <sys/types.h>
-#include <sys/timeb.h>
-
-#include <stdio.h>
+#include <chrono>
+#include <thread>
 
 genericglobals	geng;
 
@@ -339,39 +324,15 @@ extern "C" void TW_DebugSurface(TW_Surface* s, const char* szFilename)
 // $#@
 
 
+using namespace std::chrono;
+
 extern "C" uint32_t TW_GetTicks(void)
 {
-/*
-	static QTime time;
-	static bool bStarted = false;
-	if (!bStarted)
-	{
-		time.start();
-		bStarted = true;
-	}
-	return time.elapsed();
-*/
-
-	static const time_t t0 = time(0);
-	timeb timeBuf;
-	ftime(&timeBuf);
-	return  (timeBuf.time - t0) * 1000  +  timeBuf.millitm;
+	static const steady_clock::time_point t0 = steady_clock::now();
+	return duration_cast<milliseconds>(steady_clock::now() - t0).count();
 }
-
 
 extern "C" void TW_Delay(uint32_t nMS)
 {
-/*
-	static QWaitCondition waitCond;
-	static QMutex mutex;
-	mutex.lock();
-	waitCond.wait(&mutex, nMS);
-	mutex.unlock();
-*/
-
-#ifdef WIN32
-	Sleep(nMS);
-#else
-	usleep(nMS * 1000);
-#endif
+	std::this_thread::sleep_for(milliseconds(nMS));
 }
