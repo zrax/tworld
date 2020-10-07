@@ -122,7 +122,7 @@ enum
 {
 	TW_BUTTON_LEFT		= Qt::LeftButton,
 	TW_BUTTON_RIGHT		= Qt::RightButton,
-	TW_BUTTON_MIDDLE	= Qt::MidButton
+	TW_BUTTON_MIDDLE	= Qt::MiddleButton
 };
 
 enum

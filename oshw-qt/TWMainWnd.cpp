@@ -258,9 +258,9 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	connect(m_pBtnTextReturn, &QToolButton::clicked, this, &TileWorldMainWnd::OnTextReturn);
 
 	connect(new QShortcut(Qt::Key_Escape, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextReturn);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_R, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextReturn);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextNext);
-	connect(new QShortcut(Qt::CTRL+Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextPrev);
+	connect(new QShortcut(Qt::CTRL|Qt::Key_R, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextReturn);
+	connect(new QShortcut(Qt::CTRL|Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextNext);
+	connect(new QShortcut(Qt::CTRL|Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextPrev);
 	connect(new QShortcut(Qt::Key_N, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextNext);
 	connect(new QShortcut(Qt::Key_P, m_pTextPage), &QShortcut::activated, this, &TileWorldMainWnd::OnTextPrev);
 	
