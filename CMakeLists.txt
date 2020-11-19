@@ -63,7 +63,7 @@ endif()
 
 add_subdirectory(oshw-${OSHW})
 
-add_executable(${TWORLD_EXE} WIN32 tworld.c)
+add_executable(${TWORLD_EXE} WIN32 MACOSX_BUNDLE tworld.c)
 target_sources(${TWORLD_EXE} PRIVATE
     cmdline.h
     cmdline.c
@@ -139,8 +139,11 @@ endif()
 set_property(SOURCE comptime.h PROPERTY SKIP_AUTOGEN ON)
 target_include_directories(${TWORLD_EXE} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
-if(WIN32)
-    install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION .)
+if(WIN32 OR APPLE)
+    install(TARGETS ${TWORLD_EXE}
+            RUNTIME DESTINATION .
+            BUNDLE DESTINATION .
+    )
 else()
     install(TARGETS ${TWORLD_EXE} RUNTIME DESTINATION bin)
 endif()
