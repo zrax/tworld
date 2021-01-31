@@ -4,8 +4,6 @@ target_sources(oshw-qt PRIVATE
     ../generic/_in.cpp
     ../generic/tile.c
     ../generic/timer.c
-    ../oshw-sdl/sdlsfx.h
-    ../oshw-sdl/sdlsfx.c
     oshwbind.h
     oshwbind.cpp
     CCMetaData.h
@@ -25,13 +23,12 @@ target_include_directories(oshw-qt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/generic
-    ${SDL_INCLUDE_DIR}
 )
 
 target_link_libraries(oshw-qt PUBLIC
-    ${SDL_LIBRARY}
     Qt5::Core
     Qt5::Gui
     Qt5::Widgets
+    Qt5::Multimedia
     Qt5::Xml
 )

@@ -20,13 +20,13 @@ else()
     message(FATAL_ERROR "${OSHW} is not a valid OSHW setting")
 endif()
 
-# We still require SDL even for the Qt build...
-find_package(SDL REQUIRED)
-if(OSHW STREQUAL "qt")
+if(OSHW STREQUAL "sdl")
+    find_package(SDL REQUIRED)
+elseif(OSHW STREQUAL "qt")
     set(CMAKE_AUTOUIC TRUE)
     set(CMAKE_AUTOMOC TRUE)
     set(CMAKE_AUTORCC TRUE)
-    find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Xml)
+    find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Multimedia Xml)
     add_definitions(-DTWPLUSPLUS)
 endif()
 
