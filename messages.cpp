@@ -102,7 +102,7 @@ char const *getmessage(int type)
 
     if ((type < 0) || (type >= MessageTypeCount) 
         || typeindex[type].size() == 0)
-        return NULL;
+        return nullptr;
 
     size_t const mnum = typeindex[type][current[type]];
     char const *s = messages[mnum].c_str();

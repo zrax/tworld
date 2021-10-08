@@ -61,7 +61,7 @@ extern int pedanticmode;
 class TWStyledItemDelegate : public QStyledItemDelegate
 {
 public:
-	TWStyledItemDelegate(QObject* pParent = 0)
+	TWStyledItemDelegate(QObject* pParent = nullptr)
 		: QStyledItemDelegate(pParent) {}
 		
 	void paint(QPainter* pPainter, const QStyleOptionViewItem& option,
@@ -83,7 +83,7 @@ void TWStyledItemDelegate::paint(QPainter* pPainter, const QStyleOptionViewItem&
 class TWTableModel : public QAbstractTableModel
 {
 public:
-	TWTableModel(QObject* pParent = 0);
+	TWTableModel(QObject* pParent = nullptr);
 	void SetTableSpec(const tablespec* pSpec);
 	
 	int rowCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -222,7 +222,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_bSetupUi = true;
 	
 	QLayout* pGameLayout = m_pGamePage->layout();
-	if (pGameLayout != 0)
+	if (pGameLayout != nullptr)
 	{
 		pGameLayout->setAlignment(m_pGameFrame, Qt::AlignCenter);
 		pGameLayout->setAlignment(m_pInfoFrame, Qt::AlignCenter);
@@ -403,7 +403,7 @@ bool TileWorldMainWnd::HandleEvent(QObject* pObject, QEvent* pEvent)
 			}
 				
 			bool bConsume = (m_pMainWidget->currentIndex() == PAGE_GAME) &&
-							(QApplication::activeModalWidget() == 0);
+							(QApplication::activeModalWidget() == nullptr);
 			// Only consume keys for the game, not for the tables or the message boxes
 			//  with the exception of a few keys for the table
 			QObjectList const & tableWidgets = m_pTablePage->children();
@@ -494,7 +494,7 @@ extern "C" uint8_t* TW_GetKeyState(int* pnNumKeys)
 
 uint8_t* TileWorldMainWnd::GetKeyState(int* pnNumKeys)
 {
-	if (pnNumKeys != 0)
+	if (pnNumKeys != nullptr)
 		*pnNumKeys = TWK_LAST;
 	return m_nKeyState;
 }
@@ -1000,7 +1000,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 	{
 		QString sTitle = m_pLblTitle->text();
 		QString sAuthor = m_ccxLevelset.vecLevels[m_nLevelNum].sAuthor;
-		const char* szMsg = 0;
+		const char* szMsg = nullptr;
 		if (m_bReplay)
 			szMsg = "Alright!";
 		else
@@ -1228,8 +1228,8 @@ int TileWorldMainWnd::DisplayList(const char* szTitle, const tablespec* pTableSp
 	*pnIndex = proxyModel.mapToSource(m_pTblList->currentIndex()).row();
 
 	SetCurrentPage(PAGE_GAME);
-	m_pTblList->setModel(0);
-	m_pSortFilterProxyModel = 0;
+	m_pTblList->setModel(nullptr);
+	m_pSortFilterProxyModel = nullptr;
   }
 	
   if (m_bWindowClosed) g_pApp->ExitTWorld();
@@ -1433,7 +1433,8 @@ int TileWorldMainWnd::GetSelectedRuleset()
  */
 void readextensions(gameseries *series)
 {
-	if (g_pMainWnd == 0) return;	// happens during batch verify, etc.
+	if (g_pMainWnd == nullptr)
+		return;	// happens during batch verify, etc.
 	g_pMainWnd->ReadExtensions(series);
 }
 
@@ -1490,7 +1491,7 @@ void TileWorldMainWnd::Narrate(CCX::Text CCX::Level::*pmTxt, bool bForce)
 		m_pTextBrowser->setPalette(pal);
 
 		QTextDocument* pDoc = m_pTextBrowser->document();
-		if (pDoc != 0)
+		if (pDoc != nullptr)
 		{
 			if (!m_ccxLevelset.sStyleSheet.isEmpty())
 				pDoc->setDefaultStyleSheet(m_ccxLevelset.sStyleSheet);
@@ -1559,7 +1560,8 @@ void TileWorldMainWnd::OnTextReturn()
 void TileWorldMainWnd::OnCopyText()
 {
 	QClipboard* pClipboard = QApplication::clipboard();
-	if (pClipboard == 0) return;
+	if (pClipboard == nullptr)
+		return;
 	pClipboard->setText(m_sTextToCopy);
 }
 

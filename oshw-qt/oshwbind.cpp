@@ -20,7 +20,7 @@ Qt_Surface::Qt_Surface()
 	w = h = 0;
 	bytesPerPixel = 0;
 	pitch = 0;
-	pixels = 0;
+	pixels = nullptr;
 	m_bColorKeySet = false;
 	m_nColorKey = 0;
 }
@@ -31,7 +31,7 @@ void Qt_Surface::Init(const QPaintDevice& dev)
 	h = dev.height();
 	bytesPerPixel = dev.depth() / 8;
 	pitch = 0;
-	pixels = 0;
+	pixels = nullptr;
 }
 
 void Qt_Surface::InitImage()
@@ -104,7 +104,7 @@ void Qt_Surface::FillRect(const TW_Rect* pDstRect, uint32_t nColor)
 	}
 	
 	m_image = QImage();
-	pixels = 0;
+	pixels = nullptr;
 }
 
 
@@ -126,7 +126,7 @@ void Qt_Surface::BlitSurface(Qt_Surface* pSrc, const TW_Rect* pSrcRect,
 
 	(void)pDst->GetPixmap();
 	pDst->m_image = QImage();
-	pDst->pixels = 0;
+	pDst->pixels = nullptr;
 
 	QPixmap srcPix;
 	if (pSrc->IsColorKeySet())
@@ -296,7 +296,7 @@ extern "C" TW_Surface* TW_LoadBMP(const char* szFilename, int bSetScreenPalette)
 {
 	QImage image(QString::fromLocal8Bit(szFilename));
 	if (image.isNull())
-		return 0;
+		return nullptr;
 	
 	image = image.convertToFormat(QImage::Format_ARGB32);
 	// Doesn't seem to be necessary, but just in case...

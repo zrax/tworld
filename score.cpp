@@ -114,7 +114,7 @@ int createscorelist(gameseries const *series, int usepasswds, char zchar,
     char const **ptrs;
     char       *textheap;
     char       *blank;
-    int	       *levellist = NULL;
+    int	       *levellist = nullptr;
     int		levelscore, timescore;
     long	totalscore;
     int		count;
@@ -239,7 +239,7 @@ int createtimelist(gameseries const *series, int showpartial, char zchar,
     char const	      **ptrs;
     char	       *textheap;
     char	       *untimed;
-    int		       *levellist = NULL;
+    int		       *levellist = nullptr;
     long		leveltime;
     int			count;
     int			used, secs, j, n;

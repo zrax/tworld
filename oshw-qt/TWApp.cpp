@@ -18,8 +18,8 @@
 #include <stdlib.h>
 
 
-TileWorldApp* g_pApp = 0;
-TileWorldMainWnd* g_pMainWnd = 0;
+TileWorldApp* g_pApp = nullptr;
+TileWorldMainWnd* g_pMainWnd = nullptr;
 
 
 const QString TileWorldApp::s_sTitle = QStringLiteral("Tile World");
@@ -41,9 +41,9 @@ TileWorldApp::TileWorldApp(int& argc, char** argv)
 TileWorldApp::~TileWorldApp()
 {
 	delete g_pMainWnd;
-	g_pMainWnd = 0;
+	g_pMainWnd = nullptr;
 
-	g_pApp = 0;
+	g_pApp = nullptr;
 }
 
 
@@ -131,7 +131,8 @@ void freefont(void)
 void copytoclipboard(char const *text)
 {
 	QClipboard* pClipboard = QApplication::clipboard();
-	if (pClipboard == 0) return;
+	if (pClipboard == nullptr)
+		return;
 	pClipboard->setText(QString::fromLatin1(text));
 }
 
@@ -162,7 +163,7 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; ++i)
 	{
 		const char* szArg = argv[i];
-		if (strlen(szArg) == 2  &&  szArg[0] == '-'  &&  strchr("lstbhdvV", szArg[1]) != 0)
+		if (strlen(szArg) == 2  &&  szArg[0] == '-'  &&  strchr("lstbhdvV", szArg[1]) != nullptr)
 			return tworld(argc, argv);
 	}
 	
