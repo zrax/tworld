@@ -4,10 +4,10 @@
  * General Public License. No warranty. See COPYING for details.
  */
 
-#include	<stdio.h>
-#include	<stdlib.h>
-#include	<string.h>
-#include	<math.h>
+#include	<cstdio>
+#include	<cstdlib>
+#include	<cstring>
+#include	<cmath>
 
 #include	<string>
 #include	<sstream>

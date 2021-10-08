@@ -14,8 +14,8 @@
 
 #include <QClipboard>
 
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 
 TileWorldApp* g_pApp = nullptr;

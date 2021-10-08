@@ -55,8 +55,8 @@ extern int pedanticmode;
 
 #include <vector>
 
-#include <string.h>
-#include <ctype.h>
+#include <cstring>
+#include <cctype>
 
 class TWStyledItemDelegate : public QStyledItemDelegate
 {
