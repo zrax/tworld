@@ -35,7 +35,7 @@ struct RulesetCompatibility
 	RulesetCompatibility()
 		: eMS(COMPAT_UNKNOWN), eLynx(COMPAT_UNKNOWN), ePedantic(COMPAT_UNKNOWN) {}
 		
-	void ReadXML(QDomElement elm);
+	void ReadXML(const QDomElement& elm);
 };
 
 enum TextFormat
@@ -57,7 +57,7 @@ struct PageProperties
 		color(Qt::white), bgcolor(Qt::black)
 		{}
 	
-	void ReadXML(QDomElement elm);
+	void ReadXML(const QDomElement& elm);
 };
 
 struct Page
@@ -65,7 +65,7 @@ struct Page
 	QString sText;
 	PageProperties pageProps;
 	
-	void ReadXML(QDomElement elm, const Levelset& levelset);
+	void ReadXML(const QDomElement& elm, const Levelset& levelset);
 };
 
 struct Text
@@ -77,7 +77,7 @@ struct Text
 	Text()
 		: bSeen(false) {}
 
-	void ReadXML(QDomElement elm, const Levelset& levelset);
+	void ReadXML(const QDomElement& elm, const Levelset& levelset);
 };
 
 struct Level
@@ -86,7 +86,7 @@ struct Level
 	RulesetCompatibility ruleCompat;
 	Text txtPrologue, txtEpilogue;
 
-	void ReadXML(QDomElement elm, const Levelset& levelset);
+	void ReadXML(const QDomElement& elm, const Levelset& levelset);
 };
 
 struct Levelset
@@ -100,8 +100,8 @@ struct Levelset
 
 	std::vector<Level> vecLevels;
 
-	void ReadXML(QDomElement elm);
-	bool ReadFile(QString sFilePath, int nLevels);
+	void ReadXML(const QDomElement& elm);
+	bool ReadFile(const QString& sFilePath, int nLevels);
 	void Clear();
 };
 
