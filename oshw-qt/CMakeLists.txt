@@ -30,8 +30,8 @@ target_include_directories(oshw-qt PRIVATE
 
 target_link_libraries(oshw-qt PUBLIC
     ${SDL_LIBRARY}
-    Qt5::Core
-    Qt5::Gui
-    Qt5::Widgets
-    Qt5::Xml
+    Qt::Core
+    Qt::Gui
+    Qt::Widgets
+    Qt::Xml
 )
