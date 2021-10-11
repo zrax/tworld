@@ -765,6 +765,8 @@ static int getsolutionfile(char const *filename, void *data)
     solutiondata       *sdata = data;
     int			n;
 
+    filename = skippathname(filename);
+
     if (!memcmp(filename, sdata->prefix, sdata->prefixlen)) {
 	n = strlen(filename) + 1;
 	x_alloc(sdata->pool, sdata->allocated + n + 2);

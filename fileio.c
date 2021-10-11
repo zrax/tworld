@@ -473,10 +473,12 @@ int openfileindir(fileinfo *file, char const *dir, char const *filename,
 int findfiles(char const *dir, void *data,
 	      int (*filecallback)(char const*, void*))
 {
-    char	       *filename = NULL;
+    char           *filepath = NULL;
     DIR		       *dp;
     struct dirent      *dent;
     int			r;
+    struct stat    st;
+    int         rres;
 
     if (!(dp = opendir(dir))) {
 	fileinfo tmp;
@@ -487,17 +489,19 @@ int findfiles(char const *dir, void *data,
     while ((dent = readdir(dp))) {
 	if (dent->d_name[0] == '.')
 	    continue;
-	x_alloc(filename, strlen(dent->d_name) + 1);
-	strcpy(filename, dent->d_name);
-	r = (*filecallback)(filename, data);
-	if (r < 0)
-	    break;
-	else if (r > 0)
-	    filename = NULL;
+
+    filepath = getpathforfileindir(dir, dent->d_name);
+
+    if (!stat(filepath, &st) && S_ISDIR(st.st_mode)) {
+        if ((rres = findfiles(filepath, data, filecallback)) != TRUE)
+            return rres;
+    }
+    else {
+	    r = (*filecallback)(filepath, data);
+	    if (r < 0)
+    	    break;
     }
 
-    if (filename)
-	free(filename);
     closedir(dp);
     return TRUE;
 }

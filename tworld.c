@@ -1547,6 +1547,9 @@ static void findlevelfromhistory(gamespec *gs, char const *name)
     }
 }
 
+#define OPEN_PAREN (
+#define CLOSED_PAREN )
+
 #define PRODUCE_SINGLE_COLUMN_TABLE(table, heading, data, count, L, R) do { \
     size_t _alloc = 0; \
     _alloc += 3 + strlen(heading); \
@@ -1609,7 +1612,7 @@ static int chooseseries(seriesdata *series, int *pn, int founddefault)
 #else
     tablespec mftable;
     PRODUCE_SINGLE_COLUMN_TABLE(mftable, "Levelset",
-	series->mflist, series->mfcount, , .filename);
+	series->mflist, series->mfcount, skippathname OPEN_PAREN, .filename CLOSED_PAREN);
 
     /* Choose mapfile to be selected by default */
     int n = (founddefault ? findseries(series, *pn) : 0);
