@@ -501,6 +501,7 @@ int findfiles(char const *dir, void *data,
 	    if (r < 0)
     	    break;
     }
+    }
 
     closedir(dp);
     return TRUE;
