@@ -1612,7 +1612,7 @@ static int chooseseries(seriesdata *series, int *pn, int founddefault)
 #else
     tablespec mftable;
     PRODUCE_SINGLE_COLUMN_TABLE(mftable, "Levelset",
-	series->mflist, series->mfcount, skippathname OPEN_PAREN, .filename CLOSED_PAREN);
+	series->mflist, series->mfcount, , .filename);
 
     /* Choose mapfile to be selected by default */
     int n = (founddefault ? findseries(series, *pn) : 0);

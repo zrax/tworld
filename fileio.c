@@ -423,7 +423,7 @@ char *getpathforfileindir(char const *dir, char const *filename)
     int		m, n;
 
     m = strlen(filename);
-    if (!dir || !*dir || strchr(filename, DIRSEP_CHAR)) {
+    if (!dir || !*dir) {
 	if (m > PATH_MAX) {
 	    errno = ENAMETOOLONG;
 	    return NULL;
@@ -452,7 +452,7 @@ int openfileindir(fileinfo *file, char const *dir, char const *filename,
     char	buf[PATH_MAX + 1];
     int		m, n;
 
-    if (!dir || !*dir || strchr(filename, DIRSEP_CHAR))
+    if (!dir || !*dir)
 	return fileopen(file, filename, mode, msg);
 
     n = strlen(dir);
