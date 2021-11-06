@@ -488,7 +488,7 @@ int findfiles(char const *dir, void *data,
 
     while ((dent = readdir(dp))) {
 	if (dent->d_name[0] == '.')
-	    continue;
+        continue;
 
     filepath = getpathforfileindir(dir, dent->d_name);
 
@@ -497,11 +497,13 @@ int findfiles(char const *dir, void *data,
             return rres;
     }
     else {
-	    r = (*filecallback)(filepath, data);
-	    if (r < 0)
-    	    break;
+        r = (*filecallback)(filepath, data);
+        if (r < 0)
+            break;
     }
     }
+
+    free(filepath);
 
     closedir(dp);
     return TRUE;

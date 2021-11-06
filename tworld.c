@@ -1547,9 +1547,6 @@ static void findlevelfromhistory(gamespec *gs, char const *name)
     }
 }
 
-#define OPEN_PAREN (
-#define CLOSED_PAREN )
-
 #define PRODUCE_SINGLE_COLUMN_TABLE(table, heading, data, count, L, R) do { \
     size_t _alloc = 0; \
     _alloc += 3 + strlen(heading); \

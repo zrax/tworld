@@ -516,9 +516,7 @@ static int getseriesfile(char const *ogfilename, void *data)
     unsigned long	magic;
     char	       *datfilename;
     int			config, f;
-	char        *filename = malloc(strlen(ogfilename) - strlen(sdata->curdir));
-
-	strcpy(filename, ogfilename + strlen(sdata->curdir) + 1);
+		char         *filename = ogfilename + strlen(sdata->curdir) + 1;
 
     clearfileinfo(&file);
     if (!openfileindir(&file, sdata->curdir, filename, "rb", "unknown error"))
@@ -610,9 +608,7 @@ static int getmapfile(char const *ogfilename, void *data)
     unsigned long	magic;
     int			f;
 
-	char        *filename = malloc(strlen(ogfilename) - strlen(sdata->curdir));
-
-	strcpy(filename, ogfilename + strlen(sdata->curdir) + 1);
+		char        *filename = ogfilename + strlen(sdata->curdir) + 1;
 
     clearfileinfo(&file);
     if (!openfileindir(&file, sdata->curdir, filename, "rb", "unknown error"))
@@ -728,8 +724,8 @@ static gameseries* createnewseries
     char *newdacname = generatenewdacname(datfile, ruleset);
     int ok = createnewdacfile(newdacname, datfile, ruleset);
     if (!ok) {
-	//errmsg(newdacname, "Attempt to create %s ruleset .dac for %s failed",
-	  // ruleset == Ruleset_MS ? "MS" : "Lynx", datfile->filename);
+	errmsg(newdacname, "Attempt to create %s ruleset .dac for %s failed",
+	  ruleset == Ruleset_MS ? "MS" : "Lynx", datfile->filename);
     }
     if (errno == EEXIST) return NULL;
 
