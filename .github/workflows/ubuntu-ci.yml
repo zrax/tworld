@@ -9,14 +9,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install qtbase5-dev libsdl1.2-dev
+          sudo apt install qt6-base-dev libsdl1.2-dev
       - name: Build tworld (SDL)
         run: |
           mkdir build-sdl && cd build-sdl
           cmake -DCMAKE_BUILD_TYPE=Debug -DOSHW=sdl \
             -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/dist-sdl ..
           make -j2 && make install
-      - name: Build tworld2 (Qt5)
+      - name: Build tworld2 (Qt6)
         run: |
           mkdir build-qt && cd build-qt
           cmake -DCMAKE_BUILD_TYPE=Debug -DOSHW=qt \
