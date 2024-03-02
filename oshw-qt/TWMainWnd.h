@@ -116,6 +116,7 @@ private:
 	int m_nTimeLeft;
 	bool m_bTimedLevel;
 	bool m_bReplay;
+    QString m_author;
 	
 	QSortFilterProxyModel* m_pSortFilterProxyModel;
 	QLocale m_locale;

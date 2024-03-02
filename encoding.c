@@ -282,6 +282,9 @@ static int expandmsdatlevel(gamestate *state)
 	  case 8:
 	    /* field 8 passwd */
 	    break;
+      case 9:
+        /* author field */
+        break;
 	  case 10:
 	    if (size % 2)
 		warn("level %d: ignoring extra byte at end of field 10",

@@ -197,6 +197,7 @@ typedef	struct gamesetup {
     char const	       *unsolvable;	/* why level is unsolvable, or NULL */
     char		name[256];	/* name of the level */
     char		passwd[256];	/* the level's password */
+    char		author[256];	/* the level's author */
 } gamesetup;
 
 /* Flags associated with a saved game.

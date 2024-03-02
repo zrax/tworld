@@ -79,7 +79,7 @@ static FILE *FOPEN(char const *name, char const *mode)
 {
     FILE * file = NULL;
     if (!strcmp(mode, "wx")) {
-	int fd = open(name, O_WRONLY | O_CREAT | O_EXCL);
+	int fd = open(name, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 	if (fd != -1)
 	    file = fdopen(fd, "w");
     }
