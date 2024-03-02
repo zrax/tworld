@@ -11,6 +11,7 @@
 #include "../gen.h"
 #include "../defs.h"
 #include "../oshw.h"
+#include "TWTextCoder.h"
 
 #include <QClipboard>
 
@@ -23,8 +24,6 @@ TileWorldMainWnd* g_pMainWnd = nullptr;
 
 
 const QString TileWorldApp::s_sTitle = QStringLiteral("Tile World");
-QStringDecoder TileWorldApp::s_win1252Decoder = QStringDecoder{"windows-1252"};
-QStringEncoder TileWorldApp::s_win1252Encoder = QStringEncoder{"windows-1252"};
 
 
 TileWorldApp::TileWorldApp(int& argc, char** argv)
@@ -37,9 +36,6 @@ TileWorldApp::TileWorldApp(int& argc, char** argv)
 	m_argv(argv)
 {
 	g_pApp = this;
-    if (!s_win1252Decoder.isValid() || !s_win1252Encoder.isValid()) {
-        throw std::runtime_error{"Unable to construct Windows-1252 encoders and decoders with QStringDecoder & QStringEncoder"};
-    }
 }
 
 
@@ -138,7 +134,7 @@ void copytoclipboard(char const *text)
 	QClipboard* pClipboard = QApplication::clipboard();
 	if (pClipboard == nullptr)
 		return;
-	pClipboard->setText(TileWorldApp::s_win1252Decoder(text));
+	pClipboard->setText(s_textCoder.decode(text));
 }
 
 int TileWorldApp::RunTWorld()

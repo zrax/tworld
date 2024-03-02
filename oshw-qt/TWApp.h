@@ -8,15 +8,11 @@
 class TileWorldMainWnd;
 
 #include <QApplication>
-#include <QStringDecoder>
-#include <QStringEncoder>
 
 class TileWorldApp : public QApplication
 {
 public:
 	static const QString s_sTitle;
-    static QStringDecoder s_win1252Decoder;
-    static QStringEncoder s_win1252Encoder;
 
 	TileWorldApp(int& argc, char** argv);
 	~TileWorldApp();

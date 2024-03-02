@@ -1,4 +1,6 @@
-add_library(oshw-qt STATIC "")
+add_library(oshw-qt STATIC ""
+        TWTextCoder.cpp
+        TWTextCoder.h)
 target_sources(oshw-qt PRIVATE
     ../generic/generic.h
     ../generic/_in.cpp

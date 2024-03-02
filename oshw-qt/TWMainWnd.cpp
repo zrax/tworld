@@ -17,6 +17,7 @@
 #include "../oshw.h"
 #include "../err.h"
 #include "../help.h"
+#include "TWTextCoder.h"
 
 extern int pedanticmode;
 
@@ -132,7 +133,7 @@ void TWTableModel::SetTableSpec(const tablespec* pSpec)
 		const char* p = *pp;
 		ItemInfo ii;
 
-		ii.sText = TileWorldApp::s_win1252Decoder(p + 2);
+		ii.sText = s_textCoder.decode(p + 2);
 		// The "center dot" character (U+00B7) isn't very visible in
 		// some fonts, so we use U+25CF instead.
 		ii.sText.replace(QChar(0x00B7), QChar(0x25CF));
@@ -644,14 +645,14 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 
 		m_pLCDNumber->display(pState->game->number);
 
-		QString sTitle = TileWorldApp::s_win1252Decoder(pState->game->name);
+		QString sTitle = s_textCoder.decode(pState->game->name);
 		m_pLblTitle->setText(sTitle);
 		Qt::AlignmentFlag halign = (m_pLblTitle->sizeHint().width() <= m_pLblTitle->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
 		m_pLblTitle->setAlignment(halign | Qt::AlignVCenter);
 		
-		m_pLblPassword->setText(TileWorldApp::s_win1252Decoder(pState->game->passwd));
+		m_pLblPassword->setText(s_textCoder.decode(pState->game->passwd));
 
-        m_author = TileWorldApp::s_win1252Decoder(pState->game->author);
+        m_author = s_textCoder.decode(pState->game->author);
         if (m_author.isEmpty()) {
             m_author = m_ccxLevelset.vecLevels[m_nLevelNum].sAuthor;
         }
@@ -790,12 +791,12 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		if (bShowInitState && m_bReplay)
 		{
 			if (SetHintMode(HINT_INITSTATE))
-				m_pLblHint->setText(TileWorldApp::s_win1252Decoder(getinitstatestring()));
+				m_pLblHint->setText(s_textCoder.decode(getinitstatestring()));
 		}
 		else if (bShowHint)
 		{
 			if (SetHintMode(HINT_TEXT))
-				m_pLblHint->setText(TileWorldApp::s_win1252Decoder(pState->hinttext));
+				m_pLblHint->setText(s_textCoder.decode(pState->hinttext));
 		}
 		else if (SetHintMode(HINT_EMPTY))
 			m_pLblHint->clear();
@@ -816,7 +817,7 @@ void TileWorldMainWnd::CheckForProblems(const gamestate* pState)
 	{
 		s = tr("This level is reported to be unsolvable");
 		if (*pState->game->unsolvable)
-			s += QStringLiteral(": ") + TileWorldApp::s_win1252Decoder(pState->game->unsolvable);
+			s += QStringLiteral(": ") + s_textCoder.decode(pState->game->unsolvable);
 		s += QLatin1Char('.');
 	}
 	else
@@ -1076,9 +1077,9 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		
 		msgBox.setWindowTitle(m_bReplay ? tr("Replay Completed") : tr("Level Completed"));
 
-		m_sTextToCopy = TileWorldApp::s_win1252Decoder(
+		m_sTextToCopy = s_textCoder.decode(
 			timestring(m_nLevelNum,
-				QByteArray{TileWorldApp::s_win1252Encoder(sTitle)}.constData(),
+                       s_textCoder.encode(sTitle).constData(),
 				m_nTimeLeft, m_bTimedLevel, false));
 
 		msgBox.addButton(tr("&Onward!"), QMessageBox::AcceptRole);
@@ -1128,7 +1129,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 			}
 			
 			msgBox.setTextFormat(Qt::PlainText);
-			msgBox.setText(TileWorldApp::s_win1252Decoder(szMsg));
+			msgBox.setText(s_textCoder.decode(szMsg));
 			// setIcon also causes the corresponding system sound to play
 			// setIconPixmap does not
 			QStyle* pStyle = QApplication::style();
@@ -1168,7 +1169,7 @@ bool TileWorldMainWnd::SetDisplayMsg(const char* szMsg, int nMSecs, int nBoldMSe
 	uint32_t nCurTime = TW_GetTicks();
 	uint32_t msgUntil = nCurTime + nMSecs;
 	uint32_t boldUntil = nCurTime + nBoldMSecs;
-	const QString sMsg = TileWorldApp::s_win1252Decoder(szMsg);
+	const QString sMsg = s_textCoder.decode(szMsg);
 
 	m_pLblShortMsg->setForegroundRole(QPalette::BrightText);
 	m_pLblShortMsg->setText(sMsg);
@@ -1311,7 +1312,7 @@ int TileWorldMainWnd::DisplayInputPrompt(const char* szPrompt, char* pInput, int
 		case INPUT_YESNO:
 		{
 			QMessageBox::StandardButton eBtn = QMessageBox::question(
-				this, TileWorldApp::s_sTitle, TileWorldApp::s_win1252Decoder(szPrompt),
+				this, TileWorldApp::s_sTitle, s_textCoder.decode(szPrompt),
 				QMessageBox::Yes|QMessageBox::No);
 			pInput[0] = (eBtn==QMessageBox::Yes) ? 'Y' : 'N';
 			pInput[1] = '\0';
@@ -1323,13 +1324,13 @@ int TileWorldMainWnd::DisplayInputPrompt(const char* szPrompt, char* pInput, int
 		{
 			// TODO: proper validation, maybe embedded prompt
 			QString sText = QInputDialog::getText(this, TileWorldApp::s_sTitle,
-				TileWorldApp::s_win1252Decoder(szPrompt));
+				s_textCoder.decode(szPrompt));
 			if (sText.isEmpty())
 				return false;
 			sText.truncate(nMaxLen);
 			if (eInputType == INPUT_ALPHA)
 				sText = sText.toUpper();
-			strcpy(pInput, QByteArray{TileWorldApp::s_win1252Encoder(sText)}.constData());
+			strcpy(pInput, s_textCoder.encode(sText).constData());
 			return true;
 		}
 	}
@@ -1360,7 +1361,7 @@ void TileWorldMainWnd::SetSubtitle(const char* szSubtitle)
 {
 	QString sTitle = TileWorldApp::s_sTitle;
 	if (szSubtitle && *szSubtitle)
-		sTitle += QStringLiteral(" - ") + TileWorldApp::s_win1252Decoder(szSubtitle);
+		sTitle += QStringLiteral(" - ") + s_textCoder.decode(szSubtitle);
 	setWindowTitle(sTitle);
 }
 
@@ -1451,7 +1452,7 @@ void TileWorldMainWnd::ReadExtensions(gameseries* pSeries)
 	
 	m_ccxLevelset.Clear();
 	if (!m_ccxLevelset.ReadFile(sFilePath, pSeries->count))
-		warn("%s: failed to read file", QByteArray{TileWorldApp::s_win1252Encoder(sFilePath)}.constData()); //is this printing? this should not be spitting out latin-1 OR windows-1252 if it is
+		warn("%s: failed to read file", s_textCoder.encode(sFilePath).constData()); //is this printing? this should not be spitting out latin-1 OR windows-1252 if it is
 		
 	for (int i = 1; i <= pSeries->count; ++i)
 	{
@@ -1541,7 +1542,7 @@ void TileWorldMainWnd::ShowAbout()
 		if (i > 0)
 			text += QStringLiteral("\n\n");
 		char const *item = vourzhon->items[2*i + 1];
-		text += TileWorldApp::s_win1252Decoder(item + 2);  // skip over formatting chars
+		text += s_textCoder.decode(item + 2);  // skip over formatting chars
 	}
 	QMessageBox::about(this, tr("About"), text);
 }
