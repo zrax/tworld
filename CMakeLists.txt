@@ -65,8 +65,11 @@ if(WIN32)
 else()
     set(SHARE_DIR "${CMAKE_INSTALL_PREFIX}/share/tworld" CACHE STRING
         "Directory for shared files")
-    add_definitions(-DROOTDIR="${SHARE_DIR}")
     add_definitions(-Dstricmp=strcasecmp)
+
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_definitions(-DROOTDIR="${SHARE_DIR}")
+    endif()
 
     install(FILES ${TW_SETS} DESTINATION "${SHARE_DIR}/sets")
     install(FILES ${TW_DATA} DESTINATION "${SHARE_DIR}/data")

@@ -1,0 +1,1044 @@
+<levelset
+    description="Chip's Challenge Level Pack 5"
+    ms="yes" lynx="yes"
+    format="html"
+>
+
+<!-- Lesson Zero -->
+    <level number="1" author="Josh Lee">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    "Chip!" Melinda shouted excitedly.
+                    </p>
+
+                    <p>
+                    Chip McCallahan dashed into the Bit Busters Clubhouse's control room, where his high school sweetheart was waiting to greet him. As he and Melinda embraced, his briefcase snapped open, and the papers inside flew about. It felt like Chip was experiencing slow motion as they floated to the ground.
+                    </p>
+
+                    <p>
+                    "Oh," he said bashfully with a knowing chuckle. "Guess I should've set that down first."
+                    </p>
+
+                    <p>
+                    "No worries!" Melinda replied. "It's so good to see you. What've you got in here anyway?"
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    As they picked up the papers, a wave of memories swept over Chip. It had been years since he first set foot in the clubhouse and completed Melinda's original challenge. He had periodically returned for more as the ranks of the Bit Busters grew, and new levels were made. But life often pulled him and Melinda in different directions. She was still supervising the level design guild of the club, while after a period of solitude at Mental Marvel Monastery, he landed himself a modest job as a teacher at Chip Grove City High School. His new position had brought the two of them together again.
+                    </p>
+
+                    <p>
+                    "Are all these tests from your students?" Melinda asked.
+                    </p>
+
+                    <p>
+                    "Yeah. As much as it can feel tedious to grade these, it's nothing like pushing blocks around in your first clubhouse, you know!" Chip said teasingly.
+                    </p>
+
+                    <p>
+                    "Hey, now," she said. "We've both come a long way since then! And as a teacher, you get to be the new faculty sponsor for the Bit Busters' chapter at Chip Grove City High, right?"
+                    </p>
+
+                    <p>
+                    "That is true," Chip said. The melancholy in his voice was evident. "I love welcoming new recruits into the club and seeing them grow. But sometimes I wish I could come back here more to test out all these new amazing levels you all have worked so hard on."
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    "Well... you might just have your chance. We've been working on a new challenge for some of our most dedicated members! But... there's been an incident."
+                    </p>
+
+                    <p>
+                    "Really?" The spark returned to Chip's voice. "How can I help?"
+                    </p>
+
+                    <p>
+                    "We've started doing something new," explained Melinda. "You know how you used to have to deal with those blobs smothering you when my lab experiments went awry? Now the Bit Busters don't have to worry about that! All the levels have been converted into virtual reality spaces. They're stored in these." Melinda held up something that looked like a miniature crystal ball.
+                    </p>
+
+                    <p>
+                    "What's that thing?" Chip asked.
+                    </p>
+
+                    <p>
+                    "It's a storage device and a portal of sorts, all in one," said Melinda. "Whenever you push this little button here, you get transported into a level! It's kind of like a virtual pocket dimension. You can go through a challenge as many times as you need to, and now without any bodily harm!" Melinda was especially proud of that development.
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    "So today's Bit Busters don't have to get clobbered by those pesky walkers anymore?" Chip wasn't sure how to feel. "I kinda wish this technology was around back in the day!"
+                    </p>
+
+                    <p>
+                    "Me too," Melinda mused as her thoughts also started drifting into the past. Much had happened since she and Chip first went to the e-prom after he completed her first clubhouse all those years ago. "But all we can do is improve what we can and move forward. Right now, the problem is... all the virtual reality bubbles for our new clubhouse got scattered throughout Chip Grove City and the surrounding areas."
+                    </p>
+
+                    <p>
+                    "Really?!" Chip was shocked. "How did that happen?"
+                    </p>
+
+                    <p>
+                    "Well..." Melinda replied sheepishly, "It was my fault. I learned pretty quickly not to store these things out in the open and all in one place. Especially not on the rooftop! They're still in development and can be a little unstable around each other. The combined force was so much that they pushed each other away! But the good news is they can be safely put into these little boxes."
+                    </p> 
+
+                    <p>
+                    "Oooh, shiny!" Chip felt like a little kid holding a new toy as he examined the box.
+                    </p> 
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    "Think of them like little Faraday cages for the bubbles," said Melinda. "They're safe when they're in here. And what's even better is that the bubbles are designed to teleport back into these boxes once the level inside has been completed."
+                    </p>
+
+                    <p>
+                    "I think I got it!" The wheels were starting to turn in Chip's head. "Are you saying that if I go out and find the bubbles and complete the levels inside each one, they'll be zapped back here into these things?"
+                    </p>
+
+                    <p>
+                    "Precisely!" Melinda replied with a smile. "The good news is, most of our Bit Busters have been honing their creativity with these new levels. They're trying out new aesthetics and even experimenting with the layouts of our old designs!"
+                    </p>
+
+                    <p>
+                    "That's cool! But how does that help us?" Chip asked.
+                    </p>
+
+                    <p>
+                    "Because the designs can be a clue to where the bubbles ended up! I've been able to find them using this." Melinda held up another device that looked like a handmade Geiger counter. "I made this little tracker to make sure we didn't lose our new virtual level library to thieves. You remember that incident with Jude, right?"
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    "How could I forget?" Chip started having flashbacks of Melinda's ex, who had infiltrated the Bit Busters many years ago while he was going through one of their new clubhouses.
+                    </p>
+
+                    <p>
+                    "I started discovering the places where the bubbles ended up were very similar to what the levels themselves looked and felt like," she continued. "Maybe they were drawn there like magnets. But because of this, I've been able to map out a route you can take to collect all of them and teleport them back here. Think of it like going through a new clubhouse, just world tour-style!"
+                    </p>
+
+                    <p>
+                    "That sounds like fun!" said Chip. "Where do we get started? Where are we going?"
+                    </p>
+
+                    <p>
+                    "Everything starts and ends here," Melinda responded. "You'll find the first few bubbles in our training area for new recruits, then you'll need to explore Chip Grove City. Beyond that, there's mountains, caves, factories, and even our server room. Then, at the end, you'll venture into... the Mental Marvel Maelstrom. It's my new secret project: a big tower with a gauntlet where we can house our hardest challenges. That's where the last few levels are located."
+                    </p>
+
+                    <p>
+                    "That secret tower project sounds amazing! How many floors are you planning to build? Maybe 264?"
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    "That's a great number, but no, not even close to that many. I just have nine for now. But we'll get there one day. Let's start off with the basics and get you back into action first. I'll keep in touch here and continue supervising the Bit Busters while making sure the bubbles arrive in good condition." Melinda handed Chip an earpiece, which he put on.
+                    </p>
+
+                    <p>
+                    The two looked at each other longingly and basked in the moment. Knowing that the two of them always had each other was such a comforting thought.
+                    </p>
+
+                    <p>
+                    Then Melinda broke the silence. "Good luck, Chip. If anyone can collect these levels and bring them back home, I know you can!"
+                    </p>
+
+                    <p>
+                    Chip began running down the stairs to the training area with a newfound confidence in his step. Seeing Melinda again was always the best motivator, no matter how hard the challenge in front of him was. As he approached the door to the training area he had first experienced so long ago, he saw the first bubble on the ground.
+                    </p>
+
+                    <p>
+                    "This is it," Chip said. He took a deep breath and pushed the button. His latest and greatest adventure was about to begin.
+                    </p>
+                ]]>
+            </page>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 1: Origin Outpost
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Lesson Zero -->
+
+<!-- Multipurpose Tool -->
+    <level number="2" author="J.B. Lewis">
+    </level>
+<!-- Multipurpose Tool -->
+
+<!-- Paparazzi -->
+    <level number="3" author="Jeffrey Bardon">
+    </level>
+<!-- Paparazzi -->
+
+<!-- Key Free -->
+    <level number="4" author="Jeffrey Bardon">
+    </level>
+<!-- Key Free -->
+
+<!-- Fragmented Lamina -->
+    <level number="5" author="Josh Lee">
+    </level>
+<!-- Fragmented Lamina -->
+
+<!-- Choice Tools -->
+    <level number="6" author="Jeffrey Bardon">
+    </level>
+<!-- Choice Tools -->
+
+<!-- Trading Post -->
+    <level number="7" author="Jeffrey Bardon">
+    </level>
+<!-- Trading Post -->
+
+<!-- Trick or Trap -->
+    <level number="8" author="Josh Lee">
+    </level>
+<!-- Trick or Trap -->
+
+<!-- Secret Jungle Laboratory -->
+    <level number="9" author="J.B. Lewis">
+    </level>
+<!-- Secret Jungle Laboratory -->
+
+<!-- Ages Beyond -->
+    <level number="10" author="Jeffrey Bardon">
+    </level>
+<!-- Ages Beyond -->
+
+<!-- Pyramid Scheme -->
+    <level number="11" author="Josh Lee">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 2: Chip Grove City
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Pyramid Scheme -->
+
+<!-- Vault Line -->
+    <level number="12" author="Jeffrey Bardon">
+    </level>
+<!-- Vault Line -->
+
+<!-- Cardboard Cutout -->
+    <level number="13" author="Josh Lee">
+    </level>
+<!-- Cardboard Cutout -->
+
+<!-- High Fidelity Flame -->
+    <level number="14" author="Jeffrey Bardon">
+    </level>
+<!-- High Fidelity Flame -->
+
+<!-- Heterochromia -->
+    <level number="15" author="Josh Lee">
+    </level>
+<!-- Heterochromia -->
+
+<!-- Moving Day -->
+    <level number="16" author="Jeffrey Bardon">
+    </level>
+<!-- Moving Day -->
+
+<!-- There Goes the Neighborhood -->
+    <level number="17" author="Josh Lee">
+    </level>
+<!-- There Goes the Neighborhood -->
+
+<!-- Press Any Button to Continue -->
+    <level number="18" author="Josh Lee">
+    </level>
+<!-- Press Any Button to Continue -->
+
+<!-- Hue and Saturation -->
+    <level number="19" author="Josh Lee">
+    </level>
+<!-- Hue and Saturation -->
+
+<!-- Forbidden Island -->
+    <level number="20" author="J.B. Lewis">
+    </level>
+<!-- Forbidden Island -->
+
+<!-- Slime Sliding -->
+    <level number="21" author="Jeffrey Bardon">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 3: Mountain Mayhem
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Slime Sliding -->
+
+<!-- Capim Town -->
+    <level number="22" author="Josh Lee">
+    </level>
+<!-- Capim Town -->
+
+<!-- Elastic Energy -->
+    <level number="23" author="VT">
+    </level>
+<!-- Elastic Energy -->
+
+<!-- Uphill Battle -->
+    <level number="24" author="Jeffrey Bardon">
+    </level>
+<!-- Uphill Battle -->
+
+<!-- Drops of Jupiter -->
+    <level number="25" author="Josh Lee">
+    </level>
+<!-- Drops of Jupiter -->
+
+<!-- Deephaven -->
+    <level number="26" author="Jeffrey Bardon">
+    </level>
+<!-- Deephaven -->
+
+<!-- Dumbbell Dichotomy -->
+    <level number="27" author="J.B. Lewis">
+    </level>
+<!-- Dumbbell Dichotomy -->
+
+<!-- For Want of a Nail -->
+    <level number="28" author="J.B. Lewis">
+    </level>
+<!-- For Want of a Nail -->
+
+<!-- Sandshaker -->
+    <level number="29" author="Jeffrey Bardon">
+    </level>
+<!-- Sandshaker -->
+
+<!-- Ragged Mountain -->
+    <level number="30" author="Josh Lee">
+    </level>
+<!-- Ragged Mountain -->
+
+<!-- Sealed Chamber -->
+    <level number="31" author="Josh Lee">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 4: Treasure Temple
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Sealed Chamber -->
+
+<!-- Socket Shrine -->
+    <level number="32" author="Josh Lee">
+    </level>
+<!-- Socket Shrine -->
+
+<!-- Terre Haute -->
+    <level number="33" author="J.B. Lewis">
+    </level>
+<!-- Terre Haute -->
+
+<!-- Spirit River -->
+    <level number="34" author="Josh Lee">
+    </level>
+<!-- Spirit River -->
+
+<!-- Fortune Ravine -->
+    <level number="35" author="Josh Lee">
+    </level>
+<!-- Fortune Ravine -->
+
+<!-- Charmed Ridge -->
+    <level number="36" author="Josh Lee">
+    </level>
+<!-- Charmed Ridge -->
+
+<!-- Quantified Nerves -->
+    <level number="37" author="J.B. Lewis">
+    </level>
+<!-- Quantified Nerves -->
+
+<!-- Exit Exaggeration -->
+    <level number="38" author="Josh Lee">
+    </level>
+<!-- Exit Exaggeration -->
+
+<!-- Mysterious Geoglyph -->
+    <level number="39" author="Josh Lee">
+    </level>
+<!-- Mysterious Geoglyph -->
+
+<!-- Wealth and Corruption -->
+    <level number="40" author="Jeffrey Bardon">
+    </level>
+<!-- Wealth and Corruption -->
+
+<!-- The Dividing Line -->
+    <level number="41" author="Indyindeed">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 5: Caverns of Curiosity
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- The Dividing Line -->
+
+<!-- Instigate and Exfiltrate -->
+    <level number="42" author="Andrew Menzies">
+    </level>
+<!-- Instigate and Exfiltrate -->
+
+<!-- Verdant Cavern -->
+    <level number="43" author="Josh Lee">
+    </level>
+<!-- Verdant Cavern -->
+
+<!-- Thunderwave Cave -->
+    <level number="44" author="Josh Lee">
+    </level>
+<!-- Thunderwave Cave -->
+
+<!-- Insert Name Here Caverns -->
+    <level number="45" author="Jeffrey Bardon">
+    </level>
+<!-- Insert Name Here Caverns -->
+
+<!-- Axis Point -->
+    <level number="46" author="Josh Lee">
+    </level>
+<!-- Axis Point -->
+
+<!-- The Toggle Station -->
+    <level number="47" author="Eric Schmidt">
+    </level>
+<!-- The Toggle Station -->
+
+<!-- Tank Game Reborn -->
+    <level number="48" author="Josh Lee">
+    </level>
+<!-- Tank Game Reborn -->
+
+<!-- The Sound of Silence -->
+    <level number="49" author="Jeffrey Bardon">
+    </level>
+<!-- The Sound of Silence -->
+
+<!-- The Unwinding -->
+    <level number="50" author="Joshua Bone">
+    </level>
+<!-- The Unwinding -->
+
+<!-- Nitroglycerin Below 57F -->
+    <level number="51" author="Andrew Menzies">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 6: Factory Frolics
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Nitroglycerin Below 57F -->
+
+<!-- Magma Cone -->
+    <level number="52" author="Josh Lee">
+    </level>
+<!-- Magma Cone -->
+
+<!-- Reproducing -->
+    <level number="53" author="Jeffrey Bardon">
+    </level>
+<!-- Reproducing -->
+
+<!-- The Slaughterhouse Is Open for Business -->
+    <level number="54" author="Josh Lee">
+    </level>
+<!-- The Slaughterhouse Is Open for Business -->
+
+<!-- Dauntless Extraction -->
+    <level number="55" author="Indyindeed">
+    </level>
+<!-- Dauntless Extraction -->
+
+<!-- Smoke Inhalation -->
+    <level number="56" author="Jeffrey Bardon">
+    </level>
+<!-- Smoke Inhalation -->
+
+<!-- Irradiated Radiator -->
+    <level number="57" author="Jeffrey Bardon">
+    </level>
+<!-- Irradiated Radiator -->
+
+<!-- Warehouse of Lost Hopes and Dreams -->
+    <level number="58" author="Josh Lee">
+    </level>
+<!-- Warehouse of Lost Hopes and Dreams -->
+
+<!-- Clone Machine Factory -->
+    <level number="59" author="Josh Lee">
+    </level>
+<!-- Clone Machine Factory -->
+
+<!-- Fuego Ironworks -->
+    <level number="60" author="Josh Lee">
+    </level>
+<!-- Fuego Ironworks -->
+
+<!-- Snowbound -->
+    <level number="61" author="Tyler Sontag">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 7: Wonderous Wasteland
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Snowbound -->
+
+<!-- Unlock Block -->
+    <level number="62" author="J.B. Lewis">
+    </level>
+<!-- Unlock Block -->
+
+<!-- Party Trap -->
+    <level number="63" author="Tyler Sontag">
+    </level>
+<!-- Party Trap -->
+
+<!-- Condemned Facility -->
+    <level number="64" author="Josh Lee">
+    </level>
+<!-- Condemned Facility -->
+
+<!-- The World Has Turned and Left Me Here -->
+    <level number="65" author="Tyler Sontag">
+    </level>
+<!-- The World Has Turned and Left Me Here -->
+
+<!-- Tornado Alley -->
+    <level number="66" author="Jeffrey Bardon">
+    </level>
+<!-- Tornado Alley -->
+
+<!-- Manhattan Stoplight -->
+    <level number="67" author="Andrew Menzies">
+    </level>
+<!-- Manhattan Stoplight -->
+
+<!-- PPPuzzles -->
+    <level number="68" author="Ida R">
+    </level>
+<!-- PPPuzzles -->
+
+<!-- Shady Oasis -->
+    <level number="69" author="Jeffrey Bardon">
+    </level>
+<!-- Shady Oasis -->
+
+<!-- Ski Resort Town -->
+    <level number="70" author="J.B. Lewis">
+    </level>
+<!-- Ski Resort Town -->
+
+<!-- Amethyst Mine -->
+    <level number="71" author="Josh Lee">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 8: Painted Mines
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Amethyst Mine -->
+
+<!-- Miner Setbacks -->
+    <level number="72" author="J.B. Lewis">
+    </level>
+<!-- Miner Setbacks -->
+
+<!-- Three Boot Night -->
+    <level number="73" author="J.B. Lewis">
+    </level>
+<!-- Three Boot Night -->
+
+<!-- Dark Hollow -->
+    <level number="74" author="Jeffrey Bardon">
+    </level>
+<!-- Dark Hollow -->
+
+<!-- Canyon of Lost Color -->
+    <level number="75" author="J.B. Lewis">
+    </level>
+<!-- Canyon of Lost Color -->
+
+<!-- Yellow Fever -->
+    <level number="76" author="Josh Lee">
+    </level>
+<!-- Yellow Fever -->
+
+<!-- Avenues of Zagreb -->
+    <level number="77" author="Ernest Bartulovic">
+    </level>
+<!-- Avenues of Zagreb -->
+
+<!-- Salsa Verde -->
+    <level number="78" author="J.B. Lewis">
+    </level>
+<!-- Salsa Verde -->
+
+<!-- Drawn and Quartered and Quartered -->
+    <level number="79" author="J.B. Lewis">
+    </level>
+<!-- Drawn and Quartered and Quartered -->
+
+<!-- Indigo Lagoon -->
+    <level number="80" author="Jeffrey Bardon">
+    </level>
+<!-- Indigo Lagoon -->
+
+<!-- Numbskull -->
+    <level number="81" author="Tom Brown">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 9: Bit Busters Mainframe
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Numbskull -->
+
+<!-- Encrypted Malware -->
+    <level number="82" author="Josh Lee">
+    </level>
+<!-- Encrypted Malware -->
+
+<!-- Polarity Isle -->
+    <level number="83" author="Jeffrey Bardon">
+    </level>
+<!-- Polarity Isle -->
+
+<!-- Piston It Away -->
+    <level number="84" author="Josh Lee">
+    </level>
+<!-- Piston It Away -->
+
+<!-- Sokoban Adventure -->
+    <level number="85" author="Jeffrey Bardon">
+    </level>
+<!-- Sokoban Adventure -->
+
+<!-- Phantasmal Stalkers -->
+    <level number="86" author="Jeffrey Bardon">
+    </level>
+<!-- Phantasmal Stalkers -->
+
+<!-- Network Corruption -->
+    <level number="87" author="Josh Lee">
+    </level>
+<!-- Network Corruption -->
+
+<!-- Flypaper -->
+    <level number="88" author="Andrew Menzies">
+    </level>
+<!-- Flypaper -->
+
+<!-- Hacking to the Gate -->
+    <level number="89" author="Jeffrey Bardon">
+    </level>
+<!-- Hacking to the Gate -->
+
+<!-- Decrepit Crypt -->
+    <level number="90" author="Jeffrey Bardon">
+    </level>
+<!-- Decrepit Crypt -->
+
+<!-- Airletter Shop -->
+    <level number="91" author="Josh Lee">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 10: Colorful Compound
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Airletter Shop -->
+
+<!-- Glamorous Diamond Downs -->
+    <level number="92" author="Josh Lee">
+    </level>
+<!-- Glamorous Diamond Downs -->
+
+<!-- Shuffling -->
+    <level number="93" author="Zane Kuecks">
+    </level>
+<!-- Shuffling -->
+
+<!-- Feat After Feat -->
+    <level number="94" author="J.B. Lewis">
+    </level>
+<!-- Feat After Feat -->
+
+<!-- Room of Requirement -->
+    <level number="95" author="J.B. Lewis">
+    </level>
+<!-- Room of Requirement -->
+
+<!-- Sour Apple Cider -->
+    <level number="96" author="Jeffrey Bardon">
+    </level>
+<!-- Sour Apple Cider -->
+
+<!-- Color Disaster Inertia -->
+    <level number="97" author="J.B. Lewis">
+    </level>
+<!-- Color Disaster Inertia -->
+
+<!-- Closed Circuit -->
+    <level number="98" author="J.B. Lewis">
+    </level>
+<!-- Closed Circuit -->
+
+<!-- Cosmic Express -->
+    <level number="99" author="Jeffrey Bardon">
+    </level>
+<!-- Cosmic Express -->
+
+<!-- The Most Interesting Block in the World -->
+    <level number="100" author="J.B. Lewis">
+    </level>
+<!-- The Most Interesting Block in the World -->
+
+<!-- Barefoot Bandit -->
+    <level number="101" author="J.B. Lewis">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 11: Pattern Palace
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Barefoot Bandit -->
+
+<!-- Minimalist Art Gallery -->
+    <level number="102" author="J.B. Lewis">
+    </level>
+<!-- Minimalist Art Gallery -->
+
+<!-- Illicit Logging Facility -->
+    <level number="103" author="Jeffrey Bardon">
+    </level>
+<!-- Illicit Logging Facility -->
+
+<!-- Escape the Monotony -->
+    <level number="104" author="VT">
+    </level>
+<!-- Escape the Monotony -->
+
+<!-- Beyond the Facades -->
+    <level number="105" author="J.B. Lewis">
+    </level>
+<!-- Beyond the Facades -->
+
+<!-- Slimefield -->
+    <level number="106" author="Josh Lee">
+    </level>
+<!-- Slimefield -->
+
+<!-- Bento Box -->
+    <level number="107" author="J.B. Lewis">
+    </level>
+<!-- Bento Box -->
+
+<!-- Brown Note -->
+    <level number="108" author="Jeffrey Bardon">
+    </level>
+<!-- Brown Note -->
+
+<!-- Let's Square This Away -->
+    <level number="109" author="J.B. Lewis">
+    </level>
+<!-- Let's Square This Away -->
+
+<!-- Another Perspective -->
+    <level number="110" author="Jeffrey Bardon">
+    </level>
+<!-- Another Perspective -->
+
+<!-- Aquatica -->
+    <level number="111" author="J.B. Lewis">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 12: Ambitious Archipelago
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Aquatica -->
+
+<!-- Melancholia -->
+    <level number="112" author="Tyler Sontag">
+    </level>
+<!-- Melancholia -->
+
+<!-- Power Plant Peril -->
+    <level number="113" author="Josh Lee">
+    </level>
+<!-- Power Plant Peril -->
+
+<!-- A Love for Puzzles -->
+    <level number="114" author="Bouncycles">
+    </level>
+<!-- A Love for Puzzles -->
+
+<!-- Titanic Monarch -->
+    <level number="115" author="Josh Lee">
+    </level>
+<!-- Titanic Monarch -->
+
+<!-- Sho Sheng Shui -->
+    <level number="116" author="Joshua Bone">
+    </level>
+<!-- Sho Sheng Shui -->
+
+<!-- Cluster Two -->
+    <level number="117" author="Rock Genereux">
+    </level>
+<!-- Cluster Two -->
+
+<!-- Lightning Before the Thunder -->
+    <level number="118" author="Andrew Menzies">
+    </level>
+<!-- Lightning Before the Thunder -->
+
+<!-- Unsanitary Waters -->
+    <level number="119" author="Bouncycles">
+    </level>
+<!-- Unsanitary Waters -->
+
+<!-- Fray Manor Isle -->
+    <level number="120" author="Josh Lee">
+    </level>
+<!-- Fray Manor Isle -->
+
+<!-- Lockjaw -->
+    <level number="121" author="Jeffrey Bardon">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 13: Dusty Dry Ruins
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- Lockjaw -->
+
+<!-- Expanding Warehouse -->
+    <level number="122" author="VT">
+    </level>
+<!-- Expanding Warehouse -->
+
+<!-- Sandstorm Shelter -->
+    <level number="123" author="Josh Lee">
+    </level>
+<!-- Sandstorm Shelter -->
+
+<!-- Dig Me Out -->
+    <level number="124" author="Josh Lee">
+    </level>
+<!-- Dig Me Out -->
+
+<!-- Holiday Spirits -->
+    <level number="125" author="Jeffrey Bardon">
+    </level>
+<!-- Holiday Spirits -->
+
+<!-- Master Carpenter -->
+    <level number="126" author="VT">
+    </level>
+<!-- Master Carpenter -->
+
+<!-- Wastelands of Tabora -->
+    <level number="127" author="Jeffrey Bardon">
+    </level>
+<!-- Wastelands of Tabora -->
+
+<!-- Fahrenheit Frenzy -->
+    <level number="128" author="Jeffrey Bardon">
+    </level>
+<!-- Fahrenheit Frenzy -->
+
+<!-- Rundown Railyard -->
+    <level number="129" author="J.B. Lewis">
+    </level>
+<!-- Rundown Railyard -->
+
+<!-- Apocalypse Wow -->
+    <level number="130" author="Josh Lee">
+    </level>
+<!-- Apocalypse Wow -->
+
+<!-- You Break It, You Buy It -->
+    <level number="131" author="J.B. Lewis">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 14: Puzzle Precipice
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- You Break It, You Buy It -->
+
+<!-- Prism Concerto -->
+    <level number="132" author="Jeffrey Bardon">
+    </level>
+<!-- Prism Concerto -->
+
+<!-- Emblazoned Altar -->
+    <level number="133" author="Josh Lee">
+    </level>
+<!-- Emblazoned Altar -->
+
+<!-- Flotsam and Jetsam -->
+    <level number="134" author="J.B. Lewis">
+    </level>
+<!-- Flotsam and Jetsam -->
+
+<!-- Crux of the Matter -->
+    <level number="135" author="Andrew Menzies">
+    </level>
+<!-- Crux of the Matter -->
+
+<!-- Molten Crater -->
+    <level number="136" author="Jeffrey Bardon">
+    </level>
+<!-- Molten Crater -->
+
+<!-- Gravelways -->
+    <level number="137" author="Markus O.">
+    </level>
+<!-- Gravelways -->
+
+<!-- Eternal Engine -->
+    <level number="138" author="Jeremy Christman">
+    </level>
+<!-- Eternal Engine -->
+
+<!-- Udassa -->
+    <level number="139" author="Joshua Bone">
+    </level>
+<!-- Udassa -->
+
+<!-- Yet Another Perspective -->
+    <level number="140" author="VT">
+    </level>
+<!-- Yet Another Perspective -->
+
+<!-- World Revolution -->
+    <level number="141" author="Jeffrey Bardon">
+        <prologue>
+            <page>
+                <![CDATA[
+                    <p>
+                    Now entering World 15: Mental Marvel Maelstrom
+                    </p>
+                ]]>
+            </page>
+        </prologue>
+    </level>
+<!-- World Revolution -->
+
+<!-- Crown Jewels -->
+    <level number="142" author="J.B. Lewis">
+    </level>
+<!-- Crown Jewels -->
+
+<!-- Lagoon of the Low Tide -->
+    <level number="143" author="VT">
+    </level>
+<!-- Lagoon of the Low Tide -->
+
+<!-- Culmina Crater -->
+    <level number="144" author="J.B. Lewis">
+    </level>
+<!-- Culmina Crater -->
+
+<!-- Pardon Our Dust -->
+    <level number="145" author="J.B. Lewis">
+    </level>
+<!-- Pardon Our Dust -->
+
+<!-- Broken Paradise -->
+    <level number="146" author="Josh Lee">
+    </level>
+<!-- Broken Paradise -->
+
+<!-- Lounge Act -->
+    <level number="147" author="Tyler Sontag">
+    </level>
+<!-- Lounge Act -->
+
+<!-- Brute Force -->
+    <level number="148" author="Derek Bowser">
+    </level>
+<!-- Brute Force -->
+
+<!-- Shadow of the Day -->
+    <level number="149" author="Josh Lee">
+    </level>
+<!-- Shadow of the Day -->
+
+</levelset>

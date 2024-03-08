@@ -1,0 +1,118 @@
+body {
+  background: url("dirt.png");
+  color: white;
+  text-shadow: 1px 1px 1px black;
+  font-family: 'Open Sans', Verdana, sans-serif;
+  line-height: 1.5;
+  padding: 0px 20px;
+  margin: 20px auto;
+  max-width: 1000px;
+}
+
+p {
+  text-indent: 1.5em;
+  margin: 0.5em;
+}
+
+h2 {
+  margin: 0.5em 0;
+}
+
+a:link {
+  color:#B2CCFF;
+}
+a:visited {
+  color:#E5CCFF;
+}
+a:active {
+  color:#FF9999;
+}
+
+hr { 
+  display: block;
+  margin-top: 1em;
+  margin-bottom: 0;
+  border-style: inset;
+  border-width: 1px;
+  box-shadow: 1px 1px 1px black;
+}
+
+img {
+  max-width: 800px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 1px 1px 1px black;
+  display: block;
+  margin: 0 auto;
+}
+
+.title {
+  text-align: center;
+}
+
+.rpad {
+  padding-right: 10px;
+}
+
+.small-box {
+  font-size: smaller;
+  text-align: center;
+}
+
+.thanks-header {
+  font-style: italic;
+  text-align: justify;
+  padding-top: 5px;
+}
+
+.thanks-body {
+  padding-left: 1.5em;
+  text-align: justify;
+  padding-bottom: 5px;
+}
+
+.name:hover {
+  font-weight: bold;
+}
+
+.right {
+  text-align: right;
+}
+
+.level-table {
+  margin: 0px auto;
+}
+
+.level-table th {
+  background: black;
+  color: #FFE866;
+  font-weight: bold;
+  
+  padding: 10px;
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: #FFE866;
+  border-left-color: #FFE866;
+  border-bottom-color: #D8C141;
+  border-right-color: #D8C141;
+}
+
+.level-table td {
+  padding: 10px;
+  border-style: solid;
+  border-width: 1px;
+  border-top-color: white;
+  border-left-color: white;
+  border-bottom-color: black;
+  border-right-color: black;
+}
+
+.level-table tr {
+  background: #404040;
+  color: white;
+}
+
+a.secret, a:hover.secret, a:active.secret, a:visited.secret {
+  text-decoration: none;
+  color: white;
+}
