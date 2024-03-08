@@ -134,7 +134,7 @@ void copytoclipboard(char const *text)
 	QClipboard* pClipboard = QApplication::clipboard();
 	if (pClipboard == nullptr)
 		return;
-	pClipboard->setText(s_textCoder.decode(text));
+	pClipboard->setText(TWTextCoder::decode(text));
 }
 
 int TileWorldApp::RunTWorld()
