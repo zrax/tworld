@@ -185,12 +185,14 @@ void *filereadbuf(fileinfo *file, unsigned long size, char const *msg)
 {
     void       *buf;
 
+    if (size == 0) {
+        return NULL;
+    }
+
     if (!(buf = malloc(size))) {
 	fileerr(file, msg);
 	return NULL;
     }
-    if (!size)
-	return buf;
     errno = 0;
     if (fread(buf, size, 1, file->fp) != 1) {
 	fileerr(file, msg);
@@ -342,7 +344,7 @@ char *getpathbuffer(void)
 {
     char       *buf;
 
-    if (!(buf = malloc(PATH_MAX + 1)))
+    if (!(buf = calloc(PATH_MAX + 1, 1)))
 	memerrexit();
     return buf;
 }
