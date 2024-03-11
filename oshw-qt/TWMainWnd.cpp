@@ -649,21 +649,25 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		m_title = TWTextCoder::decode(pState->game->name);
         m_bOFNT = (m_title.compare(QStringLiteral("YOU CAN'T TEACH AN OLD FROG NEW TRICKS"),
                                   Qt::CaseInsensitive) == 0);
-		
-		m_pLblPassword->setText(TWTextCoder::decode(pState->game->passwd));
+
+        m_pLblTitle->setText(m_title);
+        Qt::AlignmentFlag halign = (m_pLblTitle->sizeHint().width() <= m_pLblTitle->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
+        m_pLblTitle->setAlignment(halign | Qt::AlignVCenter);
 
         m_author = TWTextCoder::decode(pState->game->author);
         if (m_author.isEmpty()) {
             m_author = m_ccxLevelset.vecLevels[m_nLevelNum].sAuthor;
         }
-
         if (!m_author.isEmpty()) {
-            m_pLblTitleAuthor->setText(m_title + "\n" + m_author);
+            m_pLblAuthor->setText(m_author);
+            halign = (m_pLblAuthor->sizeHint().width() <= m_pLblAuthor->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
+            m_pLblAuthor->setAlignment(halign | Qt::AlignVCenter);
+            m_pLblAuthor->show();
         } else {
-            m_pLblTitleAuthor->setText(m_title);
+            m_pLblAuthor->hide();
         }
-        Qt::AlignmentFlag halign = (m_pLblTitleAuthor->sizeHint().width() <= m_pLblTitleAuthor->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
-        m_pLblTitleAuthor->setAlignment(halign | Qt::AlignVCenter);
+		
+		m_pLblPassword->setText(TWTextCoder::decode(pState->game->passwd));
 
 		m_pSldSeek->setValue(0);
 		bool bHasSolution = hassolution(pState->game);
