@@ -217,6 +217,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_nTimeLeft(TIME_NIL),
 	m_bTimedLevel(false),
 	m_bReplay(false),
+    m_title(""),
     m_author(""),
 	m_pSortFilterProxyModel()
 {
@@ -645,10 +646,9 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 
 		m_pLCDNumber->display(pState->game->number);
 
-		QString sTitle = TWTextCoder::decode(pState->game->name);
-		m_pLblTitle->setText(sTitle);
-		Qt::AlignmentFlag halign = (m_pLblTitle->sizeHint().width() <= m_pLblTitle->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
-		m_pLblTitle->setAlignment(halign | Qt::AlignVCenter);
+		m_title = TWTextCoder::decode(pState->game->name);
+        m_bOFNT = (m_title.compare(QStringLiteral("YOU CAN'T TEACH AN OLD FROG NEW TRICKS"),
+                                  Qt::CaseInsensitive) == 0);
 		
 		m_pLblPassword->setText(TWTextCoder::decode(pState->game->passwd));
 
@@ -656,9 +656,14 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
         if (m_author.isEmpty()) {
             m_author = m_ccxLevelset.vecLevels[m_nLevelNum].sAuthor;
         }
-		
-		m_bOFNT = (sTitle.compare(QStringLiteral("YOU CAN'T TEACH AN OLD FROG NEW TRICKS"),
-			Qt::CaseInsensitive) == 0);
+
+        if (!m_author.isEmpty()) {
+            m_pLblTitleAuthor->setText(m_title + "\n" + m_author);
+        } else {
+            m_pLblTitleAuthor->setText(m_title);
+        }
+        Qt::AlignmentFlag halign = (m_pLblTitleAuthor->sizeHint().width() <= m_pLblTitleAuthor->width()) ? Qt::AlignHCenter : Qt::AlignLeft;
+        m_pLblTitleAuthor->setAlignment(halign | Qt::AlignVCenter);
 
 		m_pSldSeek->setValue(0);
 		bool bHasSolution = hassolution(pState->game);
@@ -734,7 +739,12 @@ bool TileWorldMainWnd::DisplayGame(const gamestate* pState, int nTimeLeft, int n
 		menu_Game->setEnabled(false);
 		menu_Solution->setEnabled(false);
 		menu_Help->setEnabled(false);
-		action_GoTo->setEnabled(false);
+
+        menu_Game->hide();
+        menu_Solution->hide();
+        menu_Help->hide();
+
+        action_GoTo->setEnabled(false);
 		action_Prologue->setEnabled(false);
 		action_Epilogue->setEnabled(false);
 	}
@@ -1005,7 +1015,6 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 	
 	if (nCompleted > 0)	// Success
 	{
-		QString sTitle = m_pLblTitle->text();
 		const char* szMsg = nullptr;
 		if (m_bReplay)
 			szMsg = "Alright!";
@@ -1022,7 +1031,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		strm
 			<< "<table>"
 			// << "<tr><td><hr></td></tr>"
-			<< "<tr><td><big><b>" << sTitle << "</b></big></td></tr>"
+			<< "<tr><td><big><b>" << m_title << "</b></big></td></tr>"
 			// << "<tr><td><hr></td></tr>"
 			;
 		if (!m_author.isEmpty())
@@ -1079,7 +1088,7 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 
 		m_sTextToCopy = TWTextCoder::decode(
 			timestring(m_nLevelNum,
-                       TWTextCoder::encode(sTitle).constData(),
+                       TWTextCoder::encode(m_title).constData(),
 				m_nTimeLeft, m_bTimedLevel, false));
 
 		msgBox.addButton(tr("&Onward!"), QMessageBox::AcceptRole);
