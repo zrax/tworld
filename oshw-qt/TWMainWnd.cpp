@@ -1102,6 +1102,10 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		
 		msgBox.exec();
 		ReleaseAllKeys();
+
+		// macOS *does* return focus to the main window after closing the
+		// victory dialog; this is here in case that changes
+		this->activateWindow();
 		if (msgBox.clickedButton() == pBtnRestart)
 			return CmdSameLevel;
 			
@@ -1155,6 +1159,9 @@ int TileWorldMainWnd::DisplayEndMessage(int nBaseScore, int nTimeScore, long lTo
 		}
 		msgBox.exec();
 		ReleaseAllKeys();
+		// macOS doesn't return focus to the main window after closing the death
+		// dialog; this fixes that
+		this->activateWindow();
 	}
 	
 	return CmdProceed;
