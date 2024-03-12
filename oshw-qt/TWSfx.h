@@ -4,9 +4,10 @@
 #include <QObject>
 #include <QAudio>
 #include <QAudioFormat>
+#include <QAudioDecoder>
 
-class QFile;
 class QAudioSink;
+class QBuffer;
 
 /* Some generic default settings for the audio output.
  */
@@ -26,8 +27,12 @@ public:
     void setVolume(qreal volume);
 public slots:
     void handleStateChanged(QAudio::State state);
+    void consumeConversionBuffer();
+    void finishConvertingSound();
+    void handleConvertionError(QAudioDecoder::Error err);
 private:
-    QFile* file;
+    QBuffer* buf;
+    QAudioDecoder* decoder;
     QAudioSink* sink;
     bool repeating;
     static constexpr QAudioFormat defaultFormat() {
