@@ -19,6 +19,7 @@ jobs:
       - name: Install SDL2
         run: |
           sudo apt update
+          sudo apt remove libsdl1.2-dev
           sudo apt install libsdl2-dev 
       - name: Build tworld2 (Qt5)
         run: |
