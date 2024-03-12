@@ -28,7 +28,7 @@ if(OSHW STREQUAL "qt")
     set(CMAKE_AUTOUIC TRUE)
     set(CMAKE_AUTOMOC TRUE)
     set(CMAKE_AUTORCC TRUE)
-    # We still use SDL for the Qt build for audio.
+    # We use SDL2 for the Qt build for audio.
     find_package(SDL2 REQUIRED)
     find_package(Qt6 COMPONENTS Core Gui Widgets Xml)
     if(NOT Qt6_FOUND)
