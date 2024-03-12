@@ -20,6 +20,10 @@ else()
     message(FATAL_ERROR "${OSHW} is not a valid OSHW setting")
 endif()
 
+if(OSHW STREQUAL "sdl")
+    find_package(SDL REQUIRED)
+endif()
+
 if(OSHW STREQUAL "qt")
     set(CMAKE_AUTOUIC TRUE)
     set(CMAKE_AUTOMOC TRUE)
