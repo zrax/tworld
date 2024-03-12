@@ -21,6 +21,7 @@ jobs:
       - install-sdl2
     runs-on: ubuntu-latest
     steps:
+     - uses: actions/checkout@v4
      - name: Install QT6
        run: |
         sudo apt update
@@ -37,7 +38,7 @@ jobs:
       - install-sdl2
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: Install QT5
         run: |
           sudo apt update
@@ -52,6 +53,7 @@ jobs:
   build-sdl1:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Install SDL1
         run: |
           sudo apt update
