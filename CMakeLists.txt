@@ -3,7 +3,7 @@
 # Copyright (C) 2020 by Michael Hansen, under the GNU General Public
 # License. No warranty. See COPYING for details.
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(tworld)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -21,7 +21,7 @@ else()
 endif()
 
 # We still require SDL even for the Qt build...
-find_package(SDL REQUIRED)
+find_package(SDL2 REQUIRED)
 if(OSHW STREQUAL "qt")
     set(CMAKE_AUTOUIC TRUE)
     set(CMAKE_AUTOMOC TRUE)
@@ -134,6 +134,7 @@ target_link_libraries(${TWORLD_EXE} PRIVATE oshw-${OSHW})
 if(WIN32)
     target_link_libraries(${TWORLD_EXE} PRIVATE $<$<CONFIG:Debug>:-mconsole>)
 endif()
+target_link_libraries(${TWORLD_EXE} PRIVATE SDL2::SDL2)
 
 # Generate the current compile time
 if(WIN32)
