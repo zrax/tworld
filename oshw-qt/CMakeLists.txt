@@ -1,13 +1,12 @@
 add_library(oshw-qt STATIC ""
         TWTextCoder.cpp
-        TWTextCoder.h)
+        TWTextCoder.h
+        TWSfx.h TWSfx.cpp)
 target_sources(oshw-qt PRIVATE
     ../generic/generic.h
     ../generic/_in.cpp
     ../generic/tile.c
     ../generic/timer.c
-    ../oshw-sdl/sdlsfx.h
-    ../oshw-sdl/sdlsfx.c
     oshwbind.h
     oshwbind.cpp
     CCMetaData.h
@@ -27,13 +26,13 @@ target_include_directories(oshw-qt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/generic
-    ${SDL_INCLUDE_DIR}
 )
 
 target_link_libraries(oshw-qt PUBLIC
     ${SDL_LIBRARY}
     Qt::Core
     Qt::Gui
+    Qt::Multimedia
     Qt::Widgets
     Qt::Xml
 )
