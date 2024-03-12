@@ -14,7 +14,7 @@ class QAudioSink;
 #define DEFAULT_SND_CHAN	1
 #define DEFAULT_SND_FORM	QAudioFormat::Int16
 
-class TWSfx: QObject
+class TWSfx : public QObject
 {
     Q_OBJECT
 public:
@@ -23,7 +23,6 @@ public:
     void stop();
     void pause();
     void resume();
-    void deleteLater();
     void setVolume(qreal volume);
 public slots:
     void handleStateChanged(QAudio::State state);
