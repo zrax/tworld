@@ -21,6 +21,7 @@
 #include <QMainWindow>
 
 #include <QLocale>
+#include <QThread>
 
 #include "TWSfx.h"
 
@@ -65,13 +66,13 @@ public:
 	int GetSelectedRuleset();
 	void SetSubtitle(const char* szSubtitle);
 
-	void EnableAudio(bool bEnabled);
-	bool LoadSoundEffect(int index, const char* szFilename);
-	void FreeSoundEffect(int index);
-	void PlaySoundEffect(int index);
-	void StopSoundEffect(int index);
-	void SetAudioVolume(qreal fVolume);
-	qreal GetAudioVolume() const { return m_fVolume; }
+    void EnableAudio(bool bEnabled);
+    bool LoadSoundEffect(int index, const char* szFilename);
+    void FreeSoundEffect(int index);
+    void PlaySoundEffect(int index);
+    void StopSoundEffect(int index);
+    void SetAudioVolume(qreal fVolume);
+    qreal GetAudioVolume() const { return m_volume; };
 
 	void ReadExtensions(gameseries* pSeries);
 	void Narrate(CCX::Text CCX::Level::*pmTxt, bool bForce = false);
@@ -103,7 +104,8 @@ private:
 	void ReleaseAllKeys();
 	void PulseKey(int nTWKey);
 	int GetTWKeyForAction(QAction* pAction) const;
-	
+    void InitAudioThread();
+
 	enum HintMode { HINT_EMPTY, HINT_TEXT, HINT_INITSTATE };
 	bool SetHintMode(HintMode newmode);
 
@@ -114,9 +116,9 @@ private:
 	Qt_Surface* m_pInvSurface;
 	TW_Rect m_disploc;
 
-	bool m_bEnableAudio;
-	qreal m_fVolume;
-    QVector<TWSfx*> m_sounds;
+    QThread m_sfxThread;
+    TWSfxManager* m_sfxManager;
+    qreal m_volume;
 
 	uint8_t m_nKeyState[TWK_LAST];
 
@@ -143,6 +145,13 @@ private:
 	CCX::Levelset m_ccxLevelset;
 	
 	QString m_sTextToCopy;
+signals:
+    void enableAudio(bool bEnabled);
+    void loadSoundEffect(int index, QString szFilename);
+    void freeSoundEffect(int index);
+    void playSoundEffect(int index);
+    void stopSoundEffect(int index);
+    void setAudioVolume(qreal fVolume);
 };
 
 

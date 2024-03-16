@@ -205,8 +205,6 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_bWindowClosed(false),
 	m_pSurface(),
 	m_pInvSurface(),
-	m_bEnableAudio(false),
-	m_fVolume(1.0),
 	m_nKeyState(),
 	m_shortMessages(),
 	m_bKbdRepeatEnabled(true),
@@ -234,6 +232,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 		pGameLayout->setAlignment(m_pObjectsFrame, Qt::AlignCenter);
 		pGameLayout->setAlignment(m_pMessagesFrame, Qt::AlignHCenter);
 	}
+    InitAudioThread();
 	
 	QPalette pal = m_pMainWidget->palette();
 	QLinearGradient gradient(0, 0, 1, 1);
@@ -247,8 +246,6 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_pTblList->setItemDelegate(new TWStyledItemDelegate(m_pTblList));
 	
 	m_pTextBrowser->setSearchPaths(QStringList{ QString::fromLocal8Bit(seriesdatdir) });
-
-	m_sounds.resize(SND_COUNT);
 
 	g_pApp->installEventFilter(this);
 
@@ -1399,9 +1396,29 @@ int setaudiosystem(int active)
 	return TRUE;
 }
 
-void TileWorldMainWnd::EnableAudio(bool bEnabled)
+void TileWorldMainWnd::EnableAudio(bool bEnabled) {
+    m_sfxManager->EnableAudio(bEnabled);
+}
+
+void TileWorldMainWnd::InitAudioThread()
 {
-	m_bEnableAudio = bEnabled;
+    bool bEnabled = true;
+    if (bEnabled && !m_sfxManager) {
+        m_sfxManager = new TWSfxManager();
+        connect(this, &TileWorldMainWnd::enableAudio, m_sfxManager, &TWSfxManager::EnableAudio);
+        connect(this, &TileWorldMainWnd::loadSoundEffect, m_sfxManager, &TWSfxManager::LoadSoundEffect);
+        connect(this, &TileWorldMainWnd::freeSoundEffect, m_sfxManager, &TWSfxManager::FreeSoundEffect);
+        connect(this, &TileWorldMainWnd::setAudioVolume, m_sfxManager, &TWSfxManager::SetAudioVolume);
+        connect(this, &TileWorldMainWnd::playSoundEffect, m_sfxManager, &TWSfxManager::PlaySoundEffect);
+        connect(this, &TileWorldMainWnd::stopSoundEffect, m_sfxManager, &TWSfxManager::StopSoundEffect);
+        m_sfxManager->moveToThread(&m_sfxThread);
+        m_sfxThread.start();
+    } else if (!bEnabled && m_sfxManager) {
+        m_sfxManager->deleteLater();
+        m_sfxThread.quit();
+        m_sfxThread.wait();
+        m_sfxManager = nullptr;
+    }
 }
 
 /* Load a single wave file into memory. The wave data is converted to
@@ -1414,16 +1431,11 @@ int loadsfxfromfile(int index, char const *filename)
 
 bool TileWorldMainWnd::LoadSoundEffect(int index, const char* szFilename)
 {
-	if (index < 0 || index >= m_sounds.size())
-		return false;
+    if (index < 0 || index >= SND_COUNT)
+        return false;
 
-	freesfx(index);
-	if (szFilename)
-	{
-        m_sounds[index] = new TWSfx(szFilename, index >= SND_ONESHOT_COUNT, this);
-	}
-
-	return true;
+    emit loadSoundEffect(index, QString::fromLocal8Bit(szFilename));
+    return true;
 }
 
 /* Release all memory for the given sound effect.
@@ -1435,15 +1447,7 @@ void freesfx(int index)
 
 void TileWorldMainWnd::FreeSoundEffect(int index)
 {
-	if (index < 0 || index >= m_sounds.size())
-		return;
-
-	if (m_sounds[index])
-	{
-		// Defer deletion in case the effect is still playing.
-		m_sounds[index]->deleteLater();
-		m_sounds[index] = nullptr;
-	}
+    emit freeSoundEffect(index);
 }
 
 /* Set the current volume level to v. If display is true, the
@@ -1470,12 +1474,8 @@ int setvolume(int v, int display)
 
 void TileWorldMainWnd::SetAudioVolume(qreal fVolume)
 {
-	m_fVolume = fVolume;
-    for (TWSfx* pSoundEffect : m_sounds)
-	{
-		if (pSoundEffect)
-			pSoundEffect->setVolume(fVolume);
-	}
+    m_volume = fVolume;
+    emit setAudioVolume(fVolume);
 }
 
 /* Change the current volume level by delta. If display is true, the
@@ -1523,25 +1523,12 @@ void playsoundeffects(unsigned long sfx)
 
 void TileWorldMainWnd::PlaySoundEffect(int index)
 {
-	if (index < 0 || index >= m_sounds.size())
-		return;
-
-    TWSfx* pSoundEffect = m_sounds[index];
-	if (pSoundEffect)
-	{
-        pSoundEffect->play();
-	}
+    emit playSoundEffect(index);
 }
 
 void TileWorldMainWnd::StopSoundEffect(int index)
 {
-	if (index < 0 || index >= m_sounds.size())
-		return;
-
-    TWSfx* pSoundEffect = m_sounds[index];
-    if (pSoundEffect) {
-        pSoundEffect->stop();
-    }
+    emit stopSoundEffect(index);
 }
 
 

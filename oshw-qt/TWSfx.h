@@ -5,6 +5,7 @@
 #include <QAudio>
 #include <QAudioFormat>
 #include <QAudioDecoder>
+#include <QVector>
 
 class QAudioSink;
 class QBuffer;
@@ -19,7 +20,7 @@ class TWSfx : public QObject
 {
     Q_OBJECT
 public:
-    TWSfx(const char* filename, bool repeating, QObject* parent=nullptr);
+    TWSfx(QString filename, bool repeating, QObject* parent=nullptr);
     void play();
     void stop();
     void pause();
@@ -42,6 +43,24 @@ private:
         format.setSampleFormat(DEFAULT_SND_FORM);
         return format;
     }
+};
+
+class TWSfxManager: public QObject {
+    Q_OBJECT
+public:
+    TWSfxManager(QObject* parent = nullptr);
+private:
+    bool enableAudio;
+    QVector<TWSfx*> sounds;
+
+public slots:
+    void EnableAudio(bool bEnabled);
+    void LoadSoundEffect(int index, QString szFilename);
+    void FreeSoundEffect(int index);
+    void PlaySoundEffect(int index);
+    void StopSoundEffect(int index);
+    void SetAudioVolume(qreal fVolume);
+
 };
 
 #endif // TWSFX_H
