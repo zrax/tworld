@@ -296,7 +296,8 @@ TileWorldMainWnd::~TileWorldMainWnd()
 void TileWorldMainWnd::closeEvent(QCloseEvent* pCloseEvent)
 {
 	QMainWindow::closeEvent(pCloseEvent);
-	m_bWindowClosed = true;
+    InitAudioThread(false);
+    m_bWindowClosed = true;
 
 	if (m_pMainWidget->currentIndex() == PAGE_GAME)
 		g_pApp->ExitTWorld();

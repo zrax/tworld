@@ -6,10 +6,10 @@
 #include <QAudioFormat>
 #include <QAudioDecoder>
 #include <QVector>
+#include <QIODevice>
 
 class QAudioSink;
 class QBuffer;
-class LoopyBuffer;
 
 /* Some generic default settings for the audio output.
  */
@@ -22,23 +22,32 @@ class TWSfx : public QObject
     Q_OBJECT
 public:
     TWSfx(QString filename, bool repeating, QObject* parent=nullptr);
-    void play();
-    void stop();
-    void forceStop();
-    void pause();
-    void resume();
-    void setVolume(qreal volume);
+
+    qint64 pos;
+    bool playing;
+
+    bool repeating;
+    bool finishedDecoding;
+    char* bytes;
+    qint64 len;
 public slots:
-    void handleStateChanged(QAudio::State state);
     void consumeConversionBuffer();
     void finishConvertingSound();
     void handleConvertionError(QAudioDecoder::Error err);
 private:
-    QBuffer* decodeBuf;
-    LoopyBuffer* buf;
     QAudioDecoder* decoder;
-    QAudioSink* sink;
-    bool repeating;
+    QBuffer* buf;
+};
+
+class TWSoundMixer: public QIODevice {
+public:
+    TWSoundMixer(QObject* parent = nullptr);
+    bool isSequential() const;
+
+    void loadSoundEffect(int index, QString szFilename);
+    QVector<TWSfx*> sounds;
+    bool paused;
+
     static constexpr QAudioFormat defaultFormat() {
         QAudioFormat format = QAudioFormat();
         format.setSampleRate(DEFAULT_SND_FREQ);
@@ -46,6 +55,9 @@ private:
         format.setSampleFormat(DEFAULT_SND_FORM);
         return format;
     }
+protected:
+    qint64 readData(char* data, qint64 len);
+    qint64 writeData(const char* data, qint64 len);
 };
 
 class TWSfxManager: public QObject {
@@ -55,12 +67,13 @@ public:
     ~TWSfxManager();
 private:
     bool enableAudio;
-    QVector<TWSfx*> sounds;
+    QAudioSink* sink;
+    TWSoundMixer* mixer;
 
 public slots:
     void EnableAudio(bool bEnabled);
     void LoadSoundEffect(int index, QString szFilename);
-    void SetSoundEffects(int sfx);
+    void SetSoundEffects(unsigned long sfx);
     void StopSoundEffects();
     void SetAudioVolume(qreal fVolume);
     void PauseSoundEffects(bool pause);

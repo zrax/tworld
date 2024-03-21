@@ -12,75 +12,76 @@
 #include <QByteArray>
 #include <QBuffer>
 #include <QSoundEffect>
+#include <QtNumeric>
 
-class LoopyBuffer: public QIODevice {
-public:
-    LoopyBuffer(QByteArray* byteArray, QObject *parent = nullptr);
-    bool seek(qint64 pos);
-    bool loopyEnabled;
-    bool paused;
-protected:
-    qint64 readData(char* data, qint64 len);
-    qint64 writeData(const char* data, qint64 len);
-private:
-    QByteArray byteArr;
-    qint64 offset;
-    qsizetype len;
-    char* bytePtr;
-    void updatePos();
-};
-
-LoopyBuffer::LoopyBuffer(QByteArray* byteArray, QObject *parent): QIODevice(parent), loopyEnabled(false),paused(false) {
-    byteArr = QByteArray(*byteArray);
-    bytePtr = byteArr.data();
-    len = byteArr.length();
-}
-
-bool LoopyBuffer::seek(qint64 pos) {
-    if (pos < 0) return false;
-    if (!loopyEnabled && pos > len) return false;
-    offset = pos % len;
-    return true;
-}
-
-qint64 LoopyBuffer::readData(char *data, qint64 reqLen) {
-    if (paused) return 0;
-    qint64 bytesWritten = 0;
-    qint64 bytesAvalThisLoop = len - offset;
-    if (!loopyEnabled && reqLen > bytesAvalThisLoop) {
-        reqLen = bytesAvalThisLoop;
-    } else while (reqLen > bytesAvalThisLoop) {
-        memcpy(data, bytePtr + offset, bytesAvalThisLoop);
-        data += bytesAvalThisLoop;
-        bytesWritten += bytesAvalThisLoop;
-        reqLen -= bytesAvalThisLoop;
-        offset = 0;
-        bytesAvalThisLoop = len;
+void mixAudio(char* destC, char* srcC, qint64 len) {
+    qint16* dest = (qint16*)destC;
+    qint16* src = (qint16*)srcC;
+    qint64 offset = 0;
+    while (offset * 2 != len) {
+        qint16 res;
+        if (qAddOverflow(src[offset], dest[offset], &res)) {
+            if (src[offset] > 0) res = CHAR_MAX;
+            else res = CHAR_MIN;
+        }
+        dest[offset] = res;
+        offset += 1;
     }
-    memcpy(data, bytePtr + offset, reqLen);
-    offset += reqLen;
-    bytesWritten += reqLen;
-    return bytesWritten;
+}
+
+qint64 TWSoundMixer::readData(char *data, qint64 reqLen) {
+    reqLen = std::min(reqLen, (qint64)(DEFAULT_SND_FREQ / TICKS_PER_SECOND));
+    memset(data, 0, reqLen);
+    if (paused) return reqLen;
+    for (TWSfx* sfx : sounds) {
+        if (!sfx || !sfx->finishedDecoding) continue;
+        if (!sfx->playing && (sfx->pos == 0 || sfx->repeating)) continue;
+        qint64 avalBytes = sfx->len - sfx->pos;
+        if (avalBytes > reqLen) {
+            mixAudio(data, sfx->bytes + sfx->pos, reqLen);
+            sfx->pos += reqLen;
+        } else {
+            mixAudio(data, sfx->bytes + sfx->pos, avalBytes);
+            sfx->pos = 0;
+            if (!sfx->repeating) {
+                sfx->playing = false;
+            } else if (sfx->playing) {
+                while (reqLen - avalBytes >= sfx->len) {
+                    mixAudio(data + avalBytes, sfx->bytes, sfx->len);
+                    avalBytes += sfx->len;
+                }
+                sfx->pos = reqLen - avalBytes;
+                mixAudio(data + avalBytes, sfx->bytes, sfx->pos);
+            }
+        }
+
+    }
+    return reqLen;
 };
 
-qint64 LoopyBuffer::writeData(const char* data, qint64 len) {
+qint64 TWSoundMixer::writeData(const char* data, qint64 len) {
     return 0;
 }
 
-TWSfx::TWSfx(QString filename, bool repeating, QObject* parent): QObject(parent), repeating(repeating) {
-    decodeBuf = new QBuffer(this);
-    decodeBuf->open(QIODevice::ReadWrite);
+bool TWSoundMixer::isSequential() const {
+    return true;
+}
+
+TWSfx::TWSfx(QString filename, bool repeating, QObject* parent): QObject(parent),
+    repeating(repeating),
+    finishedDecoding(false),
+    playing(false),
+    pos(0) {
+    buf = new QBuffer(this);
+    buf->open(QIODevice::ReadWrite);
     decoder = new QAudioDecoder(this);
     connect(decoder, &QAudioDecoder::bufferReady, this, &TWSfx::consumeConversionBuffer);
     connect(decoder, &QAudioDecoder::finished, this, &TWSfx::finishConvertingSound);
     connect(decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), this, &TWSfx::handleConvertionError);
 
-    decoder->setAudioFormat(TWSfx::defaultFormat());
+    decoder->setAudioFormat(TWSoundMixer::defaultFormat());
     decoder->setSource(QUrl::fromLocalFile(filename));
     decoder->start();
-
-    sink = new QAudioSink(QMediaDevices::defaultAudioOutput(), TWSfx::defaultFormat(), this);
-    connect(sink, &QAudioSink::stateChanged, this, &TWSfx::handleStateChanged);
 }
 
 void TWSfx::handleConvertionError(QAudioDecoder::Error err) {
@@ -92,71 +93,33 @@ void TWSfx::consumeConversionBuffer() {
     QAudioBuffer audioBuf = decoder->read();
     audioBuf.detach();
     QByteArray byteArray = QByteArray(audioBuf.constData<char>(), audioBuf.byteCount());
-    decodeBuf->write(byteArray);
+    buf->write(byteArray);
 }
 
 void TWSfx::finishConvertingSound() {
+    len = buf->size();
+    bytes = new char[buf->size()];
+    memcpy(bytes, buf->data().constData(), buf->size());
+    finishedDecoding = true;
+
     decoder->deleteLater();
     decoder = nullptr;
-    decodeBuf->seek(0);
-    QByteArray* data = new QByteArray(decodeBuf->data());
-    buf = new LoopyBuffer(data, this);
-    buf->loopyEnabled = repeating;
-    buf->open(QIODevice::ReadOnly);
+    buf->deleteLater();
+    buf = nullptr;
 }
 
-void TWSfx::play() {
-    if (sink->state() == QAudio::ActiveState && repeating) return;
-    buf->seek(0);
-    buf->paused = false;
-    sink->start(buf);
-}
-
-void TWSfx::stop() {
-    if (sink->state() != QAudio::ActiveState && sink->state() != QAudio::SuspendedState) return;
-    sink->stop();
-}
-
-void TWSfx::forceStop() {
-    if (sink->state() != QAudio::ActiveState && sink->state() != QAudio::SuspendedState) return;
-    sink->stop();
-}
-
-void TWSfx::pause() {
-    if (sink->state() != QAudio::ActiveState) return;
-    buf->paused = true;
-    sink->suspend();
-}
-
-void TWSfx::resume() {
-    if (sink->state() != QAudio::SuspendedState) return;
-    buf->paused = false;
-    sink->resume();
-}
-
-void TWSfx::setVolume(qreal volume) {
-    sink->setVolume(volume);
-}
-
-void TWSfx::handleStateChanged(QAudio::State state) {
-    switch (state) {
-    case QAudio::IdleState:
-        if (repeating) {
-         //   sink->start(buf);
-        } else {
-         //   sink->stop();
-        }
-        break;
-    default:
-        break;
-    }
+TWSoundMixer::TWSoundMixer(QObject* parent) : QIODevice(parent), paused(false) {
+    sounds.resize(SND_COUNT);
 }
 
 TWSfxManager::TWSfxManager(QObject* parent) :
     QObject(parent),
-    enableAudio(false),
-    sounds() {
-    sounds.resize(SND_COUNT);
+    enableAudio(false) {
+    mixer = new TWSoundMixer(this);
+    mixer->open(QIODevice::ReadOnly);
+    sink = new QAudioSink(QMediaDevices::defaultAudioOutput(), TWSoundMixer::defaultFormat(), this);
+    sink->setBufferSize(DEFAULT_SND_FREQ / TICKS_PER_SECOND);
+    sink->start(mixer);
 }
 
 void TWSfxManager::EnableAudio(bool bEnabled) {
@@ -165,57 +128,50 @@ void TWSfxManager::EnableAudio(bool bEnabled) {
 
 void TWSfxManager::LoadSoundEffect(int index, QString szFilename)
 {
-    sounds[index] = new TWSfx(szFilename, index >= SND_ONESHOT_COUNT, this);
+    mixer->sounds[index] = new TWSfx(szFilename, index >= SND_ONESHOT_COUNT, mixer);
 }
 
 TWSfxManager::~TWSfxManager() {
+    sink->stop();
+    mixer->close();
     for (int index = 0; index < SND_COUNT; index++) {
-        if (!sounds[index]) continue;
+        if (!mixer->sounds[index]) continue;
         // Defer deletion in case the effect is still playing.
-        sounds[index]->deleteLater();
-        sounds[index] = nullptr;
+        mixer->sounds[index]->deleteLater();
+        mixer->sounds[index] = nullptr;
     }
 }
 
 void TWSfxManager::SetAudioVolume(qreal fVolume) {
-    for (TWSfx* pSoundEffect : sounds)
-    {
-        if (pSoundEffect)
-            pSoundEffect->setVolume(fVolume);
-    }
+    sink->setVolume(fVolume);
 }
 
-void TWSfxManager::SetSoundEffects(int sfx) {
+void TWSfxManager::SetSoundEffects(unsigned long sfx) {
     int i;
     unsigned long flag;
     for (i = 0, flag = 1u; i < SND_COUNT; ++i, flag <<= 1)
     {
-        TWSfx* sound = sounds[i];
+        TWSfx* sound = mixer->sounds[i];
         if (!sound) continue;
         if (sfx & flag) {
-            sound->play();
+            sound->playing = true;
+            if (!sound->repeating) {
+                sound->pos = 0;
+            }
         } else if (i >= SND_ONESHOT_COUNT) {
-            sound->stop();
+            sound->playing = false;
         }
     }
 }
 
 void TWSfxManager::StopSoundEffects() {
-    for (int i = 0; i < SND_COUNT;i++)
-    {
-        TWSfx* sound = sounds[i];
-        if (!sound) continue;
-        sound->forceStop();
+    for (TWSfx* sfx: mixer->sounds) {
+        if (!sfx) continue;
+        sfx->pos = 0;
+        sfx->playing = false;
     }
 }
 
 void TWSfxManager::PauseSoundEffects(bool pause) {
-    for (TWSfx* sfx: sounds) {
-        if (!sfx) continue;
-        if (pause) {
-            sfx->pause();
-        } else {
-            sfx->resume();
-        }
-    }
+    mixer->paused = pause;
 }
