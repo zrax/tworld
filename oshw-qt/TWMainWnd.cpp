@@ -219,7 +219,8 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 	m_bReplay(false),
     m_title(""),
     m_author(""),
-	m_pSortFilterProxyModel()
+    m_pSortFilterProxyModel(),
+    m_volume(1.0)
 {
 	setupUi(this);
 	m_bSetupUi = true;
@@ -232,7 +233,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 		pGameLayout->setAlignment(m_pObjectsFrame, Qt::AlignCenter);
 		pGameLayout->setAlignment(m_pMessagesFrame, Qt::AlignHCenter);
 	}
-    InitAudioThread();
+    InitAudioThread(true);
 	
 	QPalette pal = m_pMainWidget->palette();
 	QLinearGradient gradient(0, 0, 1, 1);
@@ -285,6 +286,7 @@ TileWorldMainWnd::TileWorldMainWnd(QWidget* pParent, Qt::WindowFlags flags)
 TileWorldMainWnd::~TileWorldMainWnd()
 {
 	g_pApp->removeEventFilter(this);
+    InitAudioThread(false);
 
 	TW_FreeSurface(m_pInvSurface);
 	TW_FreeSurface(m_pSurface);
@@ -1400,20 +1402,19 @@ void TileWorldMainWnd::EnableAudio(bool bEnabled) {
     m_sfxManager->EnableAudio(bEnabled);
 }
 
-void TileWorldMainWnd::InitAudioThread()
+void TileWorldMainWnd::InitAudioThread(bool state)
 {
-    bool bEnabled = true;
-    if (bEnabled && !m_sfxManager) {
+    if (state && !m_sfxManager) {
         m_sfxManager = new TWSfxManager();
         connect(this, &TileWorldMainWnd::enableAudio, m_sfxManager, &TWSfxManager::EnableAudio);
         connect(this, &TileWorldMainWnd::loadSoundEffect, m_sfxManager, &TWSfxManager::LoadSoundEffect);
-        connect(this, &TileWorldMainWnd::freeSoundEffect, m_sfxManager, &TWSfxManager::FreeSoundEffect);
         connect(this, &TileWorldMainWnd::setAudioVolume, m_sfxManager, &TWSfxManager::SetAudioVolume);
-        connect(this, &TileWorldMainWnd::playSoundEffect, m_sfxManager, &TWSfxManager::PlaySoundEffect);
-        connect(this, &TileWorldMainWnd::stopSoundEffect, m_sfxManager, &TWSfxManager::StopSoundEffect);
+        connect(this, &TileWorldMainWnd::setSoundEffects, m_sfxManager, &TWSfxManager::SetSoundEffects);
+        connect(this, &TileWorldMainWnd::stopSoundEffects, m_sfxManager, &TWSfxManager::StopSoundEffects);
+        connect(this, &TileWorldMainWnd::pauseSoundEffects, m_sfxManager, &TWSfxManager::PauseSoundEffects);
         m_sfxManager->moveToThread(&m_sfxThread);
         m_sfxThread.start();
-    } else if (!bEnabled && m_sfxManager) {
+    } else if (!state && m_sfxManager) {
         m_sfxManager->deleteLater();
         m_sfxThread.quit();
         m_sfxThread.wait();
@@ -1442,12 +1443,7 @@ bool TileWorldMainWnd::LoadSoundEffect(int index, const char* szFilename)
  */
 void freesfx(int index)
 {
-	g_pMainWnd->FreeSoundEffect(index);
-}
-
-void TileWorldMainWnd::FreeSoundEffect(int index)
-{
-    emit freeSoundEffect(index);
+    // nothing
 }
 
 /* Set the current volume level to v. If display is true, the
@@ -1494,13 +1490,20 @@ void setsoundeffects(int action)
 {
 	if (action < 0)
 	{
-		for (int i = 0; i < SND_COUNT; ++i)
-			g_pMainWnd->StopSoundEffect(i);
+        g_pMainWnd->StopSoundEffects();
 	}
 	else
 	{
-		// TODO
+        g_pMainWnd->PauseSoundEffects(action == 0);
 	}
+}
+
+void TileWorldMainWnd::StopSoundEffects() {
+    emit stopSoundEffects();
+}
+
+void TileWorldMainWnd::PauseSoundEffects(bool paused) {
+    emit pauseSoundEffects(paused);
 }
 
 /* Select the sounds effects to be played. sfx is a bitmask of sound
@@ -1510,25 +1513,12 @@ void setsoundeffects(int action)
  */
 void playsoundeffects(unsigned long sfx)
 {
-	int i;
-	unsigned long flag;
-	for (i = 0, flag = 1u; i < SND_COUNT; ++i, flag <<= 1)
-	{
-		if (sfx & flag)
-			g_pMainWnd->PlaySoundEffect(i);
-		else if (i >= SND_ONESHOT_COUNT)
-			g_pMainWnd->StopSoundEffect(i);
-	}
+    g_pMainWnd->SetSoundEffects(sfx);
 }
 
-void TileWorldMainWnd::PlaySoundEffect(int index)
+void TileWorldMainWnd::SetSoundEffects(unsigned long sfx)
 {
-    emit playSoundEffect(index);
-}
-
-void TileWorldMainWnd::StopSoundEffect(int index)
-{
-    emit stopSoundEffect(index);
+    emit setSoundEffects(sfx);
 }
 
 

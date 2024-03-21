@@ -9,6 +9,7 @@
 
 class QAudioSink;
 class QBuffer;
+class LoopyBuffer;
 
 /* Some generic default settings for the audio output.
  */
@@ -23,6 +24,7 @@ public:
     TWSfx(QString filename, bool repeating, QObject* parent=nullptr);
     void play();
     void stop();
+    void forceStop();
     void pause();
     void resume();
     void setVolume(qreal volume);
@@ -32,7 +34,8 @@ public slots:
     void finishConvertingSound();
     void handleConvertionError(QAudioDecoder::Error err);
 private:
-    QBuffer* buf;
+    QBuffer* decodeBuf;
+    LoopyBuffer* buf;
     QAudioDecoder* decoder;
     QAudioSink* sink;
     bool repeating;
@@ -49,6 +52,7 @@ class TWSfxManager: public QObject {
     Q_OBJECT
 public:
     TWSfxManager(QObject* parent = nullptr);
+    ~TWSfxManager();
 private:
     bool enableAudio;
     QVector<TWSfx*> sounds;
@@ -56,10 +60,10 @@ private:
 public slots:
     void EnableAudio(bool bEnabled);
     void LoadSoundEffect(int index, QString szFilename);
-    void FreeSoundEffect(int index);
-    void PlaySoundEffect(int index);
-    void StopSoundEffect(int index);
+    void SetSoundEffects(int sfx);
+    void StopSoundEffects();
     void SetAudioVolume(qreal fVolume);
+    void PauseSoundEffects(bool pause);
 
 };
 

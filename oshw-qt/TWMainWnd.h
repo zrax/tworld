@@ -69,10 +69,11 @@ public:
     void EnableAudio(bool bEnabled);
     bool LoadSoundEffect(int index, const char* szFilename);
     void FreeSoundEffect(int index);
-    void PlaySoundEffect(int index);
-    void StopSoundEffect(int index);
+    void SetSoundEffects(unsigned long sfx);
+    void StopSoundEffects();
     void SetAudioVolume(qreal fVolume);
     qreal GetAudioVolume() const { return m_volume; };
+    void PauseSoundEffects(bool pause);
 
 	void ReadExtensions(gameseries* pSeries);
 	void Narrate(CCX::Text CCX::Level::*pmTxt, bool bForce = false);
@@ -104,7 +105,7 @@ private:
 	void ReleaseAllKeys();
 	void PulseKey(int nTWKey);
 	int GetTWKeyForAction(QAction* pAction) const;
-    void InitAudioThread();
+    void InitAudioThread(bool status);
 
 	enum HintMode { HINT_EMPTY, HINT_TEXT, HINT_INITSTATE };
 	bool SetHintMode(HintMode newmode);
@@ -149,9 +150,10 @@ signals:
     void enableAudio(bool bEnabled);
     void loadSoundEffect(int index, QString szFilename);
     void freeSoundEffect(int index);
-    void playSoundEffect(int index);
-    void stopSoundEffect(int index);
+    void setSoundEffects(unsigned long sfx);
+    void stopSoundEffects();
     void setAudioVolume(qreal fVolume);
+    void pauseSoundEffects(bool paused);
 };
 
 
