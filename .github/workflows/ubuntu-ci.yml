@@ -9,7 +9,7 @@ jobs:
       - name: Install QT6
         run: |
           sudo apt update
-          sudo apt install qt6-base-dev qt6-multimedia-dev
+          sudo apt install libglx-dev libgl1-mesa-dev qt6-base-dev qt6-multimedia-dev
       - name: Build tworld2 (Qt6)
         run: |
           mkdir build-qt6 && cd build-qt6
@@ -24,7 +24,7 @@ jobs:
       - name: Install QT5
         run: |
           sudo apt update
-          sudo apt install qtbase5-dev qtmultimedia5-dev
+          sudo apt install libglx-dev libgl1-mesa-dev qtbase5-dev qtmultimedia5-dev
       - name: Build tworld2 (Qt5)
         run: |
           mkdir build-qt5 && cd build-qt5
