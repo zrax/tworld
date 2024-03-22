@@ -32,7 +32,7 @@ target_link_libraries(oshw-qt PUBLIC
     ${SDL_LIBRARY}
     Qt::Core
     Qt::Gui
-    Qt::Multimedia
     Qt::Widgets
     Qt::Xml
+        Qt::Multimedia
 )
