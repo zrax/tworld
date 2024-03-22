@@ -21,7 +21,7 @@ class TWSfx : public QObject
 {
     Q_OBJECT
 public:
-    TWSfx(QString filename, bool repeating, QObject* parent=nullptr);
+    TWSfx(QString const& filename, bool repeating, QObject* parent=nullptr);
 
     qint64 pos;
     bool playing;

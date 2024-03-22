@@ -118,7 +118,7 @@ private:
 	TW_Rect m_disploc;
 
     QThread m_sfxThread;
-    TWSfxManager* m_sfxManager;
+    TWSfxManager* m_sfxManager = nullptr;
     qreal m_volume;
 
 	uint8_t m_nKeyState[TWK_LAST];

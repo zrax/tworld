@@ -67,11 +67,8 @@ bool TWSoundMixer::isSequential() const {
     return true;
 }
 
-TWSfx::TWSfx(QString filename, bool repeating, QObject* parent): QObject(parent),
-    repeating(repeating),
-    finishedDecoding(false),
-    playing(false),
-    pos(0) {
+TWSfx::TWSfx(QString const& filename, bool repeating, QObject* parent): QObject(parent), repeating(repeating),
+        finishedDecoding(false), playing(false), pos(0), bytes{nullptr}, len{0} {
     buf = new QBuffer(this);
     buf->open(QIODevice::ReadWrite);
     decoder = new QAudioDecoder(this);
